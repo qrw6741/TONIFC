@@ -754,42 +754,17 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 # ------------------------------------------------------------------ competitions
 ## Opponents scale with your division AND with how much you win:
 ## every 10 career wins adds a little, and a win streak makes the next bot tougher.
-func experience() -> float: return min(0.12, float(D().stats.wins) * 0.0025)
+func experience() -> float: return min(0.15, float(D().stats.wins) * 0.003)
 func rivals_streak() -> int: return int(D().modes.rivals.get("streak", 0))
 func rivals_strength(div: int) -> float:
-	return min(92.0, 74.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
+	return min(93.0, 76.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
 func rivals_ai(div: int) -> float:
-	return min(1.25, 0.42 + (10 - div) * 0.062 + experience() + min(5, rivals_streak()) * 0.025)
+	return min(1.3, 0.52 + (10 - div) * 0.062 + experience() + min(5, rivals_streak()) * 0.03)
 func ai_label(a: float) -> String:
 	return "Beginner" if a < 0.35 else ("Amateur" if a < 0.5 else ("Semi-Pro" if a < 0.63 else ("Professional" if a < 0.76 else ("World Class" if a < 0.88 else ("Legendary" if a < 0.98 else ("Ultimate" if a < 1.1 else "Ultimate+"))))))
 func rivals_difficulty(div: int) -> String:
 	return ["", "legendary", "legendary", "worldclass", "worldclass", "professional", "professional", "semipro", "semipro", "amateur", "amateur"][div]
-func rivals_record(result: String) -> Dictionary:
-	var r: Dictionary = D().modes.rivals
-	if r.week != week_key(): r.week = week_key(); r.week_wins = 0
-	r.played += 1
-	var msg = ""
-	r.streak = int(r.get("streak", 0)) + 1 if result == "W" else 0
-	if result == "W": r.pts += 3; r.wins += 1; r.week_wins += 1; track("rivals_win")
-	elif result == "D": r.pts += 1
-	else: r.pts -= 1
-	var coins: int = {"W": 900, "D": 450, "L": 200}[result] + (11 - int(r.div)) * 60
-	add("coins", coins, "Division Rivals match")
-	if r.pts >= 10:
-		if r.div > 1:
-			r.div -= 1; msg = "Promoted to %s!" % Data.division(r.div).name
-			grant({"pack": "jumbo" if r.div <= 3 else "premium", "points": 50}, "Rivals promotion")
-			r.best = min(r.best, r.div); history(msg)
-		else:
-			msg = "Elite title!"; add("coins", 20000, "Rivals Elite title")
-		r.pts = 0
-	elif r.pts < 0:
-		if r.div < 10: r.div += 1; msg = "Relegated to " + Data.division(r.div).name; r.pts = 5
-		else: r.pts = 0
-	var qp = Champs.add_qp(result)
-	if qp > 0: msg += (" · " if msg != "" else "") + "+%d Champions Qual. Points (%d/%d)" % [qp, int(Champs.st().qp), Champs.QP_NEED]
-	Save.dirty()
-	return {"coins": coins, "msg": msg}
+func rivals_record(result: String) -> Dictionary: return Rivals.record(result)
 
 const CHAMPS_MATCHES := 10
 func champs_reward(w: int) -> Dictionary:

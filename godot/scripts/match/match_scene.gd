@@ -222,40 +222,80 @@ func _pause() -> void:
 func _resume() -> void:
 	sim.paused = false; UI.in_match = true; Sfx.crowd_level(0.3); prev_in = {}; taps.clear()
 
+## Substitutions: pick a player on the pitch and a substitute — in either order.
+## Focus jumps to the other list after the first pick so it works smoothly with a controller.
 func _subs() -> void:
-	var team: Dictionary = sim.teams[sim.user_side]
-	var st = {"on": -1}
+	var side: String = sim.user_side
+	var team: Dictionary = sim.teams[side]
+	var st = {"on": -1, "bench": -1, "focus": "pitch", "fi": 0}
 	var body = UI.vb(8)
 	var R = {}
+	R.do_sub = func(i: int, j: int):
+		if sim.subs_used[side] >= 5: UI.toast("All 5 substitutions used", "bad"); return
+		var old = team.players[i]; var p: Dictionary = team.bench[j]
+		var nm = sim.make_mp(p, old.side, old.slot, team, team.chem.per[old.slot] if team.get("chem") else 2)
+		nm.x = old.x; nm.y = old.y; nm.face = old.face
+		team.players[i] = nm; sim.all = sim.teams.home.players + sim.teams.away.players
+		team.bench[j] = old.p
+		if sim.ball.owner == old: sim.ball.owner = nm
+		if sim.ctrl == old: sim.ctrl = nm
+		sim.subs_used[side] += 1; sim.msg("%s on for %s" % [Data.short_name(p.name), Data.short_name(old.p.name)], 2.5)
+		Sfx.play("whistle"); UI.toast("%s ON · %s OFF" % [Data.short_name(p.name), Data.short_name(old.p.name)], "good")
+		st.on = -1; st.bench = -1; st.focus = "pitch"; st.fi = i
 	R.draw = func():
-		for c in body.get_children(): c.queue_free()
-		body.add_child(UI.label("Substitutions used: %d/5. Select a player on the pitch, then a substitute." % sim.subs_used[sim.user_side], 13, UI.DIM))
-		var cols = UI.hb(20)
-		var left = UI.vb(4); left.custom_minimum_size.x = 480
+		for c in body.get_children(): body.remove_child(c); c.queue_free()
+		var used: int = sim.subs_used[side]
+		var hint = "Select a player, then the player to swap with (either list first)." if used < 5 else "All 5 substitutions used."
+		body.add_child(UI.hb(10, [UI.bold("Substitutions %d/5" % used, 16, UI.TEAL if used < 5 else UI.RED), UI.label(hint, 13, UI.DIM)]))
+		var cols = UI.hb(24)
+		var left = UI.vb(4, [UI.caps("On the pitch", 10)]); left.custom_minimum_size.x = 500
+		var focus_btn = null
 		for i in team.players.size():
 			var m = team.players[i]
-			var b = UI.btn("%s   %s (%d)   stamina %d%%" % [m.slot_pos, m.p.name, m.p.ovr, int(m.stamina * 100)], func(): st.on = i; R.draw.call(), "Row", i == st.on or (st.on < 0 and i == 0))
+			var tired = m.stamina < 0.55
+			var b = UI.btn("%s   %s (%d)   %s %d%%" % [m.slot_pos, m.p.name, m.p.ovr, "⚠ stamina" if tired else "stamina", int(m.stamina * 100)], func():
+				if used >= 5: return
+				if st.bench >= 0: R.do_sub.call(i, st.bench)
+				else: st.on = i; st.focus = "bench"; st.fi = 0
+				R.draw.call(), "Row")
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			if i == st.on: b.add_theme_color_override("font_color", UI.TEAL)
+			if i == st.on: b.add_theme_color_override("font_color", UI.TEAL); b.text = "▶ " + b.text
+			elif tired: b.add_theme_color_override("font_color", UI.YELLOW)
 			left.add_child(b)
-		var right = UI.vb(4); right.custom_minimum_size.x = 420
-		if team.bench.is_empty(): right.add_child(UI.label("No substitutes available", 14, UI.DIM))
+			if st.focus == "pitch" and i == st.fi: focus_btn = b
+		var right = UI.vb(4, [UI.caps("Substitutes", 10)]); right.custom_minimum_size.x = 420
+		if team.bench.is_empty(): right.add_child(UI.label("No substitutes — add players to your squad's bench in the Squad screen.", 14, UI.DIM))
 		for j in team.bench.size():
 			var p: Dictionary = team.bench[j]
-			var b = UI.btn("%s   %s (%d)" % [p.pos, p.name, p.ovr], func():
-				if st.on < 0 or sim.subs_used[sim.user_side] >= 5: return
-				var old = team.players[st.on]
-				var nm = sim.make_mp(p, old.side, old.slot, team, team.chem.per[old.slot] if team.chem else 2)
-				nm.x = old.x; nm.y = old.y; nm.face = old.face
-				team.players[st.on] = nm; sim.all = sim.teams.home.players + sim.teams.away.players
-				team.bench[j] = old.p
-				if sim.ball.owner == old: sim.ball.owner = nm
-				if sim.ctrl == old: sim.ctrl = nm
-				sim.subs_used[sim.user_side] += 1; sim.msg("%s on for %s" % [Data.short_name(p.name), Data.short_name(old.p.name)], 2.5)
-				st.on = -1; R.draw.call(), "Row")
-			b.alignment = HORIZONTAL_ALIGNMENT_LEFT; b.disabled = st.on < 0 or sim.subs_used[sim.user_side] >= 5
+			var fit = ""
+			if st.on >= 0: fit = "  ✓ fits" if Data.fits_pos(p, team.players[st.on].slot_pos) else "  (out of position)"
+			var b = UI.btn("%s   %s (%d)%s" % [p.pos, p.name, p.ovr, fit], func():
+				if used >= 5: return
+				if st.on >= 0: R.do_sub.call(st.on, j)
+				else: st.bench = j; st.focus = "pitch"; st.fi = 0
+				R.draw.call(), "Row")
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			if j == st.bench: b.add_theme_color_override("font_color", UI.TEAL); b.text = "▶ " + b.text
 			right.add_child(b)
+			if st.focus == "bench" and j == st.fi: focus_btn = b
 		cols.add_child(left); cols.add_child(right); body.add_child(cols)
+		var auto = UI.btn("Auto-sub tired players", func():
+			var n = 0
+			for i in team.players.size():
+				if sim.subs_used[side] >= 5: break
+				var m = team.players[i]
+				if m.stamina >= 0.55 or m.gk: continue
+				var best = -1; var bo = -1
+				for j in team.bench.size():
+					var bp: Dictionary = team.bench[j]
+					if bp.pos == "GK": continue
+					var sc = bp.ovr + (10 if Data.fits_pos(bp, m.slot_pos) else 0)
+					if sc > bo: bo = sc; best = j
+				if best >= 0: R.do_sub.call(i, best); n += 1
+			if n == 0: UI.toast("No tired players to replace")
+			R.draw.call(), "Small")
+		body.add_child(auto)
+		if focus_btn: focus_btn.call_deferred("grab_focus")
 	R.draw.call()
 	await UI.modal("Substitutions", body, [["Done", true, "Primary"]], true)
 

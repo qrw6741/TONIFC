@@ -202,7 +202,7 @@ func kick(m: MP, vx: float, vy: float, vz: float, kind: String, spin := 0.0) -> 
 func pass_to(m: MP, target: MP, kind: String, power := 0.45) -> void:
 	var b = ball
 	var tx: float = target.x; var ty: float = target.y
-	var err: float = max(0.01, (1.0 - m.pas / 100.0) * 0.16 + (0.0 if m.team.user else (1.0 - m.team.ai) * 0.08) + (0.1 if m.stun > 0 else 0.0))
+	var err: float = max(0.01, (1.0 - m.pas / 100.0) * (0.2 if m.team.user else 0.16) + (0.0 if m.team.user else (1.0 - m.team.ai) * 0.08) + (0.1 if m.stun > 0 else 0.0))
 	if kind == "through" or kind == "lobthrough":
 		tx = clamp(target.x + m.team.dir * (6.0 + m.pas / 20.0 + power * 8.0), 2.0, PW - 2.0); ty = target.y + (PH / 2 - target.y) * 0.15
 		target.run = {"x": tx, "y": ty, "t": 2.6}
@@ -853,7 +853,7 @@ func gk_save_check() -> void:
 	var committed: bool = gk.dive != null and pen_kick
 	var gky: float = gk.y + gk.dive.vy * min(tt, gk.dive.t) if committed else gk.y
 	var reach = Vector2(abs(cy - gky), max(0.0, cz - 1.6)).length()
-	var gkr: float = gk.gkr * (1.0 if def_t.user else 0.92 + ai * 0.1)
+	var gkr: float = gk.gkr * (1.0 if def_t.user else 0.95 + ai * 0.1)
 	var speed = Vector2(b.vx, b.vy).length()
 	var p: float = gkr / 100.0 * 1.15 - reach * 0.17 - (speed - 18.0) * 0.012 + max(0.12, tt) * 0.35
 	if reach < 0.8: p += 0.25

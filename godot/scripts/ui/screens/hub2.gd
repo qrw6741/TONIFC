@@ -118,8 +118,9 @@ func s_play(_p) -> Dictionary:
 	f.body.add_child(UI.hb(10, [page_title("Play"), UI.spacer(), UI.label("Active squad: %s · %d OVR · %d chem%s" % [sq.name, inf.rating, inf.chem.total, "" if Sys.squad_complete(sq) else " · INCOMPLETE"], 14, UI.DIM if Sys.squad_complete(sq) else UI.RED)]))
 	var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 18); g.add_theme_constant_override("v_separation", 18); UI.grow(g)
 	var center = func(nodes: Array) -> Control: var c = CenterContainer.new(); c.size_flags_vertical = Control.SIZE_EXPAND_FILL; c.add_child(UI.vb(4, nodes)); return c
-	var rivals = UI.tile([UI.bold("Division Rivals", 30), UI.wrapl(UI.bold("Climb from Division 10 to Elite. Promotion at 10 points (Win 3 · Draw 1 · Loss -1).", 13, UI.TEAL), 380),
-		center.call([UI.head("ELITE" if rv.div == 1 else str(rv.div), 64, UI.TEAL), UI.bold(Data.division(int(rv.div)).name, 16), UI.bar(rv.pts, 10), UI.label("%d/10 points · %d wins" % [rv.pts, rv.wins], 13, UI.DIM)])], func(): UI.go("rivals"), Vector2(0, 0), true)
+	var rvs = Rivals.st()
+	var rivals = UI.tile([UI.bold("Division Rivals", 30), UI.wrapl(UI.bold("Climb ranks I–XII in each division to reach Elite. Rewards every 15 minutes.", 13, UI.TEAL), 380),
+		center.call([UI.head("ELITE" if rv.div == 1 else str(rv.div), 64, Color("#ff7a1a")), UI.bold(Rivals.div_name(int(rv.div)), 16), UI.bar(int(rvs.step), Rivals.STEPS), UI.label("Rank %d/12 · rewards in %s%s" % [int(rvs.step), Sys.fmt_time(Rivals.cycle_left()), (" · %d to claim" % rvs.unclaimed.size()) if not rvs.unclaimed.is_empty() else ""], 13, UI.DIM)])], func(): UI.go("rivals"), Vector2(0, 0), true)
 	var champs: Dictionary = m.champs
 	var tiles = [
 		rivals,
@@ -213,47 +214,13 @@ func sb_play(o: Dictionary) -> void:
 		show_results(res, "Squad Battles", "+%d SB points · +%s coins" % [pts, Sys.fmt(coins)], func(): UI.replace("squadbattles")))
 
 # ------------------------------------------------------------------ RIVALS
-func s_rivals(_p) -> Dictionary:
-	var f = UI.sub_shell("Division Rivals", "Play")
-	var rv: Dictionary = Save.data.modes.rivals
-	var div = int(rv.div)
-	var dots = UI.hb(6)
-	for i in 10:
-		var c = ColorRect.new(); c.custom_minimum_size = Vector2(28, 10); c.color = UI.TEAL if i < rv.pts else Color(1, 1, 1, 0.12); dots.add_child(c)
-	var main = UI.vb(14, [UI.head("ELITE" if div == 1 else str(div), 90, UI.TEAL), UI.head(Data.division(div).name.to_upper(), 24), dots,
-		UI.label("%d/10 points to promotion · falling below 0 relegates" % rv.pts, 14, UI.DIM),
-		UI.label("Next opponent: ~%d rated squad · AI %s (%d%%)" % [int(Sys.rivals_strength(div)), Sys.ai_label(Sys.rivals_ai(div)), int(Sys.rivals_ai(div) * 100)], 14, UI.DIM),
-		UI.label(("Win streak: %d — opponents are getting tougher" % Sys.rivals_streak()) if Sys.rivals_streak() > 1 else "Opponents get harder as you climb divisions and win more", 13, Color("#ff8a5c") if Sys.rivals_streak() > 1 else UI.DIM),
-		UI.btn("Ⓐ  Find match", func(): rivals_play(), "Primary", true)])
-	main.alignment = BoxContainer.ALIGNMENT_CENTER
-	for c in main.get_children(): c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var mp = UI.panel(main); UI.grow(mp)
-	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 18); g.add_theme_constant_override("v_separation", 6)
-	for kv in [["Win", "%s coins · +3 pts" % Sys.fmt(900 + (11 - div) * 60)], ["Draw", "%s coins · +1 pt" % Sys.fmt(450 + (11 - div) * 60)], ["Loss", "%s coins · -1 pt" % Sys.fmt(200 + (11 - div) * 60)], ["Promotion", "Premium/Jumbo pack + 50 Prime Points"], ["Champions Qual. Points", "+200 win · +100 draw · +50 loss"],
-		["Played", str(rv.played)], ["Wins", str(rv.wins)], ["Best division", Data.division(int(rv.best)).name], ["Champions qualification", ("Qualified!" if Champs.qualified() else "%s / %s" % [Sys.fmt(Champs.st().qp), Sys.fmt(Champs.QP_NEED)]) if Champs.run() == null else "In event"]]:
-		g.add_child(UI.label(kv[0], 14, UI.DIM)); g.add_child(UI.wrapl(UI.label(kv[1], 14), 220))
-	var sp = UI.panel(UI.vb(10, [UI.caps("Rewards & record"), g])); sp.custom_minimum_size.x = 420
-	f.body.add_child(UI.hb(24, [mp, sp]))
-	f.body.get_child(-1).size_flags_vertical = Control.SIZE_EXPAND_FILL
-	return {"node": f.node, "bg": "hub"}
-
 func _champs_summary() -> Array:
 	var r = Champs.run()
 	if r != null: return [UI.head("%d pts" % int(r.pts), 28), UI.label("%s · %d/%d played" % [Champs.rank_name(Champs.rank_for(int(r.pts))), int(r.played), Champs.MATCHES], 13, UI.DIM)]
 	if Champs.qualified(): return [UI.head("Qualified", 28, UI.GREEN), UI.label("Ready to play", 13, UI.DIM)]
 	return [UI.head("%s/%s" % [Sys.fmt(Champs.st().qp), Sys.fmt(Champs.QP_NEED)], 28), UI.label("Qual. Points", 13, UI.DIM)]
 
-func rivals_play() -> void:
-	if not require_squad(): return
-	var rv: Dictionary = Save.data.modes.rivals; var div = int(rv.div)
-	var ut = Sys.user_team()
-	var name: String = Sys.pick(["Ace", "Pro", "King", "Volt", "Nova", "Zed", "Kai", "Rex"]) + Sys.pick(["_FC", "Gaming", "99", "Utd", "XI", "_27"])
-	var opp = Sys.ai_team(name, round(Sys.rivals_strength(div)))
-	Sys.league3_check(ut)
-	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(div), "ai": Sys.rivals_ai(div), "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals"}, func(res):
-		var r = Sys.record_ut_match(res); var out = Sys.rivals_record(r)
-		Sys.log_match(res, "Rivals", r)
-		show_results(res, "Division Rivals", "+%s coins%s" % [Sys.fmt(out.coins), (" · " + out.msg) if out.msg != "" else ""], func(): UI.replace("rivals")))
+func rivals_play() -> void: UI.modules[10].play_match()
 
 # ------------------------------------------------------------------ CHAMPIONS
 # ------------------------------------------------------------------ DRAFT

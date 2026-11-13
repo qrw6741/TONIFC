@@ -178,6 +178,24 @@ func run() -> void:
 			UI.go("gemsbc", {"id": "ex_gold", "cat": "Exchanges", "sel": fill}); await shot("g102_gemsbc")
 			var before = Save.data.club.size(); var ok = GemSBC.submit(gs, fill)
 			print("SUBMIT ", ok, " club ", before, " -> ", Save.data.club.size(), " unopened has premium ", Save.data.unopened.has("premium"))
+		if extra == "--rivals":
+			var R = Rivals.st()
+			print("START div ", R.div, " step ", R.step)
+			for k in 5: var o = Rivals.record("W"); print("W -> div ", R.div, " step ", R.step, " cp ", R.cp, " ", o.msg)
+			Rivals.record("L"); print("L -> step ", R.step, " cp ", R.cp)
+			for k in 6: Rivals.record("W")
+			print("after wins div ", R.div, " step ", R.step, " best ", R.best)
+			R.div = 9; R.step = 0; R.cp = 0
+			var o2 = Rivals.record("L"); print("RELEGATION: div ", R.div, " step ", R.step, " msg ", o2.msg)
+			R.div = 8; R.step = 3; R.cp = 0
+			Rivals.record("W"); Rivals.record("D")
+			print("CYCLE pts ", R.cycle.pts, " left ", int(Rivals.cycle_left()))
+			UI.go("rivals"); await w(0.5); await shot("g110_rivals")
+			R.cycle.id = Rivals.cycle_id() - 1; Rivals.tick()
+			print("UNCLAIMED ", R.unclaimed)
+			UI.replace("rivals"); await w(0.5); await shot("g111_rivals_claim")
+			var coins0 = Save.data.coins; print("CLAIM n ", Rivals.claim_all(), " coins +", Save.data.coins - coins0)
+			print("AI div10 ", Sys.rivals_ai(10), " div1 ", Sys.rivals_ai(1), " diff pro ", Data.difficulties.professional.ai)
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

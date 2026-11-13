@@ -51,6 +51,8 @@ func _ready() -> void:
 		if not by_club.has(p.club): by_club[p.club] = []
 		by_club[p.club].append(p)
 	_add_season_content()
+	# harder game: every difficulty level plays smarter
+	for k in difficulties: difficulties[k].ai = min(1.15, float(difficulties[k].ai) + 0.08)
 
 # ---------------- Season Pass exclusive content ----------------
 ## Ascension — Season Pass-only rarity. [base player id, boost, finale-pick?]
