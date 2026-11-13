@@ -174,5 +174,64 @@ func run() -> void:
 				print("AI ", lvl, " goals ", gs, " shots ", sh)
 			print("RIVALS ai div10 ", Sys.rivals_ai(10), " div1 ", Sys.rivals_ai(1), " str ", Sys.rivals_strength(10), "/", Sys.rivals_strength(1))
 			UI.replace("play"); await w(0.2); UI.go("rivals"); await shot("g50_rivals")
+	for extra in OS.get_cmdline_user_args():
+		if extra == "--gameplay":
+			var sim := MatchSim.new({"home": Sys.club_team("FCB"), "away": Sys.club_team("RSO"), "user_side": "home", "difficulty": "professional", "half_len": 3, "mode": "test"})
+			var st = func(n: int, inp: Dictionary, edge := {}, rel := {}):
+				for i in n:
+					sim.inp = inp; sim.edge = edge if i == 0 else {}; sim.rel = rel if i == 0 else {}; sim.update(1.0 / 60.0)
+			sim.state = "play"; sim.state_t = 0.0
+			var cands = sim.teams.home.players.filter(func(x): return int(x.p.sm) >= 4)
+			if cands.is_empty(): cands = [sim.teams.home.players[9]]
+			sim.give_ball(cands[0])
+			var c = sim.ball.owner; sim.switch_to(c)
+			print("CARRIER ", c.p.name, " dri ", c.dri, " sm ", c.p.sm)
+			var leads = []
+			for i in 90:
+				st.call(1, {"x": 1.0, "y": 0.0, "sprint": true}); leads.append(snapped(c.lead, 0.01))
+			print("SPRINT LEADS ", leads.slice(0, 40), " still has ball: ", sim.ball.owner == c)
+			sim.give_ball(c); sim.switch_to(c)
+			st.call(30, {"x": 1.0, "y": 0.0, "close": true})
+			print("CLOSE lead ", snapped(c.lead, 0.01))
+			c.skill_t = 0; st.call(1, {"x": 0.0, "y": 0.0}, {"gesture": {"kind": "flick", "ang": c.face + PI / 2}}); print("MOVE1 ", c.label)
+			st.call(10, {}); st.call(1, {}, {"gesture": {"kind": "flick", "ang": c.face + PI / 2}}); print("MOVE2 (combo) ", c.label)
+			st.call(50, {}); sim.give_ball(c); c.skill_t = 0; st.call(1, {}, {"gesture": {"kind": "rot", "deg": 200.0, "ang": 0.0}}); print("MOVE3 ", c.label)
+			st.call(60, {}); sim.give_ball(c); c.skill_t = 0
+			st.call(1, {"pass": true}, {"pass": true}); st.call(40, {"pass": true})
+			print("PCHARGE ", snapped(sim.pcharge, 0.01), " aim ", sim.aim_tgt.p.name if sim.aim_tgt else "none")
+			st.call(1, {}, {}, {"pass": true})
+			print("PASSED owner ", sim.ball.owner, " speed ", snapped(Vector2(sim.ball.vx, sim.ball.vy).length(), 0.1), " kind ", sim.ball.kind)
+			st.call(90, {})
+			sim.give_ball(c); c.x = 90; c.y = 34; sim.switch_to(c)
+			st.call(1, {"chip": true}, {"chip": true}); st.call(20, {"chip": true}); st.call(1, {}, {}, {"chip": true})
+			print("PENDING ", sim.pending_shot != null); st.call(5, {}); st.call(1, {}, {"shoot": true})
+			print("CHIP fired ", sim.ball.shot != null, " vz ", snapped(sim.ball.vz, 0.1), " label ", c.label)
+			# full AI match sanity with new dribbling
+			for g in 2:
+				var s2 := MatchSim.new({"home": Sys.club_team(["MCI", "INT"][g]), "away": Sys.club_team(["RMA", "PSG"][g]), "user_side": "", "difficulty": "professional", "half_len": 3, "mode": "test"})
+				var n := 0
+				while not s2.finished and n < 60 * 500: s2.update(1.0 / 60.0); n += 1
+				print("SIM ", s2.score.home, "-", s2.score.away, " shots ", s2.stats.shots, " passes ", s2.stats.passes, " tackles ", s2.stats.tackles)
+			# replay render
+			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "home", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): pass)
+			await w(5.0)
+			var ms = null
+			for ch in UI.root.get_children(): if ch.get("sim") != null: ms = ch
+			if ms == null:
+				for ch in UI.root.get_parent().get_children(): if ch.get("sim") != null: ms = ch
+			print("MATCH SCENE ", ms != null, " replay_len ", ms.sim.replay_len if ms else -1)
+			if ms:
+				var S = ms.sim
+				S.state = "play"; S.state_t = 0.0
+				var gxh = S.goal_x(S.teams.home)
+				await w(1.5)
+				S.ball.owner = null; S.ball.x = gxh + 0.2 * S.teams.home.dir; S.ball.vx = 20.0 * S.teams.home.dir; S.ball.y = 34.0; S.ball.z = 0.5; S.ball.vy = 0.0; S.ball.vz = 0.0; S.ball.last = S.teams.home.players[9]; S.ball.shot = null
+				for gk in S.teams.away.players: if gk.gk: gk.x = 80.0 if gxh > 50 else 25.0
+				print("SET ball ", S.ball.x, " vx ", S.ball.vx, " gx ", gxh, " paused ", S.paused, " owner ", S.ball.owner)
+				await w(0.1)
+				print("AFTER SHOT state ", S.state, " ball ", S.ball.x, " ", S.ball.y, " score ", S.score)
+				pass
+				await w(4.0); await shot("g90_replay")
+				print("STATE ", S.state, " t ", snapped(S.state_t, 0.1), " frames ", ms.replay_frames.size(), " replay_on ", ms._replay_on)
 	print("AUTOTEST DONE")
 	get_tree().quit()

@@ -17,6 +17,15 @@ var hud = {}
 var stadium = {}
 var tifo_cols = []
 var done = false
+# right-stick skill gestures
+var G = {"active": false, "a0": 0.0, "last": 0.0, "acc": 0.0, "t0": 0, "wait_release": false}
+var last_e = -9.0
+# goal replays
+var rec = []
+var rec_t = 0.0
+var replay_frames = []
+var last_state = ""
+var _replay_on = false
 
 func setup(cfg: Dictionary, cb: Callable) -> void:
 	sim = MatchSim.new(cfg); on_done = cb
@@ -31,6 +40,7 @@ func _ready() -> void:
 	stadium = pr.stadium if user_match else {"seats": "#2a2f3a", "tifo": "none", "theme": "classic", "name": "PRIME FOOTBALL 27"}
 	tifo_cols = [Color(pr.badge.c1), Color(pr.badge.c2)]
 	_build_crowd(); _build_hud()
+	sim.replay_len = 6.0 if Save.data.settings.get("replays", true) and (sim.teams.home.user or sim.teams.away.user) else 0.0
 
 func _build_crowd() -> void:
 	var seat = Color(stadium.seats); var ka = Color(sim.teams.home.kit.c1); var kb = Color(sim.teams.away.kit.c1)
@@ -66,11 +76,11 @@ func _build_hud() -> void:
 	hud.power = UI.bar(0, 1, "GoldBar"); hud.power.custom_minimum_size = Vector2(220, 10); add_child(hud.power)
 	var ctrl = _panel(Color(0, 0, 0, 0.55), Vector4(12, 8, 12, 8), 10)
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 12); g.add_theme_constant_override("v_separation", 2)
-	var layout = [["WASD", "Move"], ["Shift", "Sprint"], ["J", "Pass / Tackle"], ["I", "Through ball"], ["K", "Shoot (hold) / Slide"], ["O", "Finesse shot"], ["L", "Lob / Cross"], ["E", "Skill move"], ["Q", "Switch player"], ["Ctrl / C", "Jockey / Teammate press"], ["Esc", "Pause · H hide"]]
+	var layout = [["WASD", "Move"], ["Shift", "Sprint"], ["J (hold)", "Pass — hold for power"], ["R+J / R+I", "Driven / Lobbed through"], ["F+J", "One-two"], ["I", "Through ball"], ["K (hold)", "Shoot · K again = timed"], ["O / U", "Finesse / Chip"], ["L", "Lob / Cross"], ["E + dir", "Skill move (E E = Roulette)"], ["Ctrl", "Close control · Jockey"], ["Q / C", "Switch / Teammate press"], ["Esc", "Pause · H hide"]]
 	if Pad.style == "ps":
-		layout = [["L-stick", "Move"], ["R2", "Sprint"], ["✕", "Pass / Header"], ["△", "Through ball"], ["□", "Shoot (hold) · Slide"], ["R1+□", "Finesse shot"], ["○", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["L1", "Switch player"], ["L2 / R1", "Jockey / Teammate press"], ["OPTIONS", "Pause · Touchpad hide"]]
+		layout = [["L-stick", "Move"], ["R2", "Sprint"], ["✕ (hold)", "Pass — hold for power"], ["R1+✕ / R1+△", "Driven / Lobbed through"], ["L1+✕", "One-two"], ["△", "Through ball"], ["□ (hold)", "Shoot · □ again = timed"], ["R1+□ / L1+□", "Finesse / Chip"], ["○", "Lob / Cross · Tackle"], ["R-stick", "Skill moves (flick / rotate)"], ["L2", "Close control · Jockey"], ["L1", "Switch player"], ["OPTIONS", "Pause · Touchpad hide"]]
 	elif Pad.style == "xbox":
-		layout = [["L-stick", "Move"], ["RT", "Sprint"], ["A", "Pass / Header"], ["Y", "Through ball"], ["X", "Shoot (hold) · Slide"], ["RB+X", "Finesse shot"], ["B", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["LB", "Switch player"], ["LT / RB", "Jockey / Teammate press"], ["Start", "Pause · Back hide"]]
+		layout = [["L-stick", "Move"], ["RT", "Sprint"], ["A (hold)", "Pass — hold for power"], ["RB+A / RB+Y", "Driven / Lobbed through"], ["LB+A", "One-two"], ["Y", "Through ball"], ["X (hold)", "Shoot · X again = timed"], ["RB+X / LB+X", "Finesse / Chip"], ["B", "Lob / Cross · Tackle"], ["R-stick", "Skill moves (flick / rotate)"], ["LT", "Close control · Jockey"], ["LB", "Switch player"], ["Start", "Pause · Back hide"]]
 	for kv in layout:
 		g.add_child(UI.bold(kv[0], 12)); g.add_child(UI.label(kv[1], 12, Color("#cfd6de")))
 	ctrl.add_child(g); hud.ctrl = ctrl; add_child(ctrl)
@@ -81,10 +91,13 @@ func _layout_hud() -> void:
 	if hud.is_empty(): return
 	hud.player.position = Vector2(22, size.y - 70)
 	hud.power.position = Vector2(22, size.y - 92)
-	hud.ctrl.position = Vector2(size.x - 210, size.y - 270)
+	var cs = hud.ctrl.get_combined_minimum_size()
+	hud.ctrl.position = Vector2(size.x - cs.x - 18, size.y - cs.y - 60)
 
 # ------------------------------------------------------------------ input
 func _input(event: InputEvent) -> void:
+	if _replay_on and event.is_pressed() and not event.is_echo() and (event.is_action("ui_accept") or (event is InputEventKey and event.physical_keycode in [KEY_SPACE, KEY_J, KEY_ENTER]) or (event is InputEventJoypadButton and event.button_index in [JOY_BUTTON_A, JOY_BUTTON_B])):
+		sim.state_t = max(sim.state_t, 2.6 + sim.replay_len); get_viewport().set_input_as_handled(); return
 	if event is InputEventKey and event.pressed and not event.echo:
 		taps[event.physical_keycode] = true
 		if event.physical_keycode in [KEY_ESCAPE, KEY_P] and not sim.paused: get_viewport().set_input_as_handled(); _pause()
@@ -113,6 +126,8 @@ func _read_input() -> void:
 	if v.length() > 1: v = v.normalized()
 	var rs = Vector2(Input.get_joy_axis(dev, JOY_AXIS_RIGHT_X), Input.get_joy_axis(dev, JOY_AXIS_RIGHT_Y))
 	var rb: bool = jb.call(JOY_BUTTON_RIGHT_SHOULDER)
+	var lb: bool = jb.call(JOY_BUTTON_LEFT_SHOULDER)
+	var lt: bool = Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.4
 	# FIFA-style pad layout: attacking ✕ pass · △ through · □ shoot · ○ lob/cross · R1+□ finesse
 	#                       defending ○ standing tackle · □ slide tackle · L1 switch · R2 sprint
 	var attacking: bool = sim.user_side != "" and sim.ball.owner != null and sim.ball.owner.side == sim.user_side
@@ -122,19 +137,41 @@ func _read_input() -> void:
 	var sprint_axis = Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT)
 	var cur = {"x": v.x, "y": v.y, "sprint": Input.is_physical_key_pressed(KEY_SHIFT) or sprint_axis > 0.4 or jb.call(JOY_BUTTON_RIGHT_STICK),
 		"pass": k.call(KEY_J) or (jb.call(JOY_BUTTON_B) if defend_pad else jb.call(JOY_BUTTON_A)), "through": k.call(KEY_I) or jb.call(JOY_BUTTON_Y),
-		"shoot": Input.is_physical_key_pressed(KEY_K) or (jb.call(JOY_BUTTON_X) and not rb), "lob": k.call(KEY_L) or (jb.call(JOY_BUTTON_B) and not defend_pad),
-		"jockey": Input.is_physical_key_pressed(KEY_CTRL) or (defend_pad and Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.4),
+		"shoot": Input.is_physical_key_pressed(KEY_K) or (jb.call(JOY_BUTTON_X) and not rb and not lb), "lob": k.call(KEY_L) or (jb.call(JOY_BUTTON_B) and not defend_pad),
+		"chip": Input.is_physical_key_pressed(KEY_U) or (lb and jb.call(JOY_BUTTON_X)),
+		"rmod": Input.is_physical_key_pressed(KEY_R) or rb, "lmod": Input.is_physical_key_pressed(KEY_F) or lb,
+		"close": Input.is_physical_key_pressed(KEY_CTRL) or (not defend_pad and lt),
+		"jockey": Input.is_physical_key_pressed(KEY_CTRL) or (defend_pad and lt),
 		"contain": Input.is_physical_key_pressed(KEY_C) or (defend_pad and rb),
-		"finesse": Input.is_physical_key_pressed(KEY_O) or (rb and jb.call(JOY_BUTTON_X)), "skill": k.call(KEY_E) or rs.length() > 0.7, "sw": k.call(KEY_Q) or jb.call(JOY_BUTTON_LEFT_SHOULDER)}
+		"finesse": Input.is_physical_key_pressed(KEY_O) or (rb and jb.call(JOY_BUTTON_X)), "skill": k.call(KEY_E), "sw": k.call(KEY_Q) or jb.call(JOY_BUTTON_LEFT_SHOULDER)}
 	if jb.call(JOY_BUTTON_TOUCHPAD) and not prev_in.get("touch", false): help_on = not help_on; hud.ctrl.visible = help_on and sim.user_side != ""
 	cur.touch = jb.call(JOY_BUTTON_TOUCHPAD) or jb.call(JOY_BUTTON_BACK)
 	var edge = {}; var rel = {}
 	for key in cur:
 		if typeof(cur[key]) == TYPE_BOOL: edge[key] = cur[key] and not prev_in.get(key, false)
-	for key in ["shoot", "finesse"]: rel[key] = (not cur[key]) and prev_in.get(key, false)
+	for key in ["shoot", "finesse", "chip", "pass", "through", "lob"]: rel[key] = (not cur[key]) and prev_in.get(key, false)
+	# right stick gestures: flick = direction move, half circle = Roulette, full circle = McGeady spin
+	var r = Vector2(rs.x, -rs.y); var mag = r.length(); var nowt = Time.get_ticks_msec()
+	if G.wait_release:
+		if mag < 0.3: G.wait_release = false
+	elif not G.active:
+		if mag > 0.72: G.active = true; G.a0 = r.angle(); G.last = r.angle(); G.acc = 0.0; G.t0 = nowt
+	else:
+		if mag > 0.45: G.acc += wrapf(r.angle() - G.last, -PI, PI); G.last = r.angle()
+		if mag < 0.3 or nowt - G.t0 > 600:
+			if abs(G.acc) >= deg_to_rad(150.0): edge.gesture = {"kind": "rot", "deg": rad_to_deg(abs(G.acc)), "ang": G.last}
+			else: edge.gesture = {"kind": "flick", "ang": G.a0}
+			G.active = false; G.wait_release = mag >= 0.3
+	# keyboard skills: E + direction = flick that way; E twice quickly = Roulette; Shift + E twice = McGeady
+	if edge.get("skill", false):
+		var tsec = nowt / 1000.0
+		if tsec - last_e < 0.35: edge.gesture = {"kind": "rot", "deg": 330.0 if cur.sprint else 200.0, "ang": atan2(v.y, v.x) if v.length() > 0.3 else 0.0}
+		elif v.length() > 0.3: edge.gesture = {"kind": "flick", "ang": atan2(v.y, v.x)}
+		else: edge.gesture = {"kind": "flick", "ang": sim.ctrl.face if sim.ctrl else 0.0}
+		last_e = tsec
 	# quick tap of K/O (press+release inside one frame) still fires a shot
-	if (taps.get(KEY_K, false) and not Input.is_physical_key_pressed(KEY_K)) or (taps.get(KEY_O, false) and not Input.is_physical_key_pressed(KEY_O)):
-		var kind = "finesse" if taps.get(KEY_O, false) else "shot"
+	if (taps.get(KEY_K, false) and not Input.is_physical_key_pressed(KEY_K)) or (taps.get(KEY_O, false) and not Input.is_physical_key_pressed(KEY_O)) or (taps.get(KEY_U, false) and not Input.is_physical_key_pressed(KEY_U)):
+		var kind = "finesse" if taps.get(KEY_O, false) else ("chip" if taps.get(KEY_U, false) else "shot")
 		edge.shoot = true; rel[kind] = true
 		if sim.charge_kind == "": sim.charge = 0.45; sim.charge_kind = kind
 	taps.clear()
@@ -150,6 +187,7 @@ func _process(delta: float) -> void:
 		while acc >= step and not done:
 			sim.update(step); acc -= step
 			sim.edge = {}; sim.rel = {}
+		_record(delta)
 	_update_hud()
 	queue_redraw()
 
@@ -235,6 +273,7 @@ func _rumble_feedback() -> void:
 
 func _update_hud() -> void:
 	_rumble_feedback()
+	if hud.ctrl.visible: _layout_hud()
 	var mins: float = min(45.0, sim.clock / sim.half_secs * 45.0) + (sim.half - 1) * 45
 	var mm = int(mins); var ss = int((mins - mm) * 60)
 	hud.clock.text = "GG" if sim.golden else "%02d:%02d" % [mm, ss]
@@ -256,10 +295,55 @@ func _update_hud() -> void:
 		hud.pname.text = "%d  %s · %s" % [sim.ctrl.p.ovr, sim.ctrl.slot_pos, sim.ctrl.p.name]
 		hud.stam.value = sim.ctrl.stamina * hud.stam.max_value
 	else: hud.player.visible = false
-	hud.power.visible = sim.charge > 0
-	hud.power.value = sim.charge
+	hud.power.visible = sim.charge > 0 or sim.pcharge > 0
+	hud.power.value = max(sim.charge, sim.pcharge)
+	hud.power.modulate = Color(0.6, 1.0, 0.95) if sim.pcharge > sim.charge else Color.WHITE
 
 # ------------------------------------------------------------------ rendering
+# ------------------------------------------------------------------ goal replays
+func _record(delta: float) -> void:
+	if sim.replay_len <= 0: return
+	if sim.state == "goal" and last_state != "goal": replay_frames = []
+	last_state = sim.state
+	rec_t += delta
+	if rec_t < 1.0 / 30.0: return
+	rec_t = 0.0
+	if sim.state == "play" or (sim.state == "goal" and sim.state_t < 1.0):
+		var ps = PackedFloat32Array()
+		for m in sim.all: ps.append_array([m.x, m.y, m.face, m.ph, m.vx, m.vy])
+		rec.append({"b": Vector3(sim.ball.x, sim.ball.y, sim.ball.z), "p": ps, "cam": cam})
+		if rec.size() > 240: rec.remove_at(0)
+	if sim.state == "goal" and sim.state_t >= 1.0 and replay_frames.is_empty() and rec.size() > 10:
+		replay_frames = rec.slice(max(0, rec.size() - 150))
+
+func _replay_active() -> bool:
+	return sim.replay_len > 0 and sim.state == "goal" and not replay_frames.is_empty() and sim.state_t >= 2.6 and sim.state_t < 2.6 + sim.replay_len
+
+## temporarily pose everything from a recorded frame, run fn (drawing), then restore the live state
+func _with_replay_frame(fn: Callable) -> void:
+	var prog: float = clamp((sim.state_t - 2.6) / sim.replay_len, 0.0, 1.0)
+	var fi: float = prog * (replay_frames.size() - 1)
+	var A = replay_frames[int(floor(fi))]; var B = replay_frames[min(replay_frames.size() - 1, int(floor(fi)) + 1)]
+	var k: float = fi - floor(fi)
+	var saved = []
+	for i in sim.all.size():
+		var m = sim.all[i]
+		saved.append([m.x, m.y, m.face, m.ph, m.vx, m.vy, m.dive, m.sliding, m.label_t, m.spin_t])
+		var o = i * 6
+		m.x = lerpf(A.p[o], B.p[o], k); m.y = lerpf(A.p[o + 1], B.p[o + 1], k); m.face = B.p[o + 2]; m.ph = lerpf(A.p[o + 3], B.p[o + 3], k)
+		m.vx = B.p[o + 4]; m.vy = B.p[o + 5]; m.dive = null; m.sliding = 0.0; m.label_t = 0.0; m.spin_t = 0.0
+	var bs = [sim.ball.x, sim.ball.y, sim.ball.z]
+	var bp: Vector3 = A.b.lerp(B.b, k)
+	sim.ball.x = bp.x; sim.ball.y = bp.y; sim.ball.z = bp.z
+	var cam_s = cam
+	cam = A.cam.lerp(B.cam, k)
+	fn.call()
+	cam = cam_s
+	sim.ball.x = bs[0]; sim.ball.y = bs[1]; sim.ball.z = bs[2]
+	for i in sim.all.size():
+		var m = sim.all[i]; var sv = saved[i]
+		m.x = sv[0]; m.y = sv[1]; m.face = sv[2]; m.ph = sv[3]; m.vx = sv[4]; m.vy = sv[5]; m.dive = sv[6]; m.sliding = sv[7]; m.label_t = sv[8]; m.spin_t = sv[9]
+
 func cam_cfg() -> Dictionary:
 	match Save.data.settings.camera:
 		"tele": return {"dist": 46.0, "h": 26.0, "f": size.x * 1.05}
@@ -279,6 +363,20 @@ func _quad(pts: Array, col: Color) -> void:
 
 func _draw() -> void:
 	if sim == null: return
+	_replay_on = _replay_active()
+	if hud.has("banner"): hud.banner.visible = not _replay_on
+	if _replay_on:
+		_with_replay_frame(_draw_scene)
+		var W = size.x; var H = size.y
+		draw_rect(Rect2(0, 0, W, 46), Color(0, 0, 0, 0.75)); draw_rect(Rect2(0, H - 46, W, 46), Color(0, 0, 0, 0.75))
+		var pulse = 0.65 + 0.35 * sin(sim.t * 6.0)
+		draw_rect(Rect2(40, 62, 150, 40), Color(0.85, 0.1, 0.15, 0.9 * pulse))
+		Gfx.text_c(self, UI.font_head, 115, 92, "REPLAY", 26, Color.WHITE)
+		Gfx.text(self, UI.font_bold, Vector2(W - 330, H - 16), ("✕" if Pad.style == "ps" else ("A" if Pad.style == "xbox" else "Space")) + "  Skip replay", 16, Color(1, 1, 1, 0.8))
+		return
+	_draw_scene()
+
+func _draw_scene() -> void:
 	CC = cam_cfg()
 	var b: Dictionary = sim.ball
 	var tx: float = clamp(b.x + b.vx * 0.35, 18.0, MatchSim.PW - 18.0); var ty: float = clamp(b.y * 0.85 + MatchSim.PH / 2 * 0.15, 14.0, 54.0)
@@ -302,6 +400,7 @@ func _draw() -> void:
 	for L in [[-10.0, 80.0, 34.0], [MatchSim.PW + 10, 80.0, 34.0]]:
 		var q = V(L[0], L[1], L[2])
 		Gfx.glow(self, q, 190.0, Color(1, 1, 0.92, 0.26))
+	_draw_aim()
 	_draw_fx()
 	_draw_radar()
 
@@ -422,7 +521,10 @@ func _draw_player(m) -> void:
 	var lying: bool = m.sliding > 0 or (m.dive != null and abs(m.dive.vy) > 1)
 	var rot = 0.0
 	if lying: rot = (sign(m.dive.vy) * 1.25) if m.dive != null else ((1.0 if cos(m.face) >= 0 else -1.0) * 1.1)
-	draw_set_transform(b + (Vector2(0, -hgt * 0.25) if m.dive != null and lying else Vector2.ZERO), rot, Vector2.ONE)
+	var sxs = 1.0
+	if m.spin_t > 0 and not lying:
+		sxs = cos(m.spin_t * 17.0); sxs = sign(sxs) * max(0.15, abs(sxs))
+	draw_set_transform(b + (Vector2(0, -hgt * 0.25) if m.dive != null and lying else Vector2.ZERO), rot, Vector2(sxs, 1.0))
 	var sw: float = sin(m.ph * 2.3) * min(1.0, Vector2(m.vx, m.vy).length() / 3.0)
 	var lw: float = max(1.4, w * 0.3)
 	draw_line(Vector2(-w * 0.18, -hgt * 0.47), Vector2(-w * 0.18 + sw * w * 0.75, 0), Color("#141414"), lw)
@@ -467,6 +569,22 @@ func _draw_ball() -> void:
 	if sim.state == "setpiece" and sim.sp != null and sim.sp.get("aim") != null and sim.teams[sim.sp.side].user:
 		var a = V(b.x + sim.sp.aim.x * 6, b.y + sim.sp.aim.y * 6)
 		draw_dashed_line(Vector2(g.x, g.y), a, Color(0.25, 0.88, 0.77, 0.9), 3, 8)
+
+## dotted line from the ball to the teammate a charged pass will go to
+func _draw_aim() -> void:
+	var tg = sim.aim_tgt
+	if tg == null or sim.pcharge <= 0 or sim.ball.owner == null: return
+	var a = Vector2(sim.ball.x, sim.ball.y); var b2 = Vector2(tg.x, tg.y)
+	var d = a.distance_to(b2); var n = int(d / 1.3)
+	var col = Color(0.25, 0.88, 0.77, 0.5 + sim.pcharge * 0.5)
+	for i in range(1, n):
+		var q = a.lerp(b2, float(i) / n)
+		var pz = 0.0
+		if sim.pkey == "lob" or (sim.pkey == "through" and sim.inp.get("rmod", false)): pz = sin(PI * float(i) / n) * d * 0.12
+		var sp = P(q.x, q.y, pz)
+		draw_circle(Vector2(sp.x, sp.y), max(1.6, sp.z * 0.06), col)
+	var e = P(b2.x, b2.y, 0)
+	Gfx.ellipse_line(self, Vector2(e.x, e.y), e.z * 0.6, e.z * 0.2, col, 2.0, 20)
 
 func _draw_fx() -> void:
 	for f in sim.fx:

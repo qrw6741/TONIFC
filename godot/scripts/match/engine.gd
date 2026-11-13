@@ -25,6 +25,7 @@ class MP extends RefCounted:
 	var stamina = 1.0; var cool = 0.0; var tackle_cool = 0.0; var stun = 0.0; var dive = null; var decide_t = 0.0; var run = null; var ph = 0.0
 	var skill_t = 0.0; var yellow = 0; var label = ""; var label_t = 0.0; var sliding = 0.0; var target = null; var sp_move = false
 	var recv_t = -9.0; var hold_t = 0.0; var sprinting = false; var jockey = false
+	var touch_t = 0.0; var lead = 0.6; var lead_side = 0.0; var burst = 0.0; var invuln = 0.0; var spin_t = 0.0
 
 var cfg: Dictionary
 var t = 0.0
@@ -114,6 +115,7 @@ func max_speed(m: MP, sprint: bool) -> float:
 	var v = base if sprint else base * 0.66
 	v *= 0.72 + 0.28 * m.stamina
 	if not m.team.user: v *= 0.93 + m.team.ai * 0.09
+	if m.burst > 0: v *= 1.2
 	return v
 
 # ------------------------------------------------------------------ positioning
@@ -177,7 +179,8 @@ func give_ball(m: MP) -> void:
 	var b = ball
 	if b.owner == m: return
 	if b.last != null and b.last != m: b.prev = b.last
-	b.owner = m; b.last = m; b.shot = null; b.shot_eval = false; b.z = 0.0; b.vz = 0.0; b.spin = 0.0; b.kind = ""
+	b.owner = m; b.last = m; b.shot = null; b.shot_eval = false; b.z = 0.0; b.vz = 0.0; b.spin = 0.0; b.kind = ""; b.reserve = null
+	m.touch_t = 0.0; m.lead = 0.55
 	m.run = null; m.recv_t = t
 	if m.team.user: switch_to(m)
 
@@ -196,49 +199,55 @@ func kick(m: MP, vx: float, vy: float, vz: float, kind: String, spin := 0.0) -> 
 	if kind == "pass": b.pass_t = t
 	Sfx.play("kick")
 
-func pass_to(m: MP, target: MP, kind: String) -> void:
+func pass_to(m: MP, target: MP, kind: String, power := 0.45) -> void:
 	var b = ball
 	var tx: float = target.x; var ty: float = target.y
 	var err: float = max(0.01, (1.0 - m.pas / 100.0) * 0.16 + (0.0 if m.team.user else (1.0 - m.team.ai) * 0.08) + (0.1 if m.stun > 0 else 0.0))
-	if kind == "through":
-		tx = clamp(target.x + m.team.dir * (9.0 + m.pas / 20.0), 2.0, PW - 2.0); ty = target.y + (PH / 2 - target.y) * 0.15
+	if kind == "through" or kind == "lobthrough":
+		tx = clamp(target.x + m.team.dir * (6.0 + m.pas / 20.0 + power * 8.0), 2.0, PW - 2.0); ty = target.y + (PH / 2 - target.y) * 0.15
 		target.run = {"x": tx, "y": ty, "t": 2.6}
 	else:
 		tx += target.vx * 0.45; ty += target.vy * 0.45
 	var dx: float = tx - b.x; var dy: float = ty - b.y; var d: float = max(0.1, Vector2(dx, dy).length())
 	var ang = atan2(dy, dx) + (randf() - 0.5) * 2.0 * err * (0.6 + d / 40.0)
-	if kind == "lob" or kind == "cross":
+	var pw: float = 0.8 + power * 0.45 if m.team.user else 1.0
+	if kind == "lob" or kind == "cross" or kind == "lobthrough":
 		var vh: float = clamp(9.0 + d * 0.42, 11.0, 25.0); var T = d / vh
-		kick(m, cos(ang) * vh, sin(ang) * vh, G * T / 2.0 * (0.92 if kind == "cross" else 1.0), "pass")
+		kick(m, cos(ang) * vh, sin(ang) * vh, G * T / 2.0 * (0.92 if kind == "cross" else (1.1 if kind == "lobthrough" else 1.0)), "pass")
+	elif kind == "driven":
+		var v: float = clamp(10.0 + d * 0.55, 13.0, 27.0) * pw
+		kick(m, cos(ang) * v, sin(ang) * v, 0.25, "pass")
 	else:
-		var v: float = clamp(6.0 + d * 0.5, 8.0, 22.0 if kind == "through" else 20.0)
+		var v: float = clamp(6.0 + d * 0.5, 8.0, 22.0 if kind == "through" else 20.0) * pw
 		kick(m, cos(ang) * v, sin(ang) * v, 0.4 if kind == "through" else 0.2, "pass")
 	b.target = target
 	stats.passes[si(m.side)] += 1
 
-func shoot(m: MP, power: float, aim_y, finesse := false, kind := "shot") -> void:
+func shoot(m: MP, power: float, aim_y, finesse := false, kind := "shot", err_mult := 1.0) -> void:
 	var tm: Dictionary = m.team; var b = ball; var gx = goal_x(tm)
 	var d: float = d2(gx, PH / 2, b.x, b.y)
 	var ty: float = aim_y if aim_y != null else (GY0 + 0.9 if randf() < 0.5 else GY1 - 0.9)
 	var quality: float = (m.sho / 100.0) * (1.08 if finesse else 1.0) * (0.7 if m.stun > 0 else 1.0)
-	var err_base: float = (1.1 - quality) * (0.35 + d / 30.0) * (1.0 if tm.user else 1.25 - tm.ai * 0.4)
+	var err_base: float = (1.1 - quality) * (0.35 + d / 30.0) * (1.0 if tm.user else 1.25 - tm.ai * 0.4) * err_mult
 	var pressure = 1.0
 	for o in enemy(m.side).players: if d2(o.x, o.y, m.x, m.y) < 2.2: pressure = 1.35
 	ty += (randf() - 0.5) * 2.0 * err_base * 2.2 * pressure
-	var spd: float = (15.0 + power * 9.0) if finesse else (17.0 + power * 15.0 + m.sho / 25.0)
-	var tz: float = 0.3 + power * 1.4 + (randf() - 0.3) * err_base * 1.6 * pressure
-	if power > 0.85: tz += (power - 0.85) * 10.0 * (1.05 - quality)
+	var chip: bool = kind == "chip"
+	var spd: float = (11.0 + power * 6.0) if chip else ((15.0 + power * 9.0) if finesse else (17.0 + power * 15.0 + m.sho / 25.0))
+	var tz: float = (1.5 + power * 0.9 + (randf() - 0.4) * err_base * 1.4) if chip else (0.3 + power * 1.4 + (randf() - 0.3) * err_base * 1.6 * pressure)
+	if power > 0.85 and not chip: tz += (power - 0.85) * 10.0 * (1.05 - quality)
 	if finesse: tz = min(tz, 1.9)
 	var dx: float = gx - b.x; var dy: float = ty - b.y; var dd: float = max(0.1, Vector2(dx, dy).length())
 	var T = dd / spd
-	var vz: float = min(9.0, (tz - b.z + 0.5 * G * T * T) / T)
+	var vz: float = min(12.0 if chip else 9.0, (tz - b.z + 0.5 * G * T * T) / T)
 	var spin = (-1.0 if dy > 0 else 1.0) * 5.5 if finesse else 0.0
 	var ang = atan2(dy, dx)
 	if finesse: ang -= spin * 0.018
 	kick(m, cos(ang) * spd, sin(ang) * spd, vz, "shot", spin)
+	if chip: b.shot.chip = true
 	b.shot.air = kind == "header" or kind == "volley" or b.shot.air
 	b.shot.outside = d > 17.5
-	m.label = "Finesse" if finesse else ("Header" if kind == "header" else ("Volley" if kind == "volley" else "")); m.label_t = 1.2
+	if m.label_t <= 0 or not m.team.user: m.label = "Chip" if chip else ("Finesse" if finesse else ("Header" if kind == "header" else ("Volley" if kind == "volley" else ""))); m.label_t = 1.2
 
 # ------------------------------------------------------------------ main update
 func update(dt: float) -> void:
@@ -279,7 +288,7 @@ func update(dt: float) -> void:
 			return
 		"goal":
 			celebrate(dt); physics_ball(dt)
-			if state_t > 4.2:
+			if state_t > 4.2 + replay_len:
 				if golden: state = "fulltime"; state_t = 0.0; Sfx.play("whistle3"); show_banner("Full Time", "Golden goal!", 3.0); return
 				begin_kickoff(other(last_goal_side)); Sfx.play("whistle")
 			return
@@ -304,14 +313,53 @@ func excitement() -> float:
 # ------------------------------------------------------------------ user control
 ## buffered button presses: a pass pressed just before the ball arrives still fires
 var buf = {}
+var buf_pow = 0.35
+var pcharge = 0.0            # pass power being charged (hold the pass button)
+var pkey = ""
+var aim_tgt = null           # who the charged pass is aimed at (drawn as a line)
+var pending_shot = null      # timed finishing window
+var replay_len = 0.0
 func want(k: String) -> bool: return buf.has(k) and t - buf[k] < 0.4
+
+func pass_kind(m: MP, key: String) -> String:
+	var r1: bool = inp.get("rmod", false)
+	if key == "through": return "lobthrough" if r1 else "through"
+	if key == "lob": return "cross" if in_cross_zone(m) else "lob"
+	return "driven" if r1 else "ground"
+
+func do_user_pass(m: MP, key: String, power: float, ax: float, ay: float) -> void:
+	var kind = pass_kind(m, key)
+	var tgt = pick_pass_target(m, ax, ay, kind, power)
+	if tgt: pass_to(m, tgt, kind, power)
+	else:
+		var v = (14.0 + power * 10.0) if kind in ["lob", "lobthrough", "cross"] else (10.0 + power * 12.0) * (1.3 if kind == "driven" else 1.0)
+		kick(m, ax * v, ay * v, (4.0 + power * 4.0) if kind in ["lob", "lobthrough", "cross"] else 0.2, "pass")
+	if inp.get("lmod", false):
+		# one-two: the passer bursts forward for the return ball
+		var d = m.team.dir
+		m.run = {"x": clamp(m.x + d * 15.0, 3.0, PW - 3.0), "y": lerpf(m.y, PH / 2, 0.2), "t": 2.8}
+		m.label = "One-Two"; m.label_t = 1.0
+	if kind == "driven": m.label = "Driven"; m.label_t = 0.8
+	elif kind == "lobthrough": m.label = "Lobbed through"; m.label_t = 0.8
+
+func fire_pending_shot(mult: float, lab: String) -> void:
+	var ps = pending_shot; pending_shot = null
+	if ps == null or ball.owner != ps.m: return
+	shoot(ps.m, ps.power, ps.aim, ps.fin, "chip" if ps.chip else "shot", mult)
+	if lab != "": ps.m.label = lab; ps.m.label_t = 1.2
 
 func user_control(dt: float) -> void:
 	if user_side == "" or ctrl == null: return
-	for k in ["pass", "through", "lob"]:
-		if edge.get(k, false): buf[k] = t
 	var team: Dictionary = teams[user_side]; var b = ball; var m: MP = ctrl
-	if edge.get("sw", false):
+	# timed finishing: tap shoot again just as the shot goes off for a perfect strike
+	if pending_shot != null:
+		var dtp: float = t - pending_shot.t0
+		if edge.get("shoot", false) or edge.get("finesse", false) or edge.get("chip", false):
+			if dtp >= 0.05 and dtp <= 0.13: fire_pending_shot(0.4, "Perfectly timed!")
+			else: fire_pending_shot(1.35, "Mistimed")
+			for k in ["shoot", "finesse", "chip"]: edge.erase(k)   # the re-tap must not also trigger a slide
+		elif dtp > 0.16: fire_pending_shot(1.0, "")
+	if edge.get("sw", false) and b.owner != m:
 		var best = nearest(team.players.filter(func(x): return x != m and not x.gk), b.x + b.vx * 0.3, b.y + b.vy * 0.3)
 		if best: switch_to(best); Sfx.play("move")
 	if b.owner != null and b.owner.side != user_side and d2(m.x, m.y, b.x, b.y) > 16 and t - last_auto_sw > 1.2:
@@ -325,8 +373,10 @@ func user_control(dt: float) -> void:
 	var ix: float = inp.get("x", 0.0); var iy: float = inp.get("y", 0.0)
 	var mag = Vector2(ix, iy).length()
 	if mag > 0.1:
-		var v = max_speed(m, inp.get("sprint", false)) * min(1.0, mag) * ((0.94 - (1.0 - m.dri / 100.0) * 0.12) if has else 1.0)
-		var turn: float = (6.0 + m.dri / 14.0) if has else 12.0
+		var close: bool = has and inp.get("close", false)
+		var v = max_speed(m, inp.get("sprint", false) and not close) * min(1.0, mag) * ((0.94 - (1.0 - m.dri / 100.0) * 0.12) if has else 1.0) * (0.6 if close else 1.0)
+		var turn: float = ((6.0 + m.dri / 14.0) * (1.7 if close else 1.0)) if has else 12.0
+		if m.skill_t > 0.15: turn *= 0.25   # let the skill move's motion play out
 		m.vx = lerpf(m.vx, ix / max(mag, 1.0) * v, min(1.0, turn * dt)); m.vy = lerpf(m.vy, iy / max(mag, 1.0) * v, min(1.0, turn * dt))
 	else:
 		m.vx = lerpf(m.vx, 0.0, min(1.0, 8.0 * dt)); m.vy = lerpf(m.vy, 0.0, min(1.0, 8.0 * dt))
@@ -338,26 +388,40 @@ func user_control(dt: float) -> void:
 		if sp > cap: m.vx *= cap / sp; m.vy *= cap / sp
 		m.face = atan2(b.y - m.y, b.x - m.x); m.sprinting = false
 	var ax: float = ix / mag if mag > 0.1 else cos(m.face); var ay: float = iy / mag if mag > 0.1 else sin(m.face)
+	var held_key = ""
+	for k in ["pass", "through", "lob"]: if inp.get(k, false): held_key = k
+	var rel_key = ""
+	for k in ["pass", "through", "lob"]: if rel.get(k, false): rel_key = k
 	if has:
-		if inp.get("shoot", false) or inp.get("finesse", false):
-			charge = min(1.0, charge + dt * 1.15); charge_kind = "finesse" if inp.get("finesse", false) else "shot"
-		if (rel.get("shoot", false) or rel.get("finesse", false)) and charge_kind != "":
+		if pending_shot != null: return
+		if (inp.get("shoot", false) or inp.get("finesse", false) or inp.get("chip", false)):
+			charge = min(1.0, charge + dt * 1.15); charge_kind = "chip" if inp.get("chip", false) else ("finesse" if inp.get("finesse", false) else "shot")
+		if (rel.get("shoot", false) or rel.get("finesse", false) or rel.get("chip", false)) and charge_kind != "":
 			var aim: float
 			if abs(iy) > 0.3: aim = GY0 + 0.8 if iy < 0 else GY1 - 0.8
 			else: aim = GY1 - 1.0 if m.y < PH / 2 else GY0 + 1.0
-			shoot(m, charge, aim, charge_kind == "finesse")
+			pending_shot = {"m": m, "power": max(charge, 0.35 if charge_kind == "chip" else charge), "aim": aim, "fin": charge_kind == "finesse", "chip": charge_kind == "chip", "t0": t}
 			charge = 0.0; charge_kind = ""; return
-		if want("pass") or want("through") or want("lob"):
-			var kind = "through" if want("through") else ("cross" if in_cross_zone(m) else "lob") if want("lob") else "ground"
-			buf.clear()
-			var tgt = pick_pass_target(m, ax, ay, kind)
-			if tgt: pass_to(m, tgt, kind)
-			else:
-				var v = 18.0 if kind == "lob" else 14.0
-				kick(m, ax * v, ay * v, 6.0 if kind == "lob" else 0.2, "pass")
-			return
-		if edge.get("skill", false): do_skill(m, ax, ay)
+		# hold to power the pass (aim line shows the target), release to play it
+		if held_key != "":
+			pcharge = min(1.0, pcharge + dt * 1.25); pkey = held_key
+			aim_tgt = pick_pass_target(m, ax, ay, pass_kind(m, held_key), pcharge)
+		var fire_key = rel_key
+		var power: float = max(0.22, pcharge)
+		if fire_key == "":
+			for k in ["pass", "through", "lob"]:
+				if want(k): fire_key = k; power = buf_pow
+		if fire_key != "":
+			buf.clear(); pcharge = 0.0; pkey = ""; aim_tgt = null
+			do_user_pass(m, fire_key, power, ax, ay); return
+		var gs = edge.get("gesture")
+		if gs != null: gesture_move(m, gs)
+		elif edge.get("skill", false): do_skill(m, ax, ay)
 	else:
+		aim_tgt = null
+		if held_key != "": pcharge = min(1.0, pcharge + dt * 1.25)
+		if rel_key != "":
+			buf[rel_key] = t; buf_pow = max(0.22, pcharge); pcharge = 0.0
 		var opp = b.owner if b.owner != null and b.owner.side != m.side else null
 		var d = d2(b.x, b.y, m.x, m.y)
 		var first_time: bool = b.owner == null and d < 1.6 and m.cool <= 0 and b.z > 0.35 and b.z < 2.7
@@ -367,39 +431,101 @@ func user_control(dt: float) -> void:
 			if edge.get("shoot", false) and abs(goal_x(team) - m.x) < 30: shoot(m, 0.6, null, false, "header" if b.z > 1.3 else "volley")
 			else:
 				buf.clear()
-				var tgt = pick_pass_target(m, ax, ay, "ground")
-				if tgt: pass_to(m, tgt, "ground")
+				var tgt = pick_pass_target(m, ax, ay, "ground", buf_pow)
+				if tgt: pass_to(m, tgt, "ground", buf_pow)
 				else: kick(m, ax * 15.0, ay * 15.0, 2.0, "pass")
 
 func in_cross_zone(m: MP) -> bool: return abs(goal_x(m.team) - m.x) < 30 and (m.y < 18 or m.y > PH - 18)
 
-func pick_pass_target(m: MP, ax: float, ay: float, kind: String):
+func pick_pass_target(m: MP, ax: float, ay: float, kind: String, power := -1.0):
 	var best = null; var bs = -1e9
+	var pref: float = (6.0 + power * 42.0) if power >= 0 else -1.0
 	for tm in m.team.players:
 		if tm == m: continue
 		var dx: float = tm.x - m.x; var dy: float = tm.y - m.y; var d = Vector2(dx, dy).length()
-		if d < 3 or d > (55.0 if kind == "lob" or kind == "cross" else 42.0): continue
+		if d < 3 or d > (55.0 if kind in ["lob", "cross", "lobthrough"] else 45.0): continue
 		var cs: float = (dx * ax + dy * ay) / d
 		if cs < 0.35: continue
 		var sc: float = cs * 30.0 - d * 0.35
 		if kind == "cross": sc += 25.0 if abs(goal_x(m.team) - tm.x) < 16 and abs(tm.y - PH / 2) < 12 else -10.0
-		if kind == "through": sc += (tm.x - m.x) * m.team.dir * 0.3
+		if kind in ["through", "lobthrough"]: sc += (tm.x - m.x) * m.team.dir * 0.3
+		if pref > 0: sc -= abs(d - pref) * 0.3
 		if tm.gk: sc -= 12
 		if sc > bs: bs = sc; best = tm
 	return best
 
+## skill moves: [stars needed, label]
+const MOVES := {"drag_back": [1, "Drag Back"], "ball_roll": [1, "Ball Roll"], "knock_on": [2, "Knock On"], "stepover": [2, "Step Over"],
+	"croqueta": [3, "La Croqueta"], "roulette": [3, "Roulette"], "mcgeady": [4, "McGeady Spin"], "elastico": [4, "Elastico"], "rainbow": [5, "Rainbow Flick"]}
+var last_flick = {"cls": "", "side": 0.0, "t": -9.0}
+
+## AI / legacy entry: pick a move the player can do
 func do_skill(m: MP, ax: float, ay: float) -> void:
-	if m.skill_t > 0: return
-	var stars: int = m.p.sm
-	m.label = ["Ball Roll", "Step Over", "Roulette", "Elastico", "Rainbow Flick"][clamp(stars, 1, 5) - 1]; m.label_t = 1.0
-	var px = -ay; var py = ax; var sg = 1.0 if randf() < 0.5 else -1.0
-	m.vx += px * sg * (3 + stars) + ax * stars * 0.9; m.vy += py * sg * (3 + stars) + ay * stars * 0.9
-	m.skill_t = 1.1 - stars * 0.08
-	var success: bool = randf() < 0.25 + stars * 0.13 + m.dri / 400.0
+	var opts = ["ball_roll", "stepover", "croqueta", "roulette", "elastico"].filter(func(k): return MOVES[k][0] <= int(m.p.sm))
+	if opts.is_empty(): opts = ["ball_roll"]
+	do_move(m, opts[randi() % opts.size()], atan2(ay, ax))
+
+## turn a right-stick gesture into a move (relative to where the player faces)
+func gesture_move(m: MP, gs: Dictionary) -> void:
+	if gs.kind == "rot":
+		do_move(m, "mcgeady" if float(gs.deg) >= 300.0 else "roulette", float(gs.get("ang", m.face))); return
+	var ang: float = float(gs.get("ang", m.face))
+	var rel: float = wrapf(ang - m.face, -PI, PI)
+	var cls = "fwd" if abs(rel) < 0.75 else ("back" if abs(rel) > 2.35 else "side")
+	var side_sign = sign(rel)
+	var combo = ""
+	if t - last_flick.t < 0.5:
+		if cls == "side" and last_flick.cls == "side": combo = "stepover" if side_sign == last_flick.side else "croqueta"
+		elif cls == "fwd" and last_flick.cls == "back": combo = "rainbow"
+		elif cls == "back" and last_flick.cls == "fwd": combo = "elastico"
+	last_flick = {"cls": cls, "side": side_sign, "t": t}
+	if combo != "": do_move(m, combo, ang, true); return
+	do_move(m, {"fwd": "knock_on", "back": "drag_back", "side": "ball_roll"}[cls], ang)
+
+func do_move(m: MP, name: String, ang: float, force := false) -> void:
+	var b = ball
+	if b.owner != m or (m.skill_t > 0 and not force): return
+	var need: int = MOVES[name][0]; var stars: int = int(m.p.sm)
+	if stars < need:
+		m.label = "%s needs %d★" % [MOVES[name][1], need]; m.label_t = 1.0; return
+	var near = 99.0; var foe = null
 	for o in enemy(m.side).players:
-		if d2(o.x, o.y, m.x, m.y) < 4 and success: o.tackle_cool = 0.9; o.stun = 0.35
-	if not success and randf() < 0.35:
-		ball.owner = null; ball.vx = m.vx * 1.3 + ax * 3; ball.vy = m.vy * 1.3 + ay * 3; m.cool = 0.4
+		var dd = d2(o.x, o.y, m.x, m.y)
+		if dd < near: near = dd; foe = o
+	var success: bool = randf() < 0.42 + stars * 0.07 + m.dri / 320.0 + (stars - need) * 0.05 - (0.14 if near < 1.4 else 0.0)
+	var f = Vector2(cos(m.face), sin(m.face)); var dir = Vector2(cos(ang), sin(ang))
+	var lat = Vector2(-f.y, f.x) * (1.0 if f.cross(dir) >= 0 else -1.0)
+	var stun_near = func(r: float, s: float):
+		if not success: return
+		for o in enemy(m.side).players:
+			if not o.gk and d2(o.x, o.y, m.x, m.y) < r: o.stun = max(o.stun, s); o.tackle_cool = max(o.tackle_cool, s + 0.2)
+	match name:
+		"drag_back":
+			m.vx = -f.x * 2.2; m.vy = -f.y * 2.2; m.face = wrapf(m.face + PI, -PI, PI); m.lead = 0.42; m.touch_t = 0.3
+			m.skill_t = 0.45; m.invuln = 0.25; stun_near.call(2.2, 0.25)
+		"ball_roll":
+			m.vx = lat.x * 4.6; m.vy = lat.y * 4.6; m.lead = 0.4; m.touch_t = 0.3; m.skill_t = 0.42; m.invuln = 0.22
+		"knock_on":
+			var kd = dir if dir.dot(f) > 0.2 else f
+			b.owner = null; b.vx = kd.x * 12.5; b.vy = kd.y * 12.5; b.vz = 0.5; b.z = 0.1; b.last = m
+			b.reserve = {"m": m, "until": t + 0.75}; m.burst = 1.1; m.cool = 0.05; m.skill_t = 0.6; stun_near.call(2.0, 0.2)
+		"stepover":
+			m.vx = lat.x * 3.0 + f.x * 1.5; m.vy = lat.y * 3.0 + f.y * 1.5; m.skill_t = 0.5; m.invuln = 0.3; stun_near.call(3.0, 0.38)
+		"croqueta":
+			m.vx = lat.x * 6.2; m.vy = lat.y * 6.2; m.lead = 0.4; m.touch_t = 0.32; m.skill_t = 0.48; m.invuln = 0.38; stun_near.call(1.8, 0.25)
+		"roulette":
+			m.vx = lat.x * 5.0 + f.x * 1.2; m.vy = lat.y * 5.0 + f.y * 1.2; m.spin_t = 0.55; m.skill_t = 0.7; m.invuln = 0.55; m.touch_t = 0.5; stun_near.call(2.0, 0.3)
+		"mcgeady":
+			m.face = ang; m.vx = dir.x * 7.0; m.vy = dir.y * 7.0; m.burst = 0.8; m.spin_t = 0.35; m.skill_t = 0.6; m.invuln = 0.4; m.touch_t = 0.4; stun_near.call(2.2, 0.3)
+		"elastico":
+			m.vx = lat.x * 7.2; m.vy = lat.y * 7.2; m.skill_t = 0.62; m.invuln = 0.42; m.touch_t = 0.4; stun_near.call(2.4, 0.45)
+		"rainbow":
+			b.owner = null; b.vx = f.x * 8.5; b.vy = f.y * 8.5; b.vz = 6.4; b.z = 0.3; b.last = m
+			b.reserve = {"m": m, "until": t + 1.1}; m.burst = 1.3; m.cool = 0.25; m.skill_t = 0.9; stun_near.call(2.6, 0.45)
+	m.label = MOVES[name][1] + ("" if success else " ✗"); m.label_t = 1.0
+	Sfx.play("whoosh")
+	if not success and not name in ["knock_on", "rainbow"] and near < 1.6 and randf() < 0.45:
+		b.owner = null; b.vx = m.vx * 1.3 + f.x * 2.5; b.vy = m.vy * 1.3 + f.y * 2.5; m.cool = 0.4
 
 func try_tackle(m: MP, opp: MP, is_ai: bool) -> bool:
 	if m.tackle_cool > 0: return false
@@ -410,6 +536,8 @@ func try_tackle(m: MP, opp: MP, is_ai: bool) -> bool:
 	stats.tackles[si(m.side)] += 1; Sfx.play("tackle")
 	var p: float = clamp(0.3 + (m.defn - opp.dri) / 100.0 + ((m.team.ai - 0.6) * 0.25 if is_ai else 0.12) + (0.14 if m.jockey else 0.0) - (d - 1.0) * 0.15, 0.08, 0.85)
 	if t - opp.recv_t < 0.5: p *= 0.5
+	if opp.invuln > 0: p *= 0.25
+	if opp == ctrl and opp.team.user and inp.get("close", false) and ball.owner == opp: p *= 0.7   # shielding
 	if randf() < p:
 		if randf() < 0.55: give_ball(m)
 		else: ball.owner = null; ball.vx = (randf() - 0.5) * 8; ball.vy = (randf() - 0.5) * 8; opp.cool = 0.4
@@ -598,6 +726,7 @@ func gk_ai(m: MP, dt: float) -> void:
 func sim_players(dt: float, frozen: bool) -> void:
 	for m in all:
 		m.cool = max(0.0, m.cool - dt); m.tackle_cool = max(0.0, m.tackle_cool - dt); m.stun = max(0.0, m.stun - dt); m.skill_t = max(0.0, m.skill_t - dt); m.label_t = max(0.0, m.label_t - dt)
+		m.burst = max(0.0, m.burst - dt); m.invuln = max(0.0, m.invuln - dt); m.spin_t = max(0.0, m.spin_t - dt)
 		if m.sliding > 0:
 			m.sliding -= dt; m.vx *= 0.94; m.vy *= 0.94
 			if m.sliding <= 0: m.sliding = 0.0; m.stun = 0.35
@@ -621,10 +750,32 @@ func sim_players(dt: float, frozen: bool) -> void:
 func physics_ball(dt: float) -> void:
 	var b = ball
 	if b.owner != null:
+		# dribbling with touches: each touch pushes the ball ahead (further when sprinting / with poor
+		# dribbling), the player catches up between touches; loose touches can be poked away
 		var m: MP = b.owner
-		var lead: float = 0.55 + min(0.5, Vector2(m.vx, m.vy).length() * 0.05)
-		b.x = m.x + cos(m.face) * lead; b.y = m.y + sin(m.face) * lead; b.z = 0.0
+		var spd = Vector2(m.vx, m.vy).length()
+		var close: bool = m.team.user and m == ctrl and inp.get("close", false)
+		var dri: float = m.dri / 100.0
+		m.touch_t -= dt
+		if m.touch_t <= 0.0:
+			m.touch_t = (0.44 - dri * 0.14) * (0.7 if close else 1.0)
+			var knock: float = spd * (0.05 + (1.0 - dri) * 0.1) * (1.75 if m.sprinting else 1.0) * (0.45 if close else 1.0)
+			m.lead = (0.42 if close else 0.55) + min(1.7, knock)
+			m.lead_side = randf_range(-0.14, 0.14) * (1.15 - dri)
+			if spd > 1.0 and randf() < 0.5: Sfx.play("touch")
+		m.lead = lerpf(m.lead, 0.5 if not close else 0.42, min(1.0, dt * 2.4))
+		var fxv = cos(m.face); var fyv = sin(m.face)
+		var tx = m.x + fxv * m.lead - fyv * m.lead_side; var ty = m.y + fyv * m.lead + fxv * m.lead_side
+		b.x = lerpf(b.x, tx, min(1.0, dt * 16.0)); b.y = lerpf(b.y, ty, min(1.0, dt * 16.0)); b.z = 0.0
 		b.vx = m.vx; b.vy = m.vy; b.vz = 0.0
+		if m.lead > 1.05 and m.invuln <= 0 and state == "play":
+			for o in enemy(m.side).players:
+				if o.gk or o.stun > 0 or o.tackle_cool > 0: continue
+				if d2(o.x, o.y, b.x, b.y) < 0.95 and randf() < dt * 3.0 * (m.lead - 0.9) * (0.6 + o.defn / 160.0):
+					b.owner = null; var a = atan2(b.y - o.y, b.x - o.x) + randf_range(-0.8, 0.8)
+					b.vx = cos(a) * 6.0; b.vy = sin(a) * 6.0; b.last = o; m.cool = 0.35; o.tackle_cool = 0.5
+					o.label = "Poked away"; o.label_t = 1.0; stats.tackles[si(o.side)] += 1; Sfx.play("tackle")
+					break
 		return
 	if b.z > 0.02 or b.vz > 0:
 		b.vz -= G * dt; b.z += b.vz * dt
@@ -661,6 +812,7 @@ func handle_contacts(dt: float) -> void:
 	for m in all:
 		if m.cool > 0 or m.stun > 0 or m.dive != null: continue
 		if b.shot != null and m.gk: continue
+		if b.get("reserve") != null and t < b.reserve.until and m != b.reserve.m and d2(m.x, m.y, b.x, b.y) > 0.65: continue
 		var d = d2(m.x, m.y, b.x, b.y)
 		var reach: float = 1.4 if m.gk else 0.95 + m.dri / 500.0
 		if b.z < 1.0 and d < reach:
@@ -705,6 +857,7 @@ func gk_save_check() -> void:
 	var speed = Vector2(b.vx, b.vy).length()
 	var p: float = gkr / 100.0 * 1.15 - reach * 0.17 - (speed - 18.0) * 0.012 + max(0.12, tt) * 0.35
 	if reach < 0.8: p += 0.25
+	if sh.get("chip", false) and abs(gk.x - gl) > 2.5: p *= 0.35
 	p = clamp(p, 0.04, 0.95)
 	var save = randf() < p
 	var dy: float = cy - gk.y

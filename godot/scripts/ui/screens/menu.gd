@@ -398,8 +398,8 @@ func advance(T: Dictionary, cur: Array, my_won: bool) -> void:
 	Save.dirty()
 
 # ------------------------------------------------------------------ settings
-const CONTROLS := [["Move", "WASD / Arrows", "Left stick", "Left stick"], ["Sprint", "Shift", "RT", "R2"], ["Short pass / Header", "J", "A", "✕"], ["Through ball", "I", "Y", "△"], ["Shoot (hold for power)", "K", "X", "□"],
-	["Finesse shot", "O (hold)", "RB + X", "R1 + □"], ["Lob pass / Cross", "L", "B", "○"], ["Skill move", "E + direction", "Right stick", "Right stick"], ["Standing tackle", "J (defending)", "B", "○"],
+const CONTROLS := [["Move", "WASD / Arrows", "Left stick", "Left stick"], ["Sprint", "Shift", "RT", "R2"], ["Pass (hold for power) / Header", "J", "A", "✕"], ["Driven pass", "R + J", "RB + A", "R1 + ✕"], ["Lobbed through ball", "R + I", "RB + Y", "R1 + △"], ["One-two", "F + J", "LB + A", "L1 + ✕"], ["Through ball", "I", "Y", "△"], ["Shoot (hold) · tap again = timed", "K", "X", "□"], ["Chip shot", "U", "LB + X", "L1 + □"], ["Close control (attacking)", "Ctrl", "LT", "L2"],
+	["Finesse shot", "O (hold)", "RB + X", "R1 + □"], ["Lob pass / Cross", "L", "B", "○"], ["Skill moves: flick fwd/back/side", "E + direction", "R-stick flick", "R-stick flick"], ["Step Over / La Croqueta", "E + side ×2", "Flick side ×2", "Flick side ×2"], ["Roulette / McGeady spin", "E E / Shift+E E", "R-stick half / full circle", "R-stick half / full circle"], ["Elastico / Rainbow flick", "E fwd→back / back→fwd", "Flick fwd→back / back→fwd", "Flick fwd→back / back→fwd"], ["Standing tackle", "J (defending)", "B", "○"],
 	["Slide tackle", "K (defending)", "X", "□"], ["Switch player", "Q", "LB", "L1"], ["Jockey (defending)", "Ctrl (hold)", "LT", "L2"], ["Teammate press (defending)", "C (hold)", "RB", "R1"], ["Pause / Subs", "Esc / P", "Start", "OPTIONS"], ["Show/hide controls", "H", "Back", "Touchpad"],
 	["Menu navigate", "Arrows / mouse", "D-pad", "D-pad / Left stick"], ["Menu select / back", "Enter / Esc", "A / B", "✕ / ○"], ["Menu tabs", "Q / E", "LB / RB", "L1 / R1"]]
 
@@ -432,6 +432,8 @@ func s_settings(_p) -> Dictionary:
 	gp.add_child(UI.field("Frame rate cap", UI.option([[30, "30 FPS (battery saver)"], [60, "60 FPS (recommended)"], [120, "120 FPS"], [0, "Unlimited (not recommended)"]], int(s.get("fps_cap", 60)), func(v): s.fps_cap = int(v); Save.dirty(); UI.apply_display())))
 	var vs = CheckBox.new(); vs.text = "V-Sync (prevents tearing & GPU overload)"; vs.button_pressed = s.get("vsync", true)
 	vs.toggled.connect(func(v): s.vsync = v; Save.dirty(); UI.apply_display()); gp.add_child(vs)
+	var rp = CheckBox.new(); rp.text = "Goal replays"; rp.button_pressed = s.get("replays", true)
+	rp.toggled.connect(func(v): s.replays = v; Save.dirty()); gp.add_child(rp)
 	var pm = CheckBox.new(); pm.text = "Performance mode (lighter crowd & backgrounds)"; pm.button_pressed = s.get("perf_mode", false)
 	pm.toggled.connect(func(v): s.perf_mode = v; Save.dirty()); gp.add_child(pm)
 	gp.add_child(UI.field("Match speed", UI.option([["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]], s.get("game_speed", "normal"), func(v): s.game_speed = v; Save.dirty())))

@@ -9,7 +9,7 @@ var _t = 0.0
 
 func default_settings() -> Dictionary:
 	return {"music": 0.5, "sfx": 0.8, "crowd": 0.7, "difficulty": "professional", "half_len": 3, "camera": "broadcast", "show_links": true, "fullscreen": false, "vibration": true,
-		"game_speed": "normal", "fps_cap": 60, "vsync": true, "perf_mode": false}
+		"game_speed": "normal", "fps_cap": 60, "vsync": true, "perf_mode": false, "replays": true}
 
 func new_save(name: String) -> Dictionary:
 	var now = Time.get_unix_time_from_system()
