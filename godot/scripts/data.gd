@@ -93,6 +93,7 @@ func _add_season_content() -> void:
 
 func P(id: String) -> Dictionary:
 	if not by_id.has(id) and id.begins_with("evo"): return Event.ensure_evo(id)
+	if not by_id.has(id) and id.begins_with("ev_"): return Evo.ensure(id)
 	return by_id.get(id, {})
 
 func division(div: int) -> Dictionary:

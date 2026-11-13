@@ -13,7 +13,7 @@ const YELLOW := Color("#ffd23f")
 const RED := Color("#ff4d5e")
 const PANEL := Color(0.063, 0.086, 0.118, 0.85)
 
-const HUB_TABS := [["home", "Home"], ["objectives", "Objectives"], ["season", "Season Pass"], ["play", "Play"], ["club", "Club"], ["sbc", "SBC"], ["transfers", "Transfers"], ["store", "Store"]]
+const HUB_TABS := [["home", "Home"], ["objectives", "Objectives"], ["season", "Season Pass"], ["play", "Play"], ["club", "Club"], ["sbc", "SBC"], ["evolutions", "Evolutions"], ["transfers", "Transfers"], ["store", "Store"]]
 
 var font_head: Font
 var font_bold: Font
@@ -37,7 +37,8 @@ var currency_labels = []
 var in_match = false
 
 func _ready() -> void:
-	_fonts(); _theme(); _input_map(); apply_display()
+	_fonts(); _theme(); _input_map(); apply_display(); _strip_pad_nav()
+	get_viewport().gui_focus_changed.connect(_on_focus_changed)
 	layer = CanvasLayer.new(); add_child(layer)
 	root = Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.theme = theme; root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
@@ -47,7 +48,7 @@ func _ready() -> void:
 	overlay = Control.new(); overlay.set_anchors_preset(Control.PRESET_FULL_RECT); overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(overlay)
 	toasts = VBoxContainer.new(); toasts.set_anchors_preset(Control.PRESET_TOP_RIGHT); toasts.position = Vector2(-430, 80); toasts.custom_minimum_size = Vector2(400, 0)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE; toasts.add_theme_constant_override("separation", 8); root.add_child(toasts)
-	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new(), preload("res://scripts/ui/screens/gallery_ui.gd").new(), preload("res://scripts/ui/screens/event_ui.gd").new()]
+	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new(), preload("res://scripts/ui/screens/gallery_ui.gd").new(), preload("res://scripts/ui/screens/event_ui.gd").new(), preload("res://scripts/ui/screens/evo_ui.gd").new()]
 	Sys.currency_changed.connect(refresh_currency)
 	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
@@ -138,14 +139,19 @@ func _input_map() -> void:
 
 # ------------------------------------------------------------------ router
 func go(name: String, params := {}, push := true) -> void:
-	if cur and push and cur_name != "": stack.append([cur_name, cur_params])
+	if cur and push and cur_name != "": stack.append([cur_name, cur_params, _focus_path()])
 	_show(name, params)
 
-func replace(name: String, params := {}) -> void: _show(name, params)
+## replacing the same screen (e.g. after claiming a reward) keeps the controller focus where it was
+func replace(name: String, params := {}) -> void:
+	if name == cur_name: _restore = _focus_path()
+	_show(name, params)
 func reset(name: String, params := {}) -> void: stack.clear(); _show(name, params)
 func back() -> void:
 	if stack.is_empty(): return
-	var p = stack.pop_back(); _show(p[0], p[1])
+	var p = stack.pop_back()
+	if p.size() > 2: _restore = p[2]
+	_show(p[0], p[1])
 func rerender() -> void: _show(cur_name, cur_params)
 
 func apply_display() -> void:
@@ -164,7 +170,7 @@ func _show(name: String, params: Dictionary) -> void:
 		var old = cur
 		var tw = create_tween(); tw.tween_property(old, "modulate:a", 0.0, 0.15); tw.tween_callback(old.queue_free)
 	cur_name = name; cur_params = params; cur_tab = ""
-	cur_back = Callable()
+	cur_back = Callable(); _segs = []
 	var info: Dictionary = mod.call("s_" + name, params)
 	cur = info.node
 	cur_back = info.get("back", Callable(self, "back"))
@@ -175,8 +181,19 @@ func _show(name: String, params: Dictionary) -> void:
 	host.add_child(cur)
 	var tw2 = create_tween().set_parallel(); tw2.tween_property(cur, "modulate:a", 1.0, 0.3); tw2.tween_property(cur, "position:x", 0.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	if not info.get("no_music", false) and not in_match: Sfx.music_on()
+	var restore = _restore; _restore = []
 	await get_tree().process_frame
-	if is_instance_valid(cur): focus_first(cur)
+	if not is_instance_valid(cur): return
+	# put controller focus back where it was; if that exact control is gone, use the nearest surviving section
+	var path: Array = restore.duplicate()
+	while not path.is_empty():
+		var n = _resolve_path(path)
+		if n is Control and n.is_visible_in_tree():
+			if n.focus_mode == Control.FOCUS_ALL: n.grab_focus(); return
+			var f = _find_focusable(n)
+			if f and path.size() >= 4: f.grab_focus(); return
+		path.pop_back()
+	focus_first(cur)
 
 func focus_first(node: Node) -> void:
 	var pref = _find_auto(node)
@@ -212,6 +229,152 @@ func _unhandled_input(event: InputEvent) -> void:
 		var d = -1 if event.is_action_pressed("tab_prev") else 1
 		Sfx.play("tab"); replace(HUB_TABS[(i + d + HUB_TABS.size()) % HUB_TABS.size()][0])
 
+# ------------------------------------------------------------------ controller driver
+## Smooth controller menus: hold-to-repeat navigation with acceleration, right stick scrolling,
+## L2/R2 to switch sub-tabs, smooth scroll-to-focus, and the mouse can't steal focus while you use a pad.
+var _restore = []
+var _segs = []
+var _nav = {"dir": Vector2i.ZERO, "t": 0.0, "rep": 0}
+var _trig = {"l": false, "r": false}
+var _scroll_acc = Vector2.ZERO
+var _last_mouse = -10.0
+
+func mouse_recent() -> bool: return Time.get_ticks_msec() / 1000.0 - _last_mouse < 0.6
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and event.relative.length() > 1.5:
+		_last_mouse = Time.get_ticks_msec() / 1000.0
+		if Input.mouse_mode == Input.MOUSE_MODE_HIDDEN: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseButton:
+		_last_mouse = Time.get_ticks_msec() / 1000.0
+	elif (event is InputEventJoypadButton and event.pressed) or (event is InputEventJoypadMotion and abs(event.axis_value) > 0.5):
+		_last_mouse = -10.0
+		if not in_match and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE: Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+
+func _strip_pad_nav() -> void:
+	for a in ["ui_up", "ui_down", "ui_left", "ui_right"]:
+		for e in InputMap.action_get_events(a):
+			if e is InputEventJoypadButton or e is InputEventJoypadMotion: InputMap.action_erase_event(a, e)
+
+func _process(delta: float) -> void:
+	if in_match:
+		_nav.dir = Vector2i.ZERO; return
+	var dir = Vector2i.ZERO; var rs = Vector2.ZERO; var lt = false; var rt = false
+	for d in Input.get_connected_joypads():
+		var v = Vector2i.ZERO
+		if Input.is_joy_button_pressed(d, JOY_BUTTON_DPAD_UP): v.y = -1
+		elif Input.is_joy_button_pressed(d, JOY_BUTTON_DPAD_DOWN): v.y = 1
+		elif Input.is_joy_button_pressed(d, JOY_BUTTON_DPAD_LEFT): v.x = -1
+		elif Input.is_joy_button_pressed(d, JOY_BUTTON_DPAD_RIGHT): v.x = 1
+		else:
+			var ls = Vector2(Input.get_joy_axis(d, JOY_AXIS_LEFT_X), Input.get_joy_axis(d, JOY_AXIS_LEFT_Y))
+			# hysteresis: a held stick stays engaged until it drops well below the press threshold
+			var th = 0.38 if _nav.dir != Vector2i.ZERO else 0.6
+			if ls.length() > th:
+				if abs(ls.x) > abs(ls.y) * 1.15: v.x = 1 if ls.x > 0 else -1
+				elif abs(ls.y) > abs(ls.x) * 1.15: v.y = 1 if ls.y > 0 else -1
+				else: v = _nav.dir   # diagonal: keep the current direction instead of flickering
+		if v != Vector2i.ZERO: dir = v
+		var r = Vector2(Input.get_joy_axis(d, JOY_AXIS_RIGHT_X), Input.get_joy_axis(d, JOY_AXIS_RIGHT_Y))
+		if r.length() > 0.22: rs = r
+		if Input.get_joy_axis(d, JOY_AXIS_TRIGGER_LEFT) > 0.6: lt = true
+		if Input.get_joy_axis(d, JOY_AXIS_TRIGGER_RIGHT) > 0.6: rt = true
+	if dir != _nav.dir:
+		_nav.dir = dir; _nav.t = 0.0; _nav.rep = 0
+		if dir != Vector2i.ZERO: _send_nav(dir)
+	elif dir != Vector2i.ZERO:
+		_nav.t += delta
+		var wait: float = 0.34 if _nav.rep == 0 else max(0.05, 0.1 - _nav.rep * 0.006)
+		if _nav.t >= wait: _nav.t = 0.0; _nav.rep += 1; _send_nav(dir)
+	if rs != Vector2.ZERO: _scroll_by(rs * rs.length() * delta * 1400.0)
+	if lt and not _trig.l: _cycle_seg(-1)
+	if rt and not _trig.r: _cycle_seg(1)
+	_trig.l = lt; _trig.r = rt
+
+func _send_nav(d: Vector2i) -> void:
+	var a = "ui_up" if d.y < 0 else ("ui_down" if d.y > 0 else ("ui_left" if d.x < 0 else "ui_right"))
+	var fo = get_viewport().gui_get_focus_owner()
+	if fo == null:
+		var scope = modals[-1].node if not modals.is_empty() else cur
+		if scope: focus_first(scope)
+		return
+	var e = InputEventAction.new(); e.action = a; e.pressed = true; Input.parse_input_event(e)
+	var e2 = InputEventAction.new(); e2.action = a; e2.pressed = false; Input.parse_input_event(e2)
+
+func _scroll_target() -> ScrollContainer:
+	var fo = get_viewport().gui_get_focus_owner()
+	var n: Node = fo
+	while n != null:
+		if n is ScrollContainer and (n.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED or n.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED): return n
+		n = n.get_parent()
+	return _first_scroll(modals[-1].node if not modals.is_empty() else cur)
+func _first_scroll(n: Node) -> ScrollContainer:
+	if n == null: return null
+	if n is ScrollContainer and n.is_visible_in_tree(): return n
+	for c in n.get_children():
+		var r = _first_scroll(c)
+		if r: return r
+	return null
+
+func _scroll_by(v: Vector2) -> void:
+	var sc = _scroll_target()
+	if sc == null: return
+	_scroll_acc += v
+	var ix = int(_scroll_acc.x); var iy = int(_scroll_acc.y)
+	_scroll_acc -= Vector2(ix, iy)
+	if sc.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED: sc.scroll_horizontal += ix
+	sc.scroll_vertical += iy
+
+func _cycle_seg(d: int) -> void:
+	if not modals.is_empty() or _segs.is_empty(): return
+	var fo = get_viewport().gui_get_focus_owner()
+	if fo is LineEdit: return
+	var s: Dictionary = _segs[0]
+	var keys: Array = s.items.map(func(x): return str(x[0]))
+	var i = keys.find(str(s.current))
+	Sfx.play("tab")
+	s.cb.call(s.items[(i + d + keys.size()) % keys.size()][0])
+
+## glide the nearest scroll container so the newly focused control is fully visible
+func _on_focus_changed(c: Control) -> void:
+	if in_match or c == null: return
+	var n: Node = c.get_parent()
+	while n != null and not (n is ScrollContainer): n = n.get_parent()
+	if n == null: return
+	var sc: ScrollContainer = n
+	var r = c.get_global_rect(); var v = sc.get_global_rect()
+	var m = 28.0
+	var ty: int = sc.scroll_vertical; var tx: int = sc.scroll_horizontal
+	if sc.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+		if r.position.y < v.position.y + m: ty += int(r.position.y - v.position.y - m)
+		elif r.end.y > v.end.y - m: ty += int(min(r.end.y - (v.end.y - m), r.position.y - v.position.y - m))
+	if sc.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+		if r.position.x < v.position.x + m: tx += int(r.position.x - v.position.x - m)
+		elif r.end.x > v.end.x - m: tx += int(min(r.end.x - (v.end.x - m), r.position.x - v.position.x - m))
+	ty = max(0, ty); tx = max(0, tx)
+	if ty == sc.scroll_vertical and tx == sc.scroll_horizontal: return
+	if sc.has_meta("tw"):
+		var old = sc.get_meta("tw")
+		if old is Tween and old.is_valid(): old.kill()
+	var tw = sc.create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(sc, "scroll_vertical", ty, 0.18); tw.tween_property(sc, "scroll_horizontal", tx, 0.18)
+	sc.set_meta("tw", tw)
+
+func _focus_path() -> Array:
+	var fo = get_viewport().gui_get_focus_owner()
+	if cur == null or not is_instance_valid(cur) or fo == null or not cur.is_ancestor_of(fo): return []
+	var path = []
+	var n: Node = fo
+	while n != cur:
+		path.push_front(n.get_index()); n = n.get_parent()
+	return path
+func _resolve_path(path: Array) -> Node:
+	var n: Node = cur
+	for i in path:
+		if n == null or i >= n.get_child_count(): return null
+		n = n.get_child(i)
+	return n
+
 # ------------------------------------------------------------------ widgets
 func label(text: String, size := 15, color := TEXT, font: Font = null) -> Label:
 	var l = Label.new(); l.text = text
@@ -231,7 +394,7 @@ func btn(text: String, cb: Callable, variant := "", autofocus := false) -> Butto
 	if variant != "": b.theme_type_variation = variant
 	b.focus_mode = Control.FOCUS_ALL
 	b.pressed.connect(func(): Sfx.play("select"); cb.call())
-	b.mouse_entered.connect(func(): if not b.disabled and not b.has_focus(): b.grab_focus())
+	b.mouse_entered.connect(func(): if mouse_recent() and not b.disabled and not b.has_focus(): b.grab_focus())
 	b.focus_entered.connect(func(): Sfx.play("move"))
 	if autofocus: b.set_meta("autofocus", true)
 	return b
@@ -257,7 +420,7 @@ func panel(child: Control, variant := "") -> PanelContainer:
 func scroll(child: Control, horizontal := false) -> ScrollContainer:
 	var s = ScrollContainer.new(); s.size_flags_vertical = Control.SIZE_EXPAND_FILL; s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if horizontal else ScrollContainer.SCROLL_MODE_DISABLED
-	s.follow_focus = true
+	s.follow_focus = false   # we scroll smoothly to the focused control ourselves
 	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(child); return s
 func bar(value: float, max_v: float, variant := "") -> ProgressBar:
@@ -271,7 +434,7 @@ func option(items: Array, selected, cb: Callable) -> OptionButton:
 		o.add_item(str(items[i][1]), i); o.set_item_metadata(i, items[i][0])
 		if str(items[i][0]) == str(selected): o.select(i)
 	o.item_selected.connect(func(i): Sfx.play("select"); cb.call(o.get_item_metadata(i)))
-	o.mouse_entered.connect(func(): if not o.has_focus(): o.grab_focus())
+	o.mouse_entered.connect(func(): if mouse_recent() and not o.has_focus(): o.grab_focus())
 	return o
 func field(caption: String, ctl: Control) -> VBoxContainer:
 	return vb(4, [caps(caption, 11), ctl])
@@ -286,8 +449,11 @@ func card(p: Dictionary, cs := 10.0, mini := false, on_press = null) -> PlayerCa
 func tile(children: Array, cb: Callable, min_size := Vector2.ZERO, autofocus := false) -> Button:
 	var b = Button.new(); b.theme_type_variation = "Tile"; b.focus_mode = Control.FOCUS_ALL; b.custom_minimum_size = min_size
 	b.pressed.connect(func(): Sfx.play("select"); cb.call())
-	b.mouse_entered.connect(func(): if not b.has_focus(): b.grab_focus())
-	b.focus_entered.connect(func(): Sfx.play("move"))
+	b.mouse_entered.connect(func(): if mouse_recent() and not b.has_focus(): b.grab_focus())
+	b.focus_entered.connect(func():
+		Sfx.play("move"); b.pivot_offset = b.size / 2
+		b.create_tween().tween_property(b, "scale", Vector2(1.025, 1.025), 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT))
+	b.focus_exited.connect(func(): b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.12))
 	var m = MarginContainer.new(); m.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for s in ["left", "right", "top", "bottom"]: m.add_theme_constant_override("margin_" + s, 20)
 	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -308,6 +474,7 @@ func pill(text: String, color := TEXT, bgc := Color(1, 1, 1, 0.08)) -> PanelCont
 	var p = PanelContainer.new(); p.add_theme_stylebox_override("panel", _sb(bgc, Color(0, 0, 0, 0), 0, 99, Vector4(10, 3, 10, 3)))
 	p.add_child(bold(text, 12, color)); return p
 func seg(items: Array, current: String, cb: Callable) -> HBoxContainer:
+	_segs.append({"items": items, "current": current, "cb": cb})
 	var h = hb(2)
 	var p = PanelContainer.new(); p.add_theme_stylebox_override("panel", _sb(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.09), 1, 10, Vector4(3, 3, 3, 3)))
 	var inner = hb(2); p.add_child(inner)
@@ -376,7 +543,6 @@ func frame(top: Control, hint_extra := "", bg_style := "") -> Dictionary:
 func hub_shell(tab: String) -> Dictionary:
 	var top = hb(14)
 	top.add_child(icon("badge", Sys.D().profile.badge, Vector2(50, 54)))
-	top.add_child(bold("Ultimate XI", 26))
 	top.add_child(_sepline())
 	top.add_child(caps(Pad.glyph("LB") if Pad.style == "ps" else "Q", 10))
 	for t in HUB_TABS:
@@ -389,7 +555,7 @@ func hub_shell(tab: String) -> Dictionary:
 		top.add_child(b)
 	top.add_child(caps(Pad.glyph("RB") if Pad.style == "ps" else "E", 10))
 	top.add_child(spacer()); top.add_child(currency_bar())
-	var f = frame(top, ("L1 / R1" if Pad.style == "ps" else "Q / E  ·  LB / RB") + "  switch tab")
+	var f = frame(top, ("L1 / R1  tabs  ·  L2 / R2  sub-tabs  ·  R-stick scroll" if Pad.style == "ps" else ("LB / RB  tabs  ·  LT / RT  sub-tabs  ·  R-stick scroll" if Pad.style == "xbox" else "Q / E  switch tab")))
 	return f
 func _sepline() -> Control:
 	var c = ColorRect.new(); c.color = Color(1, 1, 1, 0.25); c.custom_minimum_size = Vector2(1, 30); return c
@@ -434,7 +600,7 @@ func modal(title: String, body, buttons := [["OK", true, "Primary"]], wide := fa
 	if title != "": v.add_child(head(title.to_upper(), 22))
 	var b: Control = body if body is Control else wrapl(label(str(body), 15), 520 if not wide else 1000)
 	if wide or (b is Control and b.custom_minimum_size.y > 600):
-		var sc = ScrollContainer.new(); sc.custom_minimum_size = Vector2(0, min(640, root.size.y - 240)); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.follow_focus = true
+		var sc = ScrollContainer.new(); sc.custom_minimum_size = Vector2(0, min(640, root.size.y - 240)); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.follow_focus = false
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		sc.add_child(b); v.add_child(sc)
 	else: v.add_child(b)
@@ -477,7 +643,7 @@ func close_top(val) -> void:
 func player_row(p: Dictionary, right: Array, cb: Callable) -> Button:
 	var b = Button.new(); b.theme_type_variation = "Row"; b.focus_mode = Control.FOCUS_ALL; b.custom_minimum_size = Vector2(0, 46)
 	b.pressed.connect(func(): Sfx.play("select"); cb.call())
-	b.mouse_entered.connect(func(): if not b.has_focus(): b.grab_focus())
+	b.mouse_entered.connect(func(): if mouse_recent() and not b.has_focus(): b.grab_focus())
 	var h = hb(12); h.set_anchors_preset(Control.PRESET_FULL_RECT); h.offset_left = 12; h.offset_right = -12
 	var ov = PanelContainer.new(); ov.add_theme_stylebox_override("panel", _sb(Data.ovr_color(p), Color(0, 0, 0, 0), 0, 6, Vector4(6, 1, 6, 1)))
 	ov.add_child(head(str(p.ovr), 18, Color("#111111") if p.type == "base" else Color.WHITE)); ov.custom_minimum_size.x = 44
@@ -495,6 +661,7 @@ func inspect(p: Dictionary, actions := [], item := {}):
 	var cl: Dictionary = Data.clubs[p.club]; var lg: Dictionary = Data.leagues.get(p.lg, {})
 	var right = vb(8)
 	right.add_child(head(p.name.to_upper(), 22))
+	if p.has("evo_name") or p.has("evo"): right.add_child(label("Evolved · " + str(p.get("evo_name", "Next Gen")), 13, Color("#7dffb0")))
 	right.add_child(label("%s · %s%s" % [Data.rarity_name(p), p.pos, (" (" + ", ".join(p.alt) + ")") if not p.alt.is_empty() else ""], 14, DIM))
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 24); g.add_theme_constant_override("v_separation", 6)
 	var kv = func(k: String, v: Control): g.add_child(label(k, 14, DIM)); g.add_child(v)

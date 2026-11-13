@@ -733,6 +733,7 @@ func record_ut_match(res: Dictionary) -> String:
 	if mid: track("goal_mid")
 	add_xp(300 if r == "W" else (180 if r == "D" else 120))
 	Event.after_match(res, r)
+	Evo.after_match(res, r, ga)
 	Season.add_xp(450 if r == "W" else (300 if r == "D" else 200), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))
 	return r
 func log_match(res: Dictionary, mode: String, r: String) -> void:

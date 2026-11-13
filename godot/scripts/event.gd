@@ -97,6 +97,7 @@ func evo_eligible(it: Dictionary) -> bool:
 	if p.is_empty() or str(it.pid).begins_with("evo"): return false
 	if st().evolved.has(it.pid): return false
 	if st().evos.any(func(e): return e.uid == it.uid): return false
+	if Evo.st().active.any(func(e): return e.uid == it.uid): return false
 	return is_young(p) and p.ovr <= 90
 
 ## evolved player definition: evo<level>_<source id>

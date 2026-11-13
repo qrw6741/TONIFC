@@ -33,7 +33,7 @@ func _ready() -> void:
 	flat = true; focus_mode = Control.FOCUS_ALL
 	for s in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
 		add_theme_stylebox_override(s, StyleBoxEmpty.new())
-	mouse_entered.connect(func(): if not has_focus(): grab_focus())
+	mouse_entered.connect(func(): if UI.mouse_recent() and not has_focus(): grab_focus())
 	focus_entered.connect(func():
 		Sfx.play("move"); _t = 0.0
 		create_tween().tween_property(self, "scale", Vector2(1.06, 1.06), 0.12)
