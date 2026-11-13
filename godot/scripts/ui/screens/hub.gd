@@ -27,7 +27,7 @@ func s_home(_p) -> Dictionary:
 	var ot = UI.tile(ob, func(): UI.replace("objectives")); UI.grow(ot, true, false); left.add_child(ot)
 	var rv: Dictionary = Save.data.modes.rivals; var sb: Dictionary = Save.data.modes.sb
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 14)
-	for kv in [["Division Rivals", "%s · %d/10" % [Data.division(int(rv.div)).name, rv.pts]], ["Squad Battles", "%s pts" % Sys.fmt(sb.points if sb.week == Sys.week_key() else 0)], ["Champions", "In progress" if Save.data.modes.champs.active else "%d ticket(s)" % Save.data.modes.champs.tickets]]:
+	for kv in [["Division Rivals", "%s · %d/10" % [Data.division(int(rv.div)).name, rv.pts]], ["Squad Battles", "%s pts" % Sys.fmt(sb.points if sb.week == Sys.week_key() else 0)], ["Champions", ("%d pts · %d/%d" % [int(Champs.run().pts), int(Champs.run().played), Champs.MATCHES]) if Champs.run() != null else ("Qualified" if Champs.qualified() else "%d/1,000 QP" % int(Champs.st().qp))]]:
 		g.add_child(UI.label(kv[0], 13, UI.DIM)); g.add_child(UI.label(kv[1], 13))
 	left.add_child(UI.tile([UI.caps("Competitions"), g], func(): UI.replace("play"), Vector2(0, 120)))
 	var gcl = Gallery.set_ids().filter(func(id): return Gallery.claimable(id)).size()

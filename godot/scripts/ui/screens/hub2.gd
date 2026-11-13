@@ -7,28 +7,6 @@ func _hub(f: Dictionary, tab: String) -> Dictionary:
 func page_title(t: String) -> Label: return UI.head(t.to_upper(), 38)
 
 # ------------------------------------------------------------------ SBC
-func s_sbc(p) -> Dictionary:
-	var f = UI.hub_shell("sbc")
-	var cat: String = p.get("cat", "Foundations")
-	f.body.add_child(UI.hb(10, [page_title("Squad Building Challenges"), UI.spacer(), UI.seg(["Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"].map(func(c): return [c, c]), cat, func(v): UI.replace("sbc", {"cat": v}))]))
-	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
-	for s in Data.sbcs.filter(func(x): return x.cat == cat):
-		var n = Sys.sbc_count(s.id); var av = Sys.sbc_available(s)
-		var art: Control
-		if s.reward.has("player"): var c = UI.card(Data.P(s.reward.player), 8.0); c.focus_mode = Control.FOCUS_NONE; art = c
-		else: art = UI.icon("pack", s.reward.pack, Vector2(90, 126))
-		var cc = CenterContainer.new(); cc.add_child(art); cc.custom_minimum_size.y = 150
-		var status: String = ("%d/%s" % [n, "∞" if int(s.repeat) >= 99 else str(s.repeat)]) if int(s.repeat) > 1 else ("NEW" if av else "DONE")
-		var t = UI.tile([UI.hb(6, [UI.bold(s.name, 19), UI.spacer(), UI.pill(status if av else "DONE", UI.TEXT if av else UI.GREEN)]), UI.wrapl(UI.bold(s.desc, 13, UI.TEAL), 250), cc,
-			UI.label("%d players · %d requirement%s" % [int(s.size), s.reqs.size(), "" if s.reqs.size() == 1 else "s"], 12, UI.DIM), UI.wrapl(UI.bold("Reward: " + Sys.reward_text(s.reward), 12, UI.TEAL), 250)],
-			func():
-				if not Sys.sbc_available(s): UI.toast("Already completed"); return
-				UI.go("sbcbuild", {"id": s.id, "cat": cat}), Vector2(290, 380))
-		if not av: t.modulate.a = 0.55
-		flow.add_child(t)
-	f.body.add_child(UI.scroll(flow))
-	return _hub(f, "sbc")
-
 func s_sbcbuild(p) -> Dictionary:
 	var sbc: Dictionary = {}
 	for s in Data.sbcs: if s.id == p.id: sbc = s
@@ -146,7 +124,7 @@ func s_play(_p) -> Dictionary:
 	var tiles = [
 		rivals,
 		UI.tile([UI.bold("Squad Battles", 24), UI.wrapl(UI.bold("Play AI squads. Earn points by difficulty & performance.", 13, UI.TEAL), 300), center.call([UI.head(Sys.fmt(m.sb.points), 28), UI.label("pts this week · " + sb_rank.name, 13, UI.DIM)])], func(): UI.go("squadbattles")),
-		UI.tile([UI.bold("Champions", 24), UI.wrapl(UI.bold("10-match elite tournament. Requires a ticket (Rivals).", 13, UI.TEAL), 300), center.call([UI.head(("%d-%d" % [champs.active.w, champs.active.l]) if champs.active else str(champs.tickets), 28), UI.label("%d/10 played" % champs.active.played if champs.active else "ticket(s)", 13, UI.DIM)])], func(): UI.go("champions")),
+		UI.tile([UI.bold("FUT Champions", 24), UI.wrapl(UI.bold("Weekly 15-match event. Qualify with 1,000 points from Division Rivals.", 13, UI.TEAL), 300), center.call(_champs_summary())], func(): UI.go("champions")),
 		UI.tile([UI.bold("Draft", 24), UI.wrapl(UI.bold("Build a temporary squad from random choices. Win 4 straight.", 13, UI.TEAL), 300), center.call([UI.bold("In progress · %d wins" % m.draft.active.wins if m.draft.active else "● %s or ◆ %d" % [Sys.fmt(Data.draft_cost.coins), Data.draft_cost.points], 15)])], func(): UI.go("draft")),
 		UI.tile([UI.bold("Friendlies", 24), UI.wrapl(UI.bold("Casual matches with custom rules. No stakes.", 13, UI.TEAL), 300), center.call([UI.head("⚽", 40)])], func(): UI.go("friendlies"))]
 	for t in tiles: UI.grow(t); g.add_child(t)
@@ -251,13 +229,19 @@ func s_rivals(_p) -> Dictionary:
 	for c in main.get_children(): c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var mp = UI.panel(main); UI.grow(mp)
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 18); g.add_theme_constant_override("v_separation", 6)
-	for kv in [["Win", "%s coins · +3 pts" % Sys.fmt(900 + (11 - div) * 60)], ["Draw", "%s coins · +1 pt" % Sys.fmt(450 + (11 - div) * 60)], ["Loss", "%s coins · -1 pt" % Sys.fmt(200 + (11 - div) * 60)], ["Promotion", "Premium/Jumbo pack + 50 Prime Points"], ["Champions ticket", "Every 3 weekly wins in Div 5+"],
-		["Played", str(rv.played)], ["Wins", str(rv.wins)], ["Best division", Data.division(int(rv.best)).name], ["Champions tickets", str(Save.data.modes.champs.tickets)]]:
+	for kv in [["Win", "%s coins · +3 pts" % Sys.fmt(900 + (11 - div) * 60)], ["Draw", "%s coins · +1 pt" % Sys.fmt(450 + (11 - div) * 60)], ["Loss", "%s coins · -1 pt" % Sys.fmt(200 + (11 - div) * 60)], ["Promotion", "Premium/Jumbo pack + 50 Prime Points"], ["Champions Qual. Points", "+200 win · +100 draw · +50 loss"],
+		["Played", str(rv.played)], ["Wins", str(rv.wins)], ["Best division", Data.division(int(rv.best)).name], ["Champions qualification", ("Qualified!" if Champs.qualified() else "%s / %s" % [Sys.fmt(Champs.st().qp), Sys.fmt(Champs.QP_NEED)]) if Champs.run() == null else "In event"]]:
 		g.add_child(UI.label(kv[0], 14, UI.DIM)); g.add_child(UI.wrapl(UI.label(kv[1], 14), 220))
 	var sp = UI.panel(UI.vb(10, [UI.caps("Rewards & record"), g])); sp.custom_minimum_size.x = 420
 	f.body.add_child(UI.hb(24, [mp, sp]))
 	f.body.get_child(-1).size_flags_vertical = Control.SIZE_EXPAND_FILL
 	return {"node": f.node, "bg": "hub"}
+
+func _champs_summary() -> Array:
+	var r = Champs.run()
+	if r != null: return [UI.head("%d pts" % int(r.pts), 28), UI.label("%s · %d/%d played" % [Champs.rank_name(Champs.rank_for(int(r.pts))), int(r.played), Champs.MATCHES], 13, UI.DIM)]
+	if Champs.qualified(): return [UI.head("Qualified", 28, UI.GREEN), UI.label("Ready to play", 13, UI.DIM)]
+	return [UI.head("%s/%s" % [Sys.fmt(Champs.st().qp), Sys.fmt(Champs.QP_NEED)], 28), UI.label("Qual. Points", 13, UI.DIM)]
 
 func rivals_play() -> void:
 	if not require_squad(): return
@@ -272,62 +256,6 @@ func rivals_play() -> void:
 		show_results(res, "Division Rivals", "+%s coins%s" % [Sys.fmt(out.coins), (" · " + out.msg) if out.msg != "" else ""], func(): UI.replace("rivals")))
 
 # ------------------------------------------------------------------ CHAMPIONS
-func s_champions(_p) -> Dictionary:
-	var f = UI.sub_shell("Champions", "Play")
-	var c: Dictionary = Save.data.modes.champs; var a = c.active
-	var main = UI.vb(14); main.alignment = BoxContainer.ALIGNMENT_CENTER
-	if a:
-		main.add_child(UI.caps("Champions · in progress")); main.add_child(UI.head("%d - %d" % [a.w, a.l], 90))
-		var dots = UI.hb(6)
-		for i in Sys.CHAMPS_MATCHES: var d = ColorRect.new(); d.custom_minimum_size = Vector2(22, 22); d.color = UI.TEAL if i < a.played else Color(1, 1, 1, 0.1); dots.add_child(d)
-		main.add_child(dots)
-		main.add_child(UI.label("Next reward tier: " + Sys.reward_text(Sys.champs_reward(a.w + 1)), 14, UI.DIM))
-		if a.played < Sys.CHAMPS_MATCHES: main.add_child(UI.btn("Ⓐ  Play next match", champs_play, "Primary", true))
-		else: main.add_child(UI.btn("Claim rewards", champs_finish, "Primary", true))
-		main.add_child(UI.btn("Finish early & claim", func():
-			if await UI.modal("Finish now?", "You'll receive the %d-win rewards." % a.w, [["Cancel", null, ""], ["Finish", true, "Primary"]]): champs_finish(), "Danger"))
-	else:
-		main.add_child(UI.icon("badge", {"shape": "crest", "c1": "#e8b631", "c2": "#14161c", "icon": "crown"}, Vector2(110, 110)))
-		main.add_child(UI.head("CHAMPIONS", 30))
-		main.add_child(UI.wrapl(UI.label("A 10-match tournament against elite opposition (~88 OVR, Legendary). Rewards scale with wins. Earn tickets in Division Rivals.", 14, UI.DIM), 460))
-		main.add_child(UI.bold("Tickets: %d" % c.tickets, 16))
-		var sb = UI.btn("Ⓐ  Use ticket & start", func():
-			if c.tickets >= 1: c.tickets -= 1; c.active = {"w": 0, "l": 0, "played": 0}; Save.dirty(); UI.rerender(), "Primary", true)
-		sb.disabled = c.tickets < 1
-		main.add_child(UI.hb(10, [sb, UI.btn("Buy ticket (◆ 600)", func():
-			if Sys.spend("points", 600, "Champions ticket"): c.tickets += 1; Save.dirty(); UI.rerender())]))
-	for ch in main.get_children(): ch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var mp = UI.panel(main); UI.grow(mp)
-	var tiers = UI.vb(6, [UI.caps("Reward tiers")])
-	for w in [9, 7, 5, 3, 0]: tiers.add_child(UI.hb(10, [UI.bold("%d+ wins" % w, 14), UI.wrapl(UI.label(Sys.reward_text(Sys.champs_reward(w)), 13, UI.DIM), 260)]))
-	tiers.add_child(UI.caps("History"))
-	for x in c.history.slice(0, 8): tiers.add_child(UI.label("%s · %d-%d" % [Time.get_date_string_from_unix_time(int(x.t)), x.w, x.l], 13, UI.DIM))
-	var tp = UI.panel(tiers); tp.custom_minimum_size.x = 400
-	var row = UI.hb(24, [mp, tp]); UI.grow(row); f.body.add_child(row)
-	return {"node": f.node, "bg": "hub"}
-
-func champs_finish() -> void:
-	var c: Dictionary = Save.data.modes.champs; var a = c.active
-	if a == null: return
-	var rw = Sys.champs_reward(a.w)
-	Sys.grant(rw, "Champions: %d-%d" % [a.w, a.l]); c.history.push_front({"t": Sys.now(), "w": a.w, "l": a.l}); Sys.history("Champions finished %d-%d" % [a.w, a.l])
-	c.active = null; Save.dirty(); Sfx.play("bigreveal")
-	await UI.modal("Champions rewards", Sys.reward_text(rw)); UI.rerender()
-
-func champs_play() -> void:
-	if not require_squad(): return
-	var c: Dictionary = Save.data.modes.champs; var a: Dictionary = c.active
-	var ut = Sys.user_team(); var opp = Sys.ai_team("%s %s %d" % [Sys.pick(["Elite", "Prime", "Apex", "Legend"]), Sys.pick(["Gamer", "Squad", "FC", "XI"]), Sys.rint(1, 99)], min(93, 85 + int(a.w) * 0.6 + Sys.experience() * 20))
-	Sys.league3_check(ut)
-	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary", "ai": min(1.3, 0.92 + int(a.w) * 0.03 + Sys.experience()), "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "Champions · Match %d" % (a.played + 1), "knockout": true}, func(res):
-		var r0 = Sys.record_ut_match(res); var r = r0
-		if r0 == "D": r = "W" if res.winner == "home" else "L"
-		a.played += 1
-		if r == "W": a.w += 1; Sys.track("champs_win")
-		else: a.l += 1
-		Sys.add("coins", 1500 if r == "W" else 400, "Champions match"); Sys.log_match(res, "Champions", r); Save.dirty()
-		show_results(res, "Champions", "+1,500 coins" if r == "W" else "+400 coins", func(): UI.replace("champions")))
-
 # ------------------------------------------------------------------ DRAFT
 func s_draft(_p) -> Dictionary:
 	var f = UI.sub_shell("Draft", "Play")

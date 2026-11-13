@@ -21,6 +21,8 @@ Season="*res://scripts/season.gd"
 Gallery="*res://scripts/gallery.gd"
 Event="*res://scripts/event.gd"
 Evo="*res://scripts/evo.gd"
+Champs="*res://scripts/champs.gd"
+GemSBC="*res://scripts/gemsbc.gd"
 UI="*res://scripts/ui/ui.gd"
 AutoTest="*res://scripts/autotest.gd"
 

@@ -1,0 +1,253 @@
+extends RefCounted
+## FUT Champions screen (rank ladder, entry requirements, rank rewards, performance)
+## and the Champions Token Store.
+
+const GOLD := Color("#e8c46a")
+const CYAN := Color("#4fd1ff")
+
+class ChampsBG extends Control:
+	func _draw() -> void:
+		var W = size.x; var H = size.y
+		var g = Gradient.new(); g.colors = PackedColorArray([Color("#1b0608"), Color("#3a0b10"), Color("#120405")]); g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+		var steps = 24
+		for i in steps:
+			draw_rect(Rect2(W * i / steps, 0, W / steps + 1, H), g.sample(float(i) / steps))
+		# big golden "C" crest outlines
+		var cx = W * 0.78; var cy = H * 0.5
+		for k in 3:
+			var r = H * (0.55 - k * 0.12); var a = 0.10 - k * 0.025
+			var pts = PackedVector2Array()
+			for i in 7:
+				var an = -PI / 2 + i * TAU / 6.0
+				pts.append(Vector2(cx + cos(an) * r * 0.95, cy + sin(an) * r))
+			draw_polyline(pts, Color(0.91, 0.72, 0.3, a), 10.0 - k * 2.0, true)
+		draw_arc(Vector2(cx, cy), H * 0.24, PI * 0.25, PI * 1.75, 40, Color(0.91, 0.72, 0.3, 0.08), 26.0)
+		draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.0))
+
+class RankShield extends Button:
+	var idx = 0; var state = "locked"; var tier = 0; var numeral = ""
+	func _ready() -> void:
+		flat = true; focus_mode = Control.FOCUS_ALL; custom_minimum_size = Vector2(62, 76)
+		for s in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]: add_theme_stylebox_override(s, StyleBoxEmpty.new())
+		focus_entered.connect(func(): queue_redraw(); Sfx.play("move"))
+		focus_exited.connect(queue_redraw)
+		mouse_entered.connect(func(): if UI.mouse_recent(): grab_focus())
+	func _draw() -> void:
+		var r = Rect2(Vector2(6, 4), size - Vector2(12, 8))
+		var sh = Gfx.shield(r)
+		var fill = Color("#1a1c22") if state == "locked" else (Color("#c79a3a") if state == "done" else Color("#262a33"))
+		var edge = Color("#8a8f99") if state == "locked" else (Color("#ffe39a") if state == "done" else Color.WHITE)
+		if has_focus(): draw_colored_polygon(Gfx.shield(r.grow(5)), Color(0.31, 0.82, 1.0, 0.55))
+		# tier decorations: wings (Elite), laurels (Champion)
+		if tier >= 1:
+			for s in [-1, 1]:
+				var bx = r.get_center().x + s * r.size.x * 0.5
+				draw_colored_polygon(PackedVector2Array([Vector2(bx, r.position.y + r.size.y * 0.3), Vector2(bx + s * 8, r.position.y + r.size.y * 0.42), Vector2(bx, r.position.y + r.size.y * 0.62)]), edge.darkened(0.2))
+		if tier >= 2:
+			for s in [-1, 1]:
+				for k in 4:
+					var p = Vector2(r.get_center().x + s * (r.size.x * 0.32 + k * 2), r.end.y - 6 - k * 7)
+					draw_circle(p, 2.6, edge.darkened(0.15))
+		draw_colored_polygon(sh, fill)
+		var o = sh.duplicate(); o.append(sh[0]); draw_polyline(o, edge, 2.4, true)
+		Gfx.text_c(self, UI.font_head, r.get_center().x, r.get_center().y + 9, numeral, 24, Color.WHITE if state != "done" else Color("#2a1d02"))
+
+class Emblem extends Control:
+	var big = true
+	func _draw() -> void:
+		var r = Rect2(Vector2(4, 4), size - Vector2(8, 8))
+		var sh = Gfx.shield(r)
+		Gfx.grad_poly(self, sh, r, Color("#f8d77a"), Color("#c3901c"), Color("#7a1010"))
+		var o = sh.duplicate(); o.append(sh[0]); draw_polyline(o, Color("#ffe8a8"), 3.0, true)
+		Gfx.text_c(self, UI.font_head, r.get_center().x, r.get_center().y + r.size.y * 0.2, "C", int(r.size.y * 0.55), Color("#5a0d10"))
+
+func _fmt_long(sec: float) -> String:
+	var s = int(sec); var d = s / 86400; var h = (s % 86400) / 3600; var m = (s % 3600) / 60
+	if d > 0: return "%d Days %d Hours" % [d, h]
+	return "%d Hours %d Mins" % [h, m]
+
+func s_champions(_p) -> Dictionary:
+	var fin = Champs.check_week()
+	var C = Champs.st(); var run = C.run
+	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bgc = ChampsBG.new(); bgc.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(bgc)
+	var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for kv in [["left", 56], ["right", 56], ["top", 22], ["bottom", 14]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
+	page.add_child(mg)
+	var v = UI.vb(12); mg.add_child(v)
+	v.add_child(UI.hb(14, [UI.icon("badge", Save.data.profile.badge, Vector2(46, 50)), UI.bold("Play", 26), UI._sepline(), UI.spacer(), UI.currency_bar()]))
+	var countdown = UI.bold("", 18)
+	var cd_txt = func(): countdown.text = "⏱  " + _fmt_long(Champs.event_left())
+	cd_txt.call()
+	v.add_child(UI.vb(4, [UI.head("CHAMPIONS", 46), UI.hb(10, [UI.label("Event ends in" if run != null else "Weekly event · resets in", 17), countdown]),
+		UI.label("Play in Champions to earn points to reach higher ranks and better rewards.", 17, UI.DIM)]))
+	# ---- rank ladder
+	var pts: int = int(run.pts) if run != null else 0
+	var reached: int = Champs.rank_for(pts)
+	var ladder = HBoxContainer.new(); ladder.add_theme_constant_override("separation", 0); ladder.alignment = BoxContainer.ALIGNMENT_CENTER
+	var em = Emblem.new(); em.custom_minimum_size = Vector2(74, 90); ladder.add_child(em)
+	var R = {"sel": max(0, reached if reached < 14 else 14)}
+	var rank_name = UI.bold("", 22); var rank_pts = UI.head("", 30, CYAN); var rank_rw = UI.wrapl(UI.label("", 15), 300)
+	var show_rank = func(i: int):
+		R.sel = i
+		rank_name.text = Champs.rank_name(i)
+		rank_pts.text = "%d/%d pts" % [min(pts, Champs.RANK_PTS[i]), Champs.RANK_PTS[i]]
+		rank_pts.add_theme_color_override("font_color", UI.GREEN if pts >= Champs.RANK_PTS[i] else CYAN)
+		rank_rw.text = Champs.reward_text(Champs.REWARDS[i]).replace(" · ", "\n")
+	var marker_row = HBoxContainer.new(); marker_row.add_theme_constant_override("separation", 0); marker_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var mk_sp = Control.new(); mk_sp.custom_minimum_size.x = 74; marker_row.add_child(mk_sp)
+	var marker_at: int = max(0, reached)
+	for i in 15:
+		var con = ColorRect.new(); con.custom_minimum_size = Vector2(18, 5); con.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		con.color = GOLD if pts >= Champs.RANK_PTS[i] else Color(1, 1, 1, 0.25)
+		ladder.add_child(con)
+		var sh = RankShield.new(); sh.idx = i; sh.tier = i / 5; sh.numeral = Champs.NUM[i % 5]
+		sh.state = "done" if pts >= Champs.RANK_PTS[i] else ("next" if i == reached + 1 else "locked")
+		var ii = i
+		sh.focus_entered.connect(func(): show_rank.call(ii))
+		sh.pressed.connect(func(): _preview_all(pts))
+		ladder.add_child(sh)
+		var ms = Control.new(); ms.custom_minimum_size.x = 18; marker_row.add_child(ms)
+		var mk = Label.new(); mk.custom_minimum_size.x = 62; mk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mk.text = "▼" if i == marker_at else ""; mk.add_theme_color_override("font_color", Color("#3fe0a0")); mk.add_theme_font_size_override("font_size", 22)
+		marker_row.add_child(mk)
+	v.add_child(UI.vb(0, [marker_row, ladder]))
+	show_rank.call(R.sel)
+	# ---- bottom: requirements + play | rank rewards | performance
+	var req = UI.vb(8, [UI.bold("Entry Requirements", 19, Color("#3fe0a0"))])
+	var qp: int = int(C.qp)
+	var req_row = func(icon: String, txt: String, val: String, ok: bool) -> Control:
+		return UI.panel(UI.hb(10, [UI.label(icon, 18, GOLD), UI.label(txt, 16), UI.spacer(), UI.label(val, 16, UI.DIM), UI.bold("✓" if ok else "✗", 20, UI.GREEN if ok else UI.RED)]), "Glass")
+	if run == null:
+		req.add_child(req_row.call("★", "Champions Qual. Points", "%s/%s" % [Sys.fmt(qp), Sys.fmt(Champs.QP_NEED)], Champs.qualified()))
+		req.add_child(req_row.call("■", "Min. Rivals Division %d" % Champs.MIN_DIV, "", Champs.div_ok()))
+	else:
+		req.add_child(req_row.call("★", "Qualified for this week's event", "", true))
+		req.add_child(req_row.call("■", "Match %d of %d" % [min(Champs.MATCHES, int(run.played) + 1), Champs.MATCHES], "", true))
+	var play = UI.btn("", func(): _play_pressed(), "Primary", true)
+	play.custom_minimum_size = Vector2(330, 54)
+	var upd_play = func():
+		var r = Champs.run()
+		var glyph = Pad.glyph("A") if Pad.style != "" else "Ⓐ"
+		play.disabled = false
+		if r == null:
+			if Champs.qualified() and Champs.div_ok(): play.text = glyph + "  Play FUT Champions"
+			else: play.text = "Qualify in Division Rivals"; play.disabled = false
+		elif r.done: play.text = glyph + "  Claim Rewards"
+		elif Champs.cooldown_left() > 0:
+			play.text = "Next match in %s" % Sys.fmt_time(Champs.cooldown_left()); play.disabled = true
+		else: play.text = glyph + "  Play FUT Champions"
+	upd_play.call()
+	req.add_child(play)
+	var row2 = UI.hb(10, [UI.btn("Token Store  ·  %d" % Champs.tokens(), func(): UI.go("champsstore"), "Small")])
+	if run != null and not run.done:
+		row2.add_child(UI.btn("Finish run now", func():
+			if await UI.modal("Finish FUT Champions now?", "You'll get the rewards for %s and can't play the remaining %d matches this week." % [Champs.rank_name(Champs.rank_for(int(run.pts))), Champs.remaining()], [["Keep playing", null, ""], ["Finish & claim", true, "Danger"]]):
+				_show_claim(Champs.claim()), "Small"))
+	req.add_child(row2)
+	req.custom_minimum_size.x = 400
+	var rr = UI.panel(UI.vb(12, [UI.bold("Rank Rewards", 20), UI.label("Earn points to unlock better rewards", 15, UI.DIM),
+		UI.hb(18, [_emblem_circle(), UI.vb(4, [rank_name, rank_pts, rank_rw])])]))
+	rr.custom_minimum_size = Vector2(400, 250)
+	var perf_n = func(n, lab: String) -> Control:
+		var b = UI.vb(0, [UI.label(lab, 17), UI.head(str(n), 32, CYAN)])
+		for c in b.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		UI.grow(b, false, true); return b
+	var big = UI.vb(0, [UI.head(str(pts), 64), UI.label("Points", 18)])
+	for c in big.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var perf = UI.panel(UI.vb(10, [UI.bold("Performance", 20), big, UI.hb(10, [perf_n.call(run.w if run else 0, "Wins"), perf_n.call(run.l if run else 0, "Losses"), perf_n.call(Champs.remaining(), "Remaining")])]))
+	perf.custom_minimum_size = Vector2(350, 250)
+	var bottom = UI.hb(18, [req, UI.spacer(), rr, perf]); bottom.alignment = BoxContainer.ALIGNMENT_END
+	v.add_child(UI.vspacer()); v.add_child(bottom)
+	var g = func(ps: String, xb: String, kb: String) -> String: return ps if Pad.style == "ps" else (xb if Pad.style == "xbox" else kb)
+	v.add_child(UI.hb(22, [UI._key_hint(g.call("✕", "A", "Enter"), "Select"), UI._key_hint(g.call("○", "B", "Esc"), "Back"), UI._key_hint(g.call("□", "X", "R"), "Preview Reward(s)"), UI._key_hint(g.call("◀ L ▶", "◀ L ▶", "◀ ▶"), "Navigate"), UI._key_hint(g.call("△", "Y", "T"), "Token Store")]))
+	UI.keyhook(page, {"j%d" % JOY_BUTTON_X: func(): _preview_all(pts), "k%d" % KEY_R: func(): _preview_all(pts),
+		"j%d" % JOY_BUTTON_Y: func(): UI.go("champsstore"), "k%d" % KEY_T: func(): UI.go("champsstore")})
+	var t = Timer.new(); t.wait_time = 1.0; t.autostart = true; page.add_child(t)
+	t.timeout.connect(func(): cd_txt.call(); upd_play.call())
+	if not fin.is_empty(): _show_claim.call_deferred(fin)
+	return {"node": page, "bg": "off"}
+
+func _emblem_circle() -> Control:
+	var c = Control.new(); c.custom_minimum_size = Vector2(130, 130)
+	c.draw.connect(func():
+		var ctr = c.size / 2
+		c.draw_circle(ctr, 62, Color("#15171c")); c.draw_arc(ctr, 62, 0, TAU, 48, Color(1, 1, 1, 0.35), 3)
+		var r = Rect2(ctr - Vector2(30, 36), Vector2(60, 72)); var sh = Gfx.shield(r)
+		c.draw_colored_polygon(sh, Color("#2a2e36")); var o = sh.duplicate(); o.append(sh[0]); c.draw_polyline(o, Color.WHITE, 2.5, true)
+		Gfx.text_c(c, UI.font_head, ctr.x, ctr.y + 9, "PF", 22, Color.WHITE))
+	return c
+
+func _preview_all(pts: int) -> void:
+	var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 22); g.add_theme_constant_override("v_separation", 8)
+	for hdr in ["Rank", "Points", "Rewards"]: g.add_child(UI.caps(hdr, 10))
+	for i in range(14, -1, -1):
+		var got = pts >= Champs.RANK_PTS[i]
+		g.add_child(UI.bold(Champs.rank_name(i), 14, GOLD if i >= 10 else (UI.TEAL if i >= 5 else UI.TEXT)))
+		g.add_child(UI.label("%d pts%s" % [Champs.RANK_PTS[i], "  ✓" if got else ""], 13, UI.GREEN if got else UI.DIM))
+		g.add_child(UI.label(Champs.reward_text(Champs.REWARDS[i]), 13))
+	var body = UI.vb(10, [UI.label("Win = %d pts · Loss = %d pt · %d matches · you receive the rewards of the highest rank you reach." % [Champs.WIN_PTS, Champs.LOSS_PTS, Champs.MATCHES], 14, UI.DIM), g])
+	await UI.modal("Champions Rank Rewards", body, [["Close", null, "Primary"]], true)
+
+func _show_claim(res: Dictionary) -> void:
+	if res.is_empty(): return
+	Sfx.play("bigreveal")
+	var txt = "You finished at %s." % Champs.rank_name(res.rank)
+	if not res.reward.is_empty(): txt += "\n\nRewards: " + Champs.reward_text(res.reward)
+	await UI.modal("FUT Champions complete", txt, [["Continue", true, "Primary"]])
+	UI.replace("champions")
+
+func _play_pressed() -> void:
+	var r = Champs.run()
+	if r == null:
+		if not Champs.qualified():
+			UI.toast("Earn %s more Champions Qual. Points in Division Rivals (win +200 · draw +100 · loss +50)" % Sys.fmt(Champs.QP_NEED - int(Champs.st().qp)), "bad")
+			UI.go("rivals"); return
+		if not Champs.div_ok(): UI.toast("Reach Rivals Division %d first" % Champs.MIN_DIV, "bad"); return
+		if not await UI.modal("Enter FUT Champions?", "This uses your 1,000 Qualification Points. You get %d matches this week; rewards are based on the highest rank you reach." % Champs.MATCHES, [["Cancel", null, ""], ["Enter", true, "Primary"]]): return
+		Champs.start()
+		_play_match(); return
+	if r.done: _show_claim(Champs.claim()); return
+	if Champs.cooldown_left() > 0: UI.toast("Next Champions match available in " + Sys.fmt_time(Champs.cooldown_left()), "bad"); return
+	_play_match()
+
+func _play_match() -> void:
+	if not UI.modules[2].require_squad(): return
+	var r = Champs.run()
+	var ut = Sys.user_team()
+	var nm = "%s%s" % [Sys.pick(["Elite", "Prime", "Apex", "Legend", "Volt", "Nova"]), Sys.pick(["_FC", "Gaming", "XI", "99", "Utd"])]
+	var opp = Sys.ai_team(nm, min(93, 85 + int(r.w) * 0.45 + Sys.experience() * 20))
+	Sys.league3_check(ut)
+	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary", "ai": min(1.3, 0.92 + int(r.w) * 0.022 + Sys.experience()), "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "FUT Champions · Match %d/%d" % [int(r.played) + 1, Champs.MATCHES], "knockout": true}, func(res):
+		var r0 = Sys.record_ut_match(res)
+		var won: bool = r0 == "W" or (r0 == "D" and res.get("winner", "") == "home")
+		var out = Champs.record(won, "%d-%d" % [res.hg, res.ag], nm)
+		Sys.add("coins", 1200 if won else 400, "FUT Champions match")
+		Sys.log_match(res, "Champions", "W" if won else "L")
+		var rk = Champs.rank_name(out.rank)
+		UI.show_results(res, "FUT Champions", "+%d pts · %s · +%s coins · next match in 5:00" % [out.pts, rk, Sys.fmt(1200 if won else 400)], func(): UI.replace("champions")))
+
+# ------------------------------------------------------------------ token store
+func s_champsstore(_p) -> Dictionary:
+	var f = UI.sub_shell("Champions Token Store", "FUT Champions")
+	f.body.add_child(UI.hb(14, [UI.head("TOKEN STORE", 38), UI.spacer(), UI.panel(UI.vb(0, [UI.caps("Champions Tokens", 10), UI.head("◉ " + Sys.fmt(Champs.tokens()), 26, GOLD)]), "Glass")]))
+	f.body.add_child(UI.label("Earn Champions Tokens from your FUT Champions rank rewards every week.", 13, UI.DIM))
+	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
+	var first = true
+	for it in Champs.STORE:
+		var rwd: Dictionary = it.reward
+		var vis: Control = UI.icon("pack", rwd.pack, Vector2(84, 118)) if rwd.has("pack") else UI.head("●", 56, UI.GOLD2)
+		if vis is Icon: vis.animate = false
+		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(170, 124); hold.add_child(vis)
+		var left = "" if int(it.limit) == 0 else "  ·  %d left" % (int(it.limit) - Champs.bought(it.id))
+		var ok: bool = Champs.can_buy(it)
+		var t = UI.tile([hold, UI.bold(it.name, 15), UI.bold("◉ %s%s" % [Sys.fmt(it.cost), left], 14, GOLD if ok else UI.DIM)],
+			func():
+				if int(it.limit) > 0 and Champs.bought(it.id) >= int(it.limit): UI.toast("Sold out", "bad"); return
+				if Champs.tokens() < int(it.cost): UI.toast("Not enough Champions Tokens", "bad"); Sfx.play("error"); return
+				if await UI.modal("Buy %s?" % it.name, "Spend ◉ %s Champions Tokens?" % Sys.fmt(it.cost), [["Buy", true, "Primary"], ["Cancel", null, ""]]):
+					if Champs.buy(it): Sfx.play("coin"); UI.replace("champsstore"), Vector2(210, 230), first)
+		if not ok: t.modulate = Color(1, 1, 1, 0.7)
+		flow.add_child(t); first = false
+	f.body.add_child(UI.scroll(flow))
+	return {"node": f.node, "bg": "hub"}

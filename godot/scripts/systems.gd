@@ -781,13 +781,13 @@ func rivals_record(result: String) -> Dictionary:
 			grant({"pack": "jumbo" if r.div <= 3 else "premium", "points": 50}, "Rivals promotion")
 			r.best = min(r.best, r.div); history(msg)
 		else:
-			msg = "Elite title! Champions ticket earned"; D().modes.champs.tickets += 1
+			msg = "Elite title!"; add("coins", 20000, "Rivals Elite title")
 		r.pts = 0
 	elif r.pts < 0:
 		if r.div < 10: r.div += 1; msg = "Relegated to " + Data.division(r.div).name; r.pts = 5
 		else: r.pts = 0
-	if result == "W" and r.div <= 5 and int(r.week_wins) % 3 == 0:
-		D().modes.champs.tickets += 1; msg += (" · " if msg != "" else "") + "Champions ticket earned!"
+	var qp = Champs.add_qp(result)
+	if qp > 0: msg += (" · " if msg != "" else "") + "+%d Champions Qual. Points (%d/%d)" % [qp, int(Champs.st().qp), Champs.QP_NEED]
 	Save.dirty()
 	return {"coins": coins, "msg": msg}
 

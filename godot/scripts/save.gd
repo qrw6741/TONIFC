@@ -31,7 +31,7 @@ func new_save(name: String) -> Dictionary:
 		"modes": {
 			"sb": {"week": "", "points": 0, "played": 0, "opps": [], "opps_week": "", "claimed_week": ""},
 			"rivals": {"div": 10, "pts": 0, "played": 0, "wins": 0, "best": 10, "week_wins": 0, "week": ""},
-			"champs": {"tickets": 0, "active": null, "history": []},
+			"champs": {"qp": 0, "run": null, "tokens": 0, "bought": {}, "history": [], "next_at": 0.0},
 			"draft": {"active": null, "history": []}
 		},
 		"career": null, "tourn": null, "daily_pts": "", "pick_cur": null,

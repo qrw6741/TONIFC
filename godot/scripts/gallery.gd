@@ -15,7 +15,7 @@ const CLUB_SLOTS := 11
 const LEAGUE_SLOTS := 15
 const CLUB_TOKENS := [10, 20, 35, 60, 100]
 const LEAGUE_TOKENS := [25, 50, 90, 150, 250]
-const LEVEL_PTS := 2500
+const LEVEL_PTS := 8000
 const MAX_LEVEL := 25
 const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "rising": 2.5, "icon": 4.0}
 
@@ -43,12 +43,19 @@ func _club_strength(c: String) -> float:
 
 # ------------------------------------------------------------------ gems
 ## how many Gems a player item is worth in the Gallery
+## how many Gems a player item is worth (FC-style item score — used by Gem SBCs and the Gallery)
+## bronze ~100–150 · silver ~220–260 · gold ~340–650 · special cards 800+
 func gems(p: Dictionary) -> int:
 	if p.is_empty(): return 0
-	var g: float = pow(1.17, float(p.ovr) - 60.0) * 2.0
-	if p.type == "base" and p.rare: g *= 1.2
-	g *= RARITY_MULT.get(p.type, 1.0)
-	return max(1, int(round(g)))
+	var o: int = int(p.ovr)
+	if p.type != "base": return max(800, 860 + (o - 85) * 30)
+	var g = 0
+	match Data.tier_of(o):
+		"bronze": g = 100 + max(0, o - 55) * 5
+		"silver": g = 220 + (o - 71) * 8
+		_: g = 340 + (o - 76) * 22
+	if p.rare: g += 20
+	return g
 
 # ------------------------------------------------------------------ state
 func st() -> Dictionary:
