@@ -92,6 +92,7 @@ func _add_season_content() -> void:
 		packs[pk[0]] = d
 
 func P(id: String) -> Dictionary:
+	if not by_id.has(id) and id.begins_with("evo"): return Event.ensure_evo(id)
 	return by_id.get(id, {})
 
 func division(div: int) -> Dictionary:
@@ -124,7 +125,7 @@ func base_value(p: Dictionary) -> int:
 	if p.ovr < 71: v = 150 + (p.ovr - 58) * 15
 	elif p.ovr < 76: v = 350 + (p.ovr - 71) * 60 + (150 if p.rare else 0)
 	else: v = round(750 * pow(1.38, p.ovr - 76)) + (400 if p.rare else 0)
-	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0}.get(p.type, 1.0)
+	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0, "rising": 2.8}.get(p.type, 1.0)
 	var pos_m: float = {"ST": 1.2, "LW": 1.15, "RW": 1.15, "CAM": 1.1, "CB": 1.05, "GK": 0.8, "CF": 1.1}.get(p.pos, 1.0)
 	return max(150, int(round(v * mult * pos_m / 50.0)) * 50)
 
@@ -148,12 +149,14 @@ func rarity_style(key: String) -> Dictionary:
 		"promo": return {"top": Color("#3a1268"), "mid": Color("#120a2e"), "bot": Color("#08142e"), "text": Color("#ffe6f6"), "trim": Color("#ff4fa3"), "glow": Color("#ff4fa3"), "shards": true, "shard_col": Color(1, 0.31, 0.64, 0.25)}
 		"found": return {"top": Color("#1d5d5a"), "mid": Color("#0c2c32"), "bot": Color("#081d22"), "text": Color("#dffff8"), "trim": Color("#6ff3dc"), "glow": Color("#3fe0c5"), "shards": true, "shard_col": Color(0.47, 1, 0.9, 0.22)}
 		"hero": return {"top": Color("#6b2ea6"), "mid": Color("#3a1666"), "bot": Color("#24093f"), "text": Color("#fff2c2"), "trim": Color("#ffd23f"), "glow": Color("#ffd23f"), "shards": true, "shard_col": Color(1, 0.82, 0.25, 0.2)}
+		"rising": return {"top": Color("#8af4ff"), "mid": Color("#2140c9"), "bot": Color("#0a0d3a"), "text": Color("#f2fbff"), "trim": Color("#a8f7ff"), "glow": Color("#4fd1ff"), "shards": true, "shard_col": Color(0.66, 0.97, 1, 0.22)}
 		"pass": return {"top": Color("#ff6a3d"), "mid": Color("#8c0f24"), "bot": Color("#1c0410"), "text": Color("#fff1e0"), "trim": Color("#ffc76b"), "glow": Color("#ff5a36"), "shards": true, "shard_col": Color(1, 0.78, 0.42, 0.25)}
 		"icon": return {"top": Color("#fffaf0"), "mid": Color("#eadcb8"), "bot": Color("#c6aa6a"), "text": Color("#3b2c0c"), "trim": Color("#b8913a"), "glow": Color("#fff3c4"), "shards": true, "shard_col": Color(1, 1, 1, 0.4)}
 	return rarity_style("gold")
 
 func ovr_color(p: Dictionary) -> Color:
 	if p.type == "pass": return Color("#ff6a3d")
+	if p.type == "rising": return Color("#4fd1ff")
 	if p.type != "base": return Color("#b04fd6")
 	match tier_of(p.ovr):
 		"gold": return Color("#e0be62")

@@ -78,6 +78,11 @@ func _draw() -> void:
 	var trim = Gfx.shield(r, cs * 0.35); trim.append(trim[0])
 	draw_polyline(trim, st.trim, max(1.0, cs * 0.14), true)
 	var tc: Color = st.text
+	if p.type == "rising" and not mini:
+		# star sparkles
+		for sp in [[0.1, 0.56, 0.5], [0.9, 0.5, 0.42], [0.86, 0.62, 0.3], [0.14, 0.66, 0.32]]:
+			var sc = Vector2(w * sp[0], h * sp[1]); var sr: float = cs * sp[2]
+			draw_colored_polygon(PackedVector2Array([sc + Vector2(0, -sr), sc + Vector2(sr * 0.28, -sr * 0.28), sc + Vector2(sr, 0), sc + Vector2(sr * 0.28, sr * 0.28), sc + Vector2(0, sr), sc + Vector2(-sr * 0.28, sr * 0.28), sc + Vector2(-sr, 0), sc + Vector2(-sr * 0.28, -sr * 0.28)]), Color(0.75, 0.98, 1, 0.75))
 	if p.type == "pass" and not mini:
 		# Ascension chevrons on both flanks
 		for k in 3:

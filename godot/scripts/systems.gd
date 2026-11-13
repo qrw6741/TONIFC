@@ -326,9 +326,9 @@ func tier_pool(tier: String) -> Array:
 	if _tier_pools.has(tier): return _tier_pools[tier]
 	var pool: Array
 	match tier:
-		"special": pool = Data.players.filter(func(p): return ["totw", "promo", "hero", "icon"].has(p.type))
+		"special": pool = Data.players.filter(func(p): return ["totw", "promo", "hero", "icon", "rising"].has(p.type))
 		"legend": pool = Data.players.filter(func(p): return p.type == "hero" or p.type == "icon")
-		"totw", "promo", "hero", "icon", "found": pool = Data.players.filter(func(p): return p.type == tier)
+		"totw", "promo", "hero", "icon", "found", "rising": pool = Data.players.filter(func(p): return p.type == tier)
 		"gold": pool = Data.players.filter(func(p): return p.type == "base" and Data.tier_of(p.ovr) == "gold")
 		"asc_finale": pool = Data.ascension_finale.duplicate()
 		_:
@@ -525,6 +525,7 @@ func obj_period(o: Dictionary) -> String:
 		"daily": return day_key()
 		"weekly": return week_key()
 		"season": return "S1"
+		"event": return Event.ID
 	return "M"
 func obj_key(o: Dictionary) -> String: return o.id + "@" + obj_period(o)
 func obj_progress(o: Dictionary) -> int: return min(int(o.target), int(D().objectives.progress.get(obj_key(o), 0)))
@@ -558,6 +559,7 @@ func reward_text(r: Dictionary) -> String:
 	if r.has("pack"): parts.append(Data.packs[r.pack].name)
 	if r.has("player"): var p = Data.P(r.player); parts.append("%d %s" % [p.ovr, p.name])
 	if r.get("xp", 0): parts.append("%s XP" % fmt(r.xp))
+	if r.get("tokens", 0): parts.append("%d Star Tokens" % int(r.tokens))
 	return " + ".join(parts)
 func grant(r: Dictionary, src: String) -> void:
 	if r.get("coins", 0): add("coins", int(r.coins), src)
@@ -568,6 +570,7 @@ func grant(r: Dictionary, src: String) -> void:
 		club_add(r.player, true, "reward"); var p = Data.P(r.player)
 		toast.emit("%d %s sent to your club" % [p.ovr, p.name], "good")
 	if r.get("xp", 0): add_xp(int(r.xp))
+	if r.get("tokens", 0): Event.add_tokens(int(r.tokens))
 	Save.dirty()
 
 # ------------------------------------------------------------------ SBC
@@ -729,6 +732,7 @@ func record_ut_match(res: Dictionary) -> String:
 	if assists > 0: track("assist", assists); st.assists += assists
 	if mid: track("goal_mid")
 	add_xp(300 if r == "W" else (180 if r == "D" else 120))
+	Event.after_match(res, r)
 	Season.add_xp(450 if r == "W" else (300 if r == "D" else 200), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))
 	return r
 func log_match(res: Dictionary, mode: String, r: String) -> void:

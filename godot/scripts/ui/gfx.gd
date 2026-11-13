@@ -231,13 +231,13 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 	var pk: Dictionary = Data.packs[id]
 	var cols: Array = {"bronze": ["#e2b48c", "#b07a4f", "#7d4f2c"], "silver": ["#f1f3f6", "#b9c1cb", "#8b95a3"], "gold": ["#f8e4a6", "#e0be62", "#b88f2e"],
 		"premium": ["#fff3c4", "#e8b631", "#8a6410"], "jumbo": ["#fff3c4", "#e8b631", "#4a3505"], "rare": ["#ffffff", "#f0c94e", "#c3901c"], "mega": ["#f4e7ff", "#9d6dff", "#3a1a7a"],
-		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"], "pass": ["#ff6a3d", "#8c0f24", "#1c0410"], "pick": ["#ffc76b", "#c2401f", "#2a0610"], "gallery": ["#ffd1f3", "#b23ad1", "#1a0b33"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
+		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"], "pass": ["#ff6a3d", "#8c0f24", "#1c0410"], "pick": ["#ffc76b", "#c2401f", "#2a0610"], "gallery": ["#ffd1f3", "#b23ad1", "#1a0b33"], "rising": ["#8af4ff", "#2140c9", "#0a0d3a"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
 	var pts = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 	grad_poly(ci, pts, r, Color(cols[0]), Color(cols[1]), Color(cols[2]))
 	# moving shine
 	var sx = r.position.x + fmod(t * 0.35, 1.6) * r.size.x * 1.6 - r.size.x * 0.4
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(clamp(sx, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx + r.size.x * 0.18, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx - r.size.x * 0.1, r.position.x, r.end.x), r.end.y), Vector2(clamp(sx - r.size.x * 0.28, r.position.x, r.end.x), r.end.y)]), Color(1, 1, 1, 0.25))
-	var dark: bool = ["ultimate", "totw", "promo", "mega", "found", "pass", "pick", "gallery"].has(pk.art)
+	var dark: bool = ["ultimate", "totw", "promo", "mega", "found", "pass", "pick", "gallery", "rising"].has(pk.art)
 	var tc = Color("#f3d88a") if (pk.art == "ultimate" or pk.art == "totw") else (Color.WHITE if dark else Color(0, 0, 0, 0.7))
 	var border = Color("#ffc76b") if pk.art == "pass" or pk.art == "pick" else Color("#e8b631") if pk.art == "ultimate" else (Color("#d9b25c") if pk.art == "totw" else Color(1, 1, 1, 0.35))
 	ci.draw_rect(r, border, false, 2.0)

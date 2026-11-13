@@ -10,7 +10,7 @@ func page_title(t: String) -> Label: return UI.head(t.to_upper(), 38)
 func s_sbc(p) -> Dictionary:
 	var f = UI.hub_shell("sbc")
 	var cat: String = p.get("cat", "Foundations")
-	f.body.add_child(UI.hb(10, [page_title("Squad Building Challenges"), UI.spacer(), UI.seg(["Foundations", "Upgrades", "Challenges", "Players"].map(func(c): return [c, c]), cat, func(v): UI.replace("sbc", {"cat": v}))]))
+	f.body.add_child(UI.hb(10, [page_title("Squad Building Challenges"), UI.spacer(), UI.seg(["Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"].map(func(c): return [c, c]), cat, func(v): UI.replace("sbc", {"cat": v}))]))
 	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
 	for s in Data.sbcs.filter(func(x): return x.cat == cat):
 		var n = Sys.sbc_count(s.id); var av = Sys.sbc_available(s)

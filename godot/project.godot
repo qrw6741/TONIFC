@@ -19,6 +19,7 @@ Sfx="*res://scripts/audio.gd"
 Pad="*res://scripts/gamepad.gd"
 Season="*res://scripts/season.gd"
 Gallery="*res://scripts/gallery.gd"
+Event="*res://scripts/event.gd"
 UI="*res://scripts/ui/ui.gd"
 AutoTest="*res://scripts/autotest.gd"
 

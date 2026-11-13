@@ -41,10 +41,9 @@ func s_home(_p) -> Dictionary:
 	UI.grow(st); st.size_flags_stretch_ratio = 1.3; row.add_child(st)
 	# right column
 	var right = UI.vb(14); UI.grow(right)
-	var promo: Array = Data.players.filter(func(p): return p.type == "promo"); promo.sort_custom(func(a, b): return a.ovr > b.ovr)
 	var pc = UI.hb(6)
-	for p in promo.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
-	var pt = UI.tile([UI.bold("Nightfall Promo", 24), UI.bold("Latest promotional cards — in packs now", 13, UI.TEAL), CenterContainer.new()], func(): UI.replace("store", {"tab": "promo"}))
+	for p in Event.stars.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
+	var pt = UI.tile([UI.bold("Rising Stars", 24, Color("#8af4ff")), UI.bold("Event live · the best young players, boosted — objectives, Evolutions & SBCs", 13, UI.TEAL), CenterContainer.new()], func(): UI.go("event"))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
 	var slv: int = Season.level(); var scl: int = Season.claim_count()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Earn XP to unlock Ascension cards", 13, UI.GREEN if scl else UI.TEAL)]), UI.spacer(), UI.card(Data.ascension_finale[0], 3.6, true) if not Data.ascension_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
@@ -412,8 +411,8 @@ func open_pack(id: String, tradeable: bool) -> void:
 	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
 	Save.write_now()
 	var best: Dictionary = items[0]
-	var walkout: bool = best.ovr >= 84 or ["icon", "hero", "promo", "totw"].has(best.type)
-	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
+	var walkout: bool = best.ovr >= 84 or ["icon", "hero", "promo", "totw", "rising"].has(best.type)
+	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
 	Sfx.music_off()
 	var o = preload("res://scripts/ui/pack_fx.gd").new()
 	o.setup(id, best, walkout, lvl)

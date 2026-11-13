@@ -77,6 +77,27 @@ func run() -> void:
 			print("BUY ", Gallery.buy(Gallery.STORE[6]), " unopened has icon pick ", Save.data.unopened.has("pickicon"))
 			UI.go("galleryset", {"id": "L:ESP1"}); await shot("g43_league")
 			UI.replace("home"); await shot("g44_home")
+		if extra == "--event":
+			print("STARS ", Event.stars.map(func(x): return "%d %s" % [x.ovr, x.name]))
+			UI.go("event"); await shot("g60_event")
+			Save.data.unopened.append("rspick")
+			var it = Sys.club_add("p443", false, "pack")
+			var sq = Sys.active_squad(); sq.slots[0] = it.uid
+			print("ELIGIBLE ", Event.evo_eligible(it), " start ", Event.start_evo(it.uid))
+			UI.replace("event", {"tab": "evo"}); await shot("g61_evo")
+			for k in 6:
+				Event.after_match({"user_side": "home", "goals": [{"side": "home", "pid": it.pid}]}, "W")
+			print("EVO pid ", it.pid, " ovr ", Data.P(it.pid).ovr, " sm ", Data.P(it.pid).sm, " evos ", Event.st().evos.size(), " evolved ", Event.st().evolved)
+			Data.by_id.erase(it.pid); print("REGEN ", Data.P(it.pid).ovr)
+			for o in Event.objectives(): Save.data.objectives.progress[Sys.obj_key(o)] = o.target
+			UI.replace("event", {"tab": "objectives"}); await shot("g62_objectives")
+			for o in Event.objectives(): Sys.obj_claim(o)
+			print("TOKENS ", Event.tokens(), " final ", Event.claim_final())
+			UI.replace("event", {"tab": "store"}); await shot("g63_store")
+			print("RSPACK ", Sys.generate_pack("rspack").map(func(x): return "%d %s %s" % [x.ovr, x.name, x.type]))
+			UI.replace("sbc", {"cat": "Rising Stars"}); await shot("g64_sbc")
+			UI.replace("home"); await shot("g65_home")
+			UI.modules[1].open_pack("rspack", true); await w(7.0); await shot("g66_rs_walkout")
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

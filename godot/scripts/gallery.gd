@@ -17,7 +17,7 @@ const CLUB_TOKENS := [10, 20, 35, 60, 100]
 const LEAGUE_TOKENS := [25, 50, 90, 150, 250]
 const LEVEL_PTS := 2500
 const MAX_LEVEL := 25
-const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "icon": 4.0}
+const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "rising": 2.5, "icon": 4.0}
 
 var top_clubs = {}      # league -> [club codes] (top 6 by squad strength)
 var _max_cache = {}
