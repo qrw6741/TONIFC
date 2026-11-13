@@ -47,7 +47,7 @@ func _ready() -> void:
 	overlay = Control.new(); overlay.set_anchors_preset(Control.PRESET_FULL_RECT); overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(overlay)
 	toasts = VBoxContainer.new(); toasts.set_anchors_preset(Control.PRESET_TOP_RIGHT); toasts.position = Vector2(-430, 80); toasts.custom_minimum_size = Vector2(400, 0)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE; toasts.add_theme_constant_override("separation", 8); root.add_child(toasts)
-	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new()]
+	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new(), preload("res://scripts/ui/screens/gallery_ui.gd").new()]
 	Sys.currency_changed.connect(refresh_currency)
 	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
@@ -506,6 +506,7 @@ func inspect(p: Dictionary, actions := [], item := {}):
 	kv.call("Skill moves / Weak foot", label("%s · %s" % ["★".repeat(p.sm) + "☆".repeat(5 - p.sm), "★".repeat(p.wf) + "☆".repeat(5 - p.wf)], 14))
 	kv.call("Work rates", label("Att %s / Def %s" % [p.wr[0], p.wr[1]], 14))
 	kv.call("Market value", label("● " + Sys.fmt(Sys.value(p)), 14, GOLD2))
+	kv.call("Gallery gems", label("✦ %d%s" % [Gallery.gems(p), ("  · in your Gallery" if Gallery.seen(p.id) else "")], 14, Color("#ff6fd8")))
 	if not item.is_empty(): kv.call("Status", label("Untradeable" if item.get("untr", false) else "Tradeable", 14, RED if item.get("untr", false) else GREEN))
 	right.add_child(g)
 	var sg = GridContainer.new(); sg.columns = 3; sg.add_theme_constant_override("h_separation", 26)

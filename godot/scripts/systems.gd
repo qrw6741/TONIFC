@@ -153,7 +153,7 @@ func item_player(u: String) -> Dictionary:
 	var it = item(u); return {} if it.is_empty() else Data.P(it.pid)
 func club_add(pid: String, untr := true, src := "") -> Dictionary:
 	var it = {"uid": uid(), "pid": pid, "untr": untr, "at": now(), "src": src}
-	D().club.append(it); Save.dirty(); return it
+	D().club.append(it); Gallery.record(pid, src); Save.dirty(); return it
 func club_remove(u: String) -> void:
 	D().club = D().club.filter(func(i): return i.uid != u)
 	for s in D().squads:

@@ -60,6 +60,23 @@ func run() -> void:
 			var asc = Data.P("asc_p443"); print("ASC ", asc.ovr, " ", asc.stats, " sm ", asc.sm)
 			UI.inspect(asc); await shot("g36_asc_card"); UI.close_top(null)
 			print("MARKET has pass: ", Sys.market_search({}).any(func(l): return Data.P(l.pid).type == "pass"))
+		if extra == "--gallery":
+			print("TOP ", Gallery.top_clubs)
+			for pid in ["p256", "p247", "p420", "p443", "p0", "p14"]: print("GEMS ", Data.P(pid).name, " ", Data.P(pid).ovr, " ", Gallery.gems(Data.P(pid)))
+			print("GEMS asc ", Gallery.gems(Data.P("asc_p443")), " 70-rated ", Gallery.gems(Data.players.filter(func(x): return x.ovr == 70)[0]))
+			var club: String = Gallery.top_clubs["ENG1"][0]
+			for pl in Data.by_club[club]:
+				if pl.type == "base" and pl.ovr >= 78: Gallery.record(pl.id, "pack")
+			var sid = "C:" + club
+			print("SET ", sid, " ", Gallery.score(sid).total, " grade ", Gallery.score(sid).grade, " max ", Gallery.max_score(sid))
+			UI.go("gallery"); await shot("g40_gallery")
+			UI.go("galleryset", {"id": sid}); await shot("g41_set")
+			print("GRADE ", Gallery.grade(sid), " tokens ", Gallery.tokens(), " level ", Gallery.level())
+			Gallery.st().tokens = 3000
+			UI.go("gallerystore"); await shot("g42_store")
+			print("BUY ", Gallery.buy(Gallery.STORE[6]), " unopened has icon pick ", Save.data.unopened.has("pickicon"))
+			UI.go("galleryset", {"id": "L:ESP1"}); await shot("g43_league")
+			UI.replace("home"); await shot("g44_home")
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

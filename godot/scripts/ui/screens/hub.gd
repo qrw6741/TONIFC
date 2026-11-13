@@ -30,6 +30,8 @@ func s_home(_p) -> Dictionary:
 	for kv in [["Division Rivals", "%s · %d/10" % [Data.division(int(rv.div)).name, rv.pts]], ["Squad Battles", "%s pts" % Sys.fmt(sb.points if sb.week == Sys.week_key() else 0)], ["Champions", "In progress" if Save.data.modes.champs.active else "%d ticket(s)" % Save.data.modes.champs.tickets]]:
 		g.add_child(UI.label(kv[0], 13, UI.DIM)); g.add_child(UI.label(kv[1], 13))
 	left.add_child(UI.tile([UI.caps("Competitions"), g], func(): UI.replace("play"), Vector2(0, 120)))
+	var gcl = Gallery.set_ids().filter(func(id): return Gallery.claimable(id)).size()
+	left.add_child(UI.tile([UI.hb(8, [UI.bold("Gallery ✦", 18, Color("#ff6fd8")), UI.spacer(), UI.bold("Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], 13, Color("#9fe8ff"))]), UI.label(("%d sets ready to grade" % gcl) if gcl else "Collect players from the top 6 clubs of each league", 12, UI.GREEN if gcl else UI.DIM)], func(): UI.go("gallery")))
 	row.add_child(left)
 	# squad tile
 	var mp = UI.icon("minipitch", {"formation": sq.formation, "players": info.players}, Vector2(300, 330)); mp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; mp.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -82,8 +84,9 @@ func s_objectives(p) -> Dictionary:
 func s_club(p) -> Dictionary:
 	var f = UI.hub_shell("club")
 	var view: String = p.get("view", "players")
-	f.body.add_child(UI.hb(10, [page_title("Club"), UI.spacer(), UI.seg([["players", "Players"], ["dupes", "Duplicates"], ["squads", "Squads"], ["stats", "Club Stats"], ["custom", "Customize"]], view, func(v):
+	f.body.add_child(UI.hb(10, [page_title("Club"), UI.spacer(), UI.seg([["players", "Players"], ["dupes", "Duplicates"], ["squads", "Squads"], ["gallery", "Gallery ✦"], ["stats", "Club Stats"], ["custom", "Customize"]], view, func(v):
 		if v == "custom": UI.go("customize")
+		elif v == "gallery": UI.go("gallery")
 		else: UI.replace("club", {"view": v}))]))
 	if view == "players" or view == "dupes":
 		var st = {"q": "", "pos": "", "lg": "", "rar": "", "sort": "ovr"}
@@ -405,6 +408,7 @@ func open_pack(id: String, tradeable: bool) -> void:
 	var items = Sys.generate_pack(id)
 	var untr: bool = (not tradeable) or Data.packs[id].get("reward", false)
 	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": untr, "done": ""})
+	for p in items: Gallery.record(p.id, "pack", true)
 	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
 	Save.write_now()
 	var best: Dictionary = items[0]
