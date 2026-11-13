@@ -11,6 +11,7 @@ var untr = false
 var chem = -1
 var empty_pos = ""        # draws an empty slot when p is empty
 var tag = ""              # small label under/over card (e.g. DUPLICATE)
+var brackets = false      # draw FC-style selection brackets when focused
 var drag_id = null         # payload for drag & drop
 var drop_cb: Callable      # func(from_payload, to_payload)
 var _t = 0.0
@@ -117,6 +118,12 @@ func _draw() -> void:
 		Gfx.crest(self, Vector2(w / 2 + cs * 1.85, cs * 14.3), cs * 1.5, p.club)
 	if untr: draw_circle(Vector2(w - cs * 1.4, cs * 1.6), cs * 0.32, Color("#ff6464"))
 	if tag != "": Gfx.text_c(self, font_b, w / 2, h - cs * 0.9, tag, int(cs * 0.8), Color.WHITE)
+	if brackets and has_focus():
+		var bc = Color(1, 1, 1, 0.85); var L = cs * 2.2; var o = cs * 0.7; var bw = max(2.0, cs * 0.22)
+		for cx in [[-o, 1], [w + o, -1]]:
+			for cy in [[-o, 1], [h + o, -1]]:
+				draw_line(Vector2(cx[0], cy[0]), Vector2(cx[0] + L * cx[1], cy[0]), bc, bw)
+				draw_line(Vector2(cx[0], cy[0]), Vector2(cx[0], cy[0] + L * cy[1]), bc, bw)
 	if chem >= 0:
 		for i in 3:
 			var c = Vector2(w / 2 + (i - 1) * cs * 1.15, h + cs * 0.8)

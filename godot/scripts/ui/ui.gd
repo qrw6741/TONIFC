@@ -48,7 +48,7 @@ func _ready() -> void:
 	overlay = Control.new(); overlay.set_anchors_preset(Control.PRESET_FULL_RECT); overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(overlay)
 	toasts = VBoxContainer.new(); toasts.set_anchors_preset(Control.PRESET_TOP_RIGHT); toasts.position = Vector2(-430, 80); toasts.custom_minimum_size = Vector2(400, 0)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE; toasts.add_theme_constant_override("separation", 8); root.add_child(toasts)
-	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new(), preload("res://scripts/ui/screens/gallery_ui.gd").new(), preload("res://scripts/ui/screens/event_ui.gd").new(), preload("res://scripts/ui/screens/evo_ui.gd").new()]
+	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new(), preload("res://scripts/ui/screens/gallery_ui.gd").new(), preload("res://scripts/ui/screens/event_ui.gd").new(), preload("res://scripts/ui/screens/evo_ui.gd").new(), preload("res://scripts/ui/screens/market_ui.gd").new()]
 	Sys.currency_changed.connect(refresh_currency)
 	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
@@ -584,6 +584,21 @@ func toast(msg: String, kind := "info") -> void:
 	p.modulate.a = 0
 	var tw = p.create_tween(); tw.tween_property(p, "modulate:a", 1.0, 0.2); tw.tween_interval(2.8); tw.tween_property(p, "modulate:a", 0.0, 0.4); tw.tween_callback(p.queue_free)
 
+## per-screen shortcut keys / pad buttons: {"k<keycode>": Callable, "j<joy button>": Callable}
+class KeyHook extends Node:
+	var map = {}
+	func _unhandled_input(e: InputEvent) -> void:
+		if not UI.modals.is_empty() or UI.in_match: return
+		var k = ""
+		if e is InputEventKey and e.pressed and not e.echo: k = "k%d" % e.physical_keycode
+		elif e is InputEventJoypadButton and e.pressed: k = "j%d" % e.button_index
+		if k != "" and map.has(k):
+			var fo = get_viewport().gui_get_focus_owner()
+			if fo is LineEdit and e is InputEventKey: return
+			get_viewport().set_input_as_handled(); map[k].call()
+func keyhook(node: Node, map: Dictionary) -> void:
+	var h = KeyHook.new(); h.map = map; node.add_child(h)
+
 class ModalHandle extends RefCounted:
 	signal closed(v)
 
@@ -726,4 +741,5 @@ func pick_player(title: String, pos := "", filter = null, allow_untr := true):
 
 # ------------------------------------------------------------------ match glue (implemented in hub2)
 func run_match(cfg: Dictionary, cb: Callable) -> void: modules[2].run_match(cfg, cb)
+func compare_price(p: Dictionary) -> void: await modules[7].compare_price(p)
 func show_results(res: Dictionary, title: String, rewards: String, cb: Callable) -> void: modules[2].show_results(res, title, rewards, cb)

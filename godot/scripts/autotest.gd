@@ -123,6 +123,30 @@ func run() -> void:
 			var before = UI._focus_path(); UI.replace("objectives"); await w(0.5)
 			print("RESTORE same: ", before == UI._focus_path(), " ", before, " -> ", UI._focus_path())
 			var nn = UI._resolve_path(before); print("RESOLVED ", nn, " vis ", nn.is_visible_in_tree() if nn else null, " fm ", nn.focus_mode if nn else null)
+		if extra == "--market":
+			UI.replace("transfers"); await shot("g80_tr_hub")
+			UI.replace("transfers", {"tab": "search", "filter": {"lg": "ENG1", "min": 80}, "run": true}); await w(0.3); await shot("g81_search")
+			var ls: Array = Sys.M().listings
+			print("RESULTS ", ls.size(), " pool ", Sys.M().pool.size())
+			Sys.toggle_watch(ls[0]); Sys.place_bid(ls[1], Sys.min_bid(ls[1]))
+			UI.compare_price(Data.P(ls[2].pid)); await w(0.4); await shot("g82_compare"); UI.close_top(null); await w(0.3)
+			for k in 5: Sys.market_tick(); await w(0.05)
+			print("POOL after ticks ", Sys.M().pool.size())
+			# pack -> new items screen
+			Save.data.pending = []
+			UI.replace("store"); UI.modules[1].open_pack("jumbo", true)
+			await w(1.0)
+			var ov = UI.overlay.get_child(UI.overlay.get_child_count() - 1) if UI.overlay.get_child_count() > 0 else null
+			if ov and ov.has_method("done"): ov.done()
+			await w(1.2); await shot("g83_newitems")
+			for k in 2: UI._send_nav(Vector2i(0, -1)); await w(0.15)
+			UI._send_nav(Vector2i(1, 0)); await w(0.1)
+			for k in 2: UI._send_nav(Vector2i(0, 1)); await w(0.15)
+			await w(0.3); await shot("g84_newitems_moved")
+			print("DESTS ", Save.data.pending.map(func(x): return x.dest))
+			var r = Sys.apply_pending(); print("APPLY ", r, " tl ", Sys.M().tl.size())
+			UI.replace("transfers", {"tab": "list"}); await shot("g85_tlist")
+			UI.replace("transfers", {"tab": "targets"}); await shot("g86_targets")
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

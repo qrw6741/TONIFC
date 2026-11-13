@@ -9,7 +9,8 @@ signal market_changed
 
 const MARKET_TAX := 0.05
 var _market_t = 0.0
-var quiet = false   # suppress toasts during bulk actions
+var quiet = false
+var market_ver = 0   # bumps when YOUR listings / bids change (screens refresh on it)   # suppress toasts during bulk actions
 
 func now() -> float: return Time.get_unix_time_from_system()
 func D(): return Save.data
@@ -377,11 +378,90 @@ func generate_pack(id: String) -> Array:
 # ------------------------------------------------------------------ transfer market
 func demand(pid: String) -> float: return D().market.demand.get(pid, 1.0)
 func nudge(pid: String, f: float) -> void: D().market.demand[pid] = clamp(demand(pid) * f, 0.6, 1.8)
-func cycle() -> float:
-	var t = now() / 3600.0
-	return 1.0 + 0.06 * sin(t * 0.9) + 0.03 * sin(t * 2.7)
-func value(p: Dictionary) -> int:
-	return max(150, int(round(Data.base_value(p) * demand(p.id) * cycle() / 50.0)) * 50)
+func cycle() -> float: return cycle_at(now(), "")
+## every player's price moves on its own wave (hours-long swings) on top of supply & demand
+func cycle_at(t: float, pid: String) -> float:
+	var h = t / 3600.0
+	var ph: float = float(abs(hash(pid)) % 1000) / 159.0
+	return 1.0 + 0.06 * sin(h * 0.26 + ph) + 0.03 * sin(h * 0.71 + ph * 2.0) + 0.008 * sin(h * 2.3 + ph * 3.0)
+func value(p: Dictionary) -> int: return value_at(p, now())
+func value_at(p: Dictionary, t: float) -> int:
+	return max(150, int(round(Data.base_value(p) * demand(p.id) * cycle_at(t, p.id) / 50.0)) * 50)
+## 24-hour price trend (25 points, oldest first)
+func trend(p: Dictionary, hours := 24, pts := 25) -> Array:
+	var out = []
+	var t = now()
+	for i in pts: out.append(value_at(p, t - (hours * 3600.0) * float(pts - 1 - i) / float(pts - 1)))
+	return out
+func trend_pct(p: Dictionary) -> float:
+	var a = value_at(p, now() - 86400.0); var b = value(p)
+	return (float(b) - a) / max(1.0, a) * 100.0
+
+# ------------------------------------------------------------------ persistent market
+func M() -> Dictionary:
+	var m: Dictionary = D().market
+	for k in ["pool", "watch", "tl"]: if not m.has(k): m[k] = []
+	return m
+func _market_player_pool() -> Array:
+	return Data.players.filter(func(p): return p.type != "found" and p.type != "pass" and not str(p.id).begins_with("ev"))
+var _mpp = []
+func _random_listing_player() -> Dictionary:
+	if _mpp.is_empty(): _mpp = _market_player_pool()
+	# far more low-rated cards than stars, like the real market
+	for i in 6:
+		var p: Dictionary = pick(_mpp)
+		var keep: float = 1.0 if p.ovr < 75 else (0.7 if p.ovr < 80 else (0.4 if p.ovr < 84 else (0.2 if p.ovr < 87 else 0.1)))
+		if p.type != "base": keep *= 0.35
+		if chance(keep): return p
+	return pick(_mpp)
+func lowest_bins(pid: String, n := 5) -> Array:
+	var p = Data.P(pid)
+	var arr: Array = M().pool.filter(func(l): return l.pid == pid and l.ends > now() and not l.get("gone", false))
+	while arr.size() < 3:
+		var l = make_listing(p); M().pool.append(l); arr.append(l)
+	arr.sort_custom(func(a, b): return a.bin < b.bin)
+	return arr.slice(0, n)
+func recent_sales(p: Dictionary, n := 6) -> Array:
+	var out = []
+	for i in n:
+		var t = now() - (i + 1) * randf_range(900.0, 2400.0)
+		out.append({"t": t, "price": max(150, int(round(value_at(p, t) * randf_range(0.93, 1.05) / 50.0)) * 50)})
+	return out
+func is_watched(l: Dictionary) -> bool: return M().watch.any(func(w): return w.id == l.id)
+func toggle_watch(l: Dictionary) -> bool:
+	for w in M().watch:
+		if w.id == l.id: M().watch.erase(w); Save.dirty(); return false
+	M().watch.push_front(l); Save.dirty(); return true
+
+# ------------------------------------------------------------------ transfer list pile (unlisted items)
+const TL_MAX := 100
+func tl_items() -> Array: return M().tl
+func tl_add(pid: String, untr: bool, src := "pack") -> bool:
+	if untr or M().tl.size() >= TL_MAX: return false
+	M().tl.append({"uid": uid(), "pid": pid, "untr": false, "at": now(), "src": src}); Save.dirty(); return true
+func tl_take(u: String) -> Dictionary:
+	for it in M().tl:
+		if it.uid == u: M().tl.erase(it); Save.dirty(); return it
+	return {}
+func tl_to_club(u: String) -> void:
+	var it = tl_take(u)
+	if not it.is_empty(): D().club.append(it); Save.dirty()
+func tl_quick_sell(u: String) -> void:
+	var it = tl_take(u)
+	if not it.is_empty(): var p = Data.P(it.pid); add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell")
+
+## apply the New Items screen: keep → club, tl → Transfer List, qs → coins
+func apply_pending() -> Dictionary:
+	var r = {"keep": 0, "tl": 0, "qs": 0, "coins": 0}
+	for x in D().pending:
+		var dest: String = x.get("dest", "keep")
+		if dest == "tl" and tl_add(x.pid, x.untr): r.tl += 1
+		elif dest == "qs":
+			var v = Data.quick_sell_value(Data.P(x.pid)); r.qs += 1; r.coins += v
+		else: club_add(x.pid, x.untr, "pack"); r.keep += 1
+	if r.coins: add("coins", r.coins, "Quick sold %d pack items" % r.qs, "quicksell")
+	D().pending = []; Save.dirty()
+	return r
 func price_range(p: Dictionary) -> Dictionary:
 	var v = value(p)
 	return {"min": max(150, int(round(v * 0.45 / 50.0)) * 50), "max": int(round(v * 3 / 50.0)) * 50}
@@ -391,43 +471,58 @@ func make_listing(p: Dictionary) -> Dictionary:
 	var start: int = max(150, int(round(bin * randf_range(0.45, 0.8) / 50.0)) * 50)
 	var dur: float = pick([1, 2, 3, 5, 8, 15, 30, 60]) * 60.0
 	var has_bid = chance(0.25)
-	return {"id": uid(), "pid": p.id, "start": start, "bin": bin, "bid": start if has_bid else 0, "bidder": "ai" if has_bid else "", "ends": now() + dur * randf_range(0.2, 1.0)}
-func market_search(f: Dictionary) -> Array:
-	var pool: Array = Data.players.filter(func(p): return p.type != "found" and p.type != "pass")
+	return {"id": uid(), "pid": p.id, "start": start, "bin": bin, "bid": start if has_bid else 0, "bidder": "ai" if has_bid else "", "ends": now() + dur * randf_range(0.2, 1.0), "listed": now()}
+func _match_filter(p: Dictionary, f: Dictionary) -> bool:
 	var q: String = f.get("name", "").to_lower()
-	if q != "": pool = pool.filter(func(p): return p.name.to_lower().contains(q))
-	if f.get("pos", "") != "": pool = pool.filter(func(p): return p.pos == f.pos)
-	if f.get("lg", "") != "": pool = pool.filter(func(p): return p.lg == f.lg)
-	if f.get("nat", "") != "": pool = pool.filter(func(p): return p.nat == f.nat)
-	if f.get("club", "") != "": pool = pool.filter(func(p): return p.club == f.club)
+	if q != "" and not p.name.to_lower().contains(q): return false
+	if f.get("pos", "") != "" and p.pos != f.pos: return false
+	if f.get("lg", "") != "" and p.lg != f.lg: return false
+	if f.get("nat", "") != "" and p.nat != f.nat: return false
+	if f.get("club", "") != "" and p.club != f.club: return false
 	var rar: String = f.get("rar", "")
-	if rar == "rare": pool = pool.filter(func(p): return p.rare)
-	elif rar == "special": pool = pool.filter(func(p): return p.type != "base")
-	elif rar == "gold": pool = pool.filter(func(p): return p.type == "base" and Data.tier_of(p.ovr) == "gold")
-	elif rar != "": pool = pool.filter(func(p): return Data.rarity_key(p) == rar)
-	if int(f.get("min", 0)) > 0: pool = pool.filter(func(p): return p.ovr >= int(f.min))
-	if int(f.get("max", 0)) > 0: pool = pool.filter(func(p): return p.ovr <= int(f.max))
-	if pool.is_empty(): return []
-	var has_base = pool.any(func(p): return p.type == "base")
-	var res = []
-	for i in min(24, max(4, pool.size() * 2)):
-		var p: Dictionary = pick(pool)
-		if p.type != "base" and chance(0.5) and has_base: continue
-		res.append(make_listing(p))
-	if int(f.get("max_bin", 0)) > 0: res = res.filter(func(l): return l.bin <= int(f.max_bin))
+	if rar == "rare" and not p.rare: return false
+	if rar == "special" and p.type == "base": return false
+	if rar == "gold" and not (p.type == "base" and Data.tier_of(p.ovr) == "gold"): return false
+	if rar != "" and not rar in ["rare", "special", "gold"] and Data.rarity_key(p) != rar: return false
+	if int(f.get("min", 0)) > 0 and p.ovr < int(f.min): return false
+	if int(f.get("max", 0)) > 0 and p.ovr > int(f.max): return false
+	return true
+func _match_price(l: Dictionary, f: Dictionary) -> bool:
+	var cur_bid: int = l.bid if l.bid > 0 else l.start
+	if int(f.get("min_bin", 0)) > 0 and l.bin < int(f.min_bin): return false
+	if int(f.get("max_bin", 0)) > 0 and l.bin > int(f.max_bin): return false
+	if int(f.get("min_bid", 0)) > 0 and cur_bid < int(f.min_bid): return false
+	if int(f.get("max_bid", 0)) > 0 and cur_bid > int(f.max_bid): return false
+	return true
+## search the live market. Listings persist: other managers bid on them and snipe bargains.
+func market_search(f: Dictionary) -> Array:
+	var t = now()
+	var res: Array = M().pool.filter(func(l): return l.ends > t and not l.get("gone", false) and _match_filter(Data.P(l.pid), f) and _match_price(l, f))
+	if res.size() < 30:
+		var pool: Array = _market_player_pool().filter(func(p): return _match_filter(p, f))
+		if not pool.is_empty():
+			var has_base = pool.any(func(p): return p.type == "base")
+			var tries = 0
+			while res.size() < 30 and tries < 120:
+				tries += 1
+				var p: Dictionary = pick(pool)
+				if p.type != "base" and has_base and chance(0.6): continue
+				var l = make_listing(p)
+				M().pool.append(l)
+				if _match_price(l, f): res.append(l)
 	match f.get("sort", "ends"):
 		"bin-asc": res.sort_custom(func(a, b): return a.bin < b.bin)
 		"bin-desc": res.sort_custom(func(a, b): return a.bin > b.bin)
 		"ovr": res.sort_custom(func(a, b): return Data.P(a.pid).ovr > Data.P(b.pid).ovr)
 		_: res.sort_custom(func(a, b): return a.ends < b.ends)
-	D().market.listings = res; Save.dirty()
-	return res
+	D().market.listings = res.slice(0, 60); Save.dirty()
+	return D().market.listings
 func buy_now(l: Dictionary) -> bool:
 	var p = Data.P(l.pid)
 	if l.ends < now(): toast.emit("This auction has ended", "bad"); return false
 	if not spend("coins", l.bin, "Bought %s (%d)" % [p.name, p.ovr], "market"): return false
 	club_add(p.id, false, "market"); nudge(p.id, 1.04); market_hist("buy", p, l.bin)
-	D().market.listings.erase(l)
+	D().market.listings.erase(l); M().pool.erase(l); l.gone = true; l.won = true
 	D().stats.bought += 1; track("buy")
 	return true
 func min_bid(l: Dictionary) -> int:
@@ -507,6 +602,28 @@ func market_tick() -> void:
 			b.status = "won"; club_add(p.id, false, "auction"); market_hist("buy", p, b.amt); nudge(p.id, 1.03)
 			D().stats.bought += 1; track("buy")
 			toast.emit("Won %s for %s coins!" % [p.name, fmt(b.amt)], "good"); changed = true
+	if changed: market_ver += 1
+	# the rest of the market: other managers snipe underpriced cards, bid near the end, listings expire & refill
+	var pool: Array = M().pool
+	var keep = []
+	for l in pool:
+		if l.get("gone", false): continue
+		if l.ends <= t:
+			l.gone = true; continue
+		if l.bidder == "me": keep.append(l); continue
+		var v = value(Data.P(l.pid))
+		var r: float = float(l.bin) / max(1, v)
+		var snipe = 0.12 if r < 0.85 else (0.03 if r < 0.95 else (0.004 if r < 1.05 else 0.0004))
+		if chance(snipe):
+			l.gone = true; l.sold_ai = true; changed = true; continue
+		if l.ends - t < 45 and chance(0.08):
+			var nb: int = min_bid(l)
+			if nb < l.bin and nb < v * 1.02: l.bid = nb; l.bidder = "ai"; changed = true
+		keep.append(l)
+	if keep.size() < 220:
+		for i in 6: keep.append(make_listing(_random_listing_player()))
+	if keep.size() > 600: keep = keep.slice(keep.size() - 600)
+	M().pool = keep
 	if changed: Save.dirty(); market_changed.emit()
 
 func sell(l: Dictionary, price: int) -> void:

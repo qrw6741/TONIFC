@@ -362,7 +362,7 @@ func s_store(p) -> Dictionary:
 			var pinfo = UI.vb(2, [UI.bold("Player Pick in progress", 15), UI.label("Finish choosing your player from %s." % Data.packs[Save.data.pick_cur.pack].name, 13, UI.DIM)]); UI.grow(pinfo, false, true)
 			content.add_child(UI.panel(UI.hb(14, [pinfo, UI.btn("Continue pick", func(): UI.go("pick"), "Primary")])))
 		if not Save.data.pending.is_empty():
-			var info = UI.vb(2, [UI.bold("%d unassigned items" % Save.data.pending.size(), 15), UI.label("From your last pack — send them to your club or sell them.", 13, UI.DIM)]); UI.grow(info, false, true)
+			var info = UI.vb(2, [UI.bold("%d unassigned items" % Save.data.pending.size(), 15), UI.label("From your last pack — keep, send to the Transfer List or quick sell.", 13, UI.DIM)]); UI.grow(info, false, true)
 			content.add_child(UI.panel(UI.hb(14, [info, UI.btn("View items", func(): UI.go("packresult"), "Primary")])))
 		if Save.data.unopened.is_empty(): content.add_child(UI.label("No unopened packs. Earn them from objectives, SBCs and competitions, or buy them in the Store.", 15, UI.DIM))
 		for i in Save.data.unopened.size(): flow.add_child(tile.call(Save.data.unopened[i], true, i))
@@ -401,12 +401,10 @@ func buy_pack(id: String) -> void:
 func open_pack(id: String, tradeable: bool) -> void:
 	if Data.packs[id].has("pick"):
 		UI.modules[3].start_pick(id); return
-	if not Save.data.pending.is_empty():
-		for x in Save.data.pending: if x.done == "": Sys.club_add(x.pid, x.untr, "pack")
-		Save.data.pending = []
+	if not Save.data.pending.is_empty(): Sys.apply_pending()
 	var items = Sys.generate_pack(id)
 	var untr: bool = (not tradeable) or Data.packs[id].get("reward", false)
-	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": untr, "done": ""})
+	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": untr, "dest": "keep"})
 	for p in items: Gallery.record(p.id, "pack", true)
 	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
 	Save.write_now()
@@ -424,58 +422,160 @@ func open_pack(id: String, tradeable: bool) -> void:
 			if UI.modals[i].node == o: UI.modals.remove_at(i); break
 		o.queue_free(); Sfx.music_on(); UI.go("packresult", {"pack": id}), CONNECT_ONE_SHOT)
 
+## New Items screen (FC-style): three bands — Send To Transfer List / Keep Items / Quick Sell Now.
+## ▲/▼ on a card moves it between bands, ◀/▶ browses. Confirm applies everything at once.
 func s_packresult(p) -> Dictionary:
-	var f = UI.sub_shell("Pack Items", Data.packs[p.pack].name if p.has("pack") else "Unassigned")
 	var pend: Array = Save.data.pending
-	var finish_all = func():
-		Save.data.pending = []; Save.dirty(); UI.toast("Items assigned", "good")
-		UI.replace("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "packs"})
-	var grid = HFlowContainer.new(); grid.add_theme_constant_override("h_separation", 12); grid.add_theme_constant_override("v_separation", 16)
-	var info = UI.label("", 14, UI.DIM)
-	var R = {}
+	for x in pend: if not x.has("dest"): x.dest = "keep"
+	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for kv in [["left", 70], ["right", 70], ["top", 24], ["bottom", 14]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
+	page.add_child(mg)
+	var v = UI.vb(10); mg.add_child(v)
+	var crumbs = UI.hb(12, [UI.label("Ultimate XI", 20, UI.DIM), UI.label("›", 20, UI.DIM), UI.label("Store", 20, UI.DIM), UI.label("›", 20, UI.DIM), UI.bold("New Items", 20), UI.spacer(), UI.currency_bar()])
+	v.add_child(crumbs)
+	var bands = {}
+	var R = {"focus_band": "keep", "focus_i": 0}
+	var banner = PanelContainer.new()
+	var bsb = StyleBoxFlat.new(); bsb.bg_color = Color(0.1, 0.25, 0.55, 0.55); bsb.set_corner_radius_all(10); bsb.content_margin_left = 16; bsb.content_margin_right = 16; bsb.content_margin_top = 6; bsb.content_margin_bottom = 6
+	banner.add_theme_stylebox_override("panel", bsb)
+	banner.add_child(UI.bold("ⓘ  Untradeable items can't be added to the Transfer List.", 16, Color("#7fb8ff")))
+	banner.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var flash = func():
+		Sfx.play("error"); banner.modulate = Color(1.6, 1.2, 1.2)
+		banner.create_tween().tween_property(banner, "modulate", Color.WHITE, 0.6)
+	var band_style = func(active: bool) -> StyleBoxFlat:
+		var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.09, 0.12, 0.17, 0.92) if active else Color(0.1, 0.13, 0.19, 0.78)
+		sb.set_corner_radius_all(6); sb.border_color = Color(1, 1, 1, 0.75) if active else Color(1, 1, 1, 0.0); sb.set_border_width_all(2 if active else 0)
+		sb.content_margin_left = 26; sb.content_margin_right = 22; sb.content_margin_top = 10; sb.content_margin_bottom = 10
+		return sb
+	var stack_icon = func(col: Color) -> Control:
+		var c = PanelContainer.new(); var sb = StyleBoxFlat.new(); sb.bg_color = col; sb.set_corner_radius_all(6); sb.corner_radius_bottom_left = 16; sb.corner_radius_bottom_right = 16
+		c.add_theme_stylebox_override("panel", sb); c.custom_minimum_size = Vector2(54, 68); return c
+	for key in ["tl", "keep", "qs"]:
+		var pn = PanelContainer.new()
+		var title = UI.head({"tl": "Send To Transfer List", "keep": "Keep Items", "qs": "Quick Sell Now"}[key], 40 if key == "keep" else 32)
+		var big = UI.head("", 36 if key == "keep" else 30); var small = UI.label("", 17, UI.DIM)
+		var right = UI.vb(0, [big, small]); right.alignment = BoxContainer.ALIGNMENT_CENTER
+		for c in right.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		var icon = stack_icon.call(Color("#e8c96a") if key != "qs" else Color(1, 1, 1, 0.12))
+		var row = HBoxContainer.new(); row.add_theme_constant_override("separation", -24 if key == "keep" else -10)
+		var sc = ScrollContainer.new(); sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER; sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.follow_focus = false
+		sc.add_child(row)
+		var col: VBoxContainer
+		if key == "keep":
+			sc.custom_minimum_size.y = 222
+			col = UI.vb(6, [UI.hb(14, [title, UI.label("▲ ▼  Move     ◀ ▶  Browse", 16, UI.DIM), UI.spacer(), right, icon]), sc])
+		else:
+			# compact band: title · the cards waiting here · count — all on one line
+			sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; sc.custom_minimum_size.y = 96
+			col = UI.vb(0, [UI.hb(18, [title, sc, right, icon])])
+		pn.add_child(col)
+		bands[key] = {"panel": pn, "row": row, "big": big, "small": small, "sc": sc}
+		v.add_child(pn)
+		if key == "keep": UI.grow(pn, true, true)
+	v.add_child(banner)
+	# footer hints
+	var g = func(k_ps: String, k_xb: String, k_kb: String) -> String: return k_ps if Pad.style == "ps" else (k_xb if Pad.style == "xbox" else k_kb)
+	var foot = UI.hb(22, [UI._key_hint(g.call("○", "B", "Esc"), "Back"), UI._key_hint(g.call("□", "X", "D"), "Compare Price"), UI._key_hint(g.call("△", "Y", "W"), "Move All to Quick Sell"),
+		UI._key_hint(g.call("OPTIONS", "Start", "E"), "Confirm Items"), UI._key_hint(g.call("✕", "A", "Enter"), "Details")])
+	v.add_child(foot)
+	var finish = func():
+		var r = Sys.apply_pending()
+		var parts = []
+		if r.keep: parts.append("%d kept" % r.keep)
+		if r.tl: parts.append("%d to Transfer List" % r.tl)
+		if r.qs: parts.append("%d quick sold (+%s)" % [r.qs, Sys.fmt(r.coins)])
+		Sfx.play("coin"); UI.toast("Items confirmed · " + ", ".join(parts), "good")
+		UI.reset("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "packs"})
+	var move = func(x: Dictionary, d: int) -> bool:
+		var order = ["tl", "keep", "qs"]
+		var i = order.find(x.dest) + d
+		if i < 0 or i > 2: return false
+		if order[i] == "tl":
+			if x.untr: flash.call(); return false
+			if Sys.M().tl.size() + pend.filter(func(y): return y.dest == "tl").size() >= Sys.TL_MAX: UI.toast("Transfer List is full (%d)" % Sys.TL_MAX, "bad"); return false
+		x.dest = order[i]; Sfx.play("whoosh"); return true
 	R.render = func():
-		for c in grid.get_children(): c.queue_free()
-		var left = pend.filter(func(x): return x.done == "").size()
-		info.text = "%d of %d items to assign · Select an item for actions" % [left, pend.size()]
-		for i in pend.size():
-			var x: Dictionary = pend[i]; var pl = Data.P(x.pid)
-			var dupe = Sys.owns_pid(pl.id)
-			var c = UI.card(pl, 10.0, false, func():
-				if x.done != "": return
-				var best = best_owned(pl.pos)
-				var acts = [["Send to Club", "club", "Primary"]]
-				if not x.untr: acts.append(["List on Transfer Market", "list", ""])
-				acts.append(["Quick sell (%s)" % Sys.fmt(Data.quick_sell_value(pl)), "qs", "Danger"])
-				if not best.is_empty(): acts.append(["Compare with %d %s" % [best.ovr, Data.short_name(best.name)], "cmp", ""])
-				var v = await UI.inspect(pl, acts, {"untr": x.untr})
-				if v == "club": Sys.club_add(pl.id, x.untr, "pack"); x.done = "Sent to club"
-				elif v == "qs": Sys.add("coins", Data.quick_sell_value(pl), "Quick sold " + pl.name, "quicksell"); x.done = "Quick sold"
-				elif v == "list":
-					var it = Sys.club_add(pl.id, x.untr, "pack")
-					x.done = "Listed" if await list_dialog(it.uid) else "Sent to club"
-				elif v == "cmp": await UI.compare(pl, best)
-				Save.dirty()
-				if pend.all(func(y): return y.done != ""): finish_all.call()
-				else: R.render.call())
-			c.untr = x.untr
-			c.tag = x.done.to_upper() if x.done != "" else ("DUPLICATE" if dupe else "NEW")
-			if x.done != "": c.modulate.a = 0.4
-			grid.add_child(c)
-	f.body.add_child(UI.hb(10, [info, UI.spacer(),
-		UI.btn("Quick sell duplicates", func():
-			var tot = 0
-			for x in pend:
-				if x.done == "" and Sys.owns_pid(x.pid): tot += Data.quick_sell_value(Data.P(x.pid)); x.done = "Quick sold"
-			if tot: Sys.add("coins", tot, "Quick sold pack duplicates", "quicksell")
-			Save.dirty()
-			if pend.all(func(y): return y.done != ""): finish_all.call()
-			else: R.render.call(), "Small"),
-		UI.btn("Send all to club", func():
-			for x in pend:
-				if x.done == "": Sys.club_add(x.pid, x.untr, "pack"); x.done = "Sent to club"
-			finish_all.call(), "Primary", true)]))
-	f.body.add_child(UI.scroll(grid))
+		var counts = {"tl": 0, "keep": 0, "qs": 0}; var qs_coins = 0; var new_n = 0
+		for x in pend:
+			counts[x.dest] += 1
+			if x.dest == "qs": qs_coins += Data.quick_sell_value(Data.P(x.pid))
+			if x.dest == "keep" and not Sys.owns_pid(x.pid): new_n += 1
+		bands.tl.big.text = "%d/%d Items" % [Sys.M().tl.size() + counts.tl, Sys.TL_MAX]; bands.tl.small.text = ""
+		bands.keep.big.text = "%d Items" % counts.keep; bands.keep.small.text = "%d New Items" % new_n
+		bands.qs.big.text = "%s Coins   %d Items" % [Sys.fmt(qs_coins), counts.qs]; bands.qs.small.text = ""
+		banner.visible = pend.any(func(x): return x.untr)
+		var focus_target = null
+		for key in bands:
+			var B: Dictionary = bands[key]
+			for c in B.row.get_children(): B.row.remove_child(c); c.queue_free()
+			var items: Array = pend.filter(func(x): return x.dest == key)
+			if key != "keep": B.sc.custom_minimum_size.y = 96 if not items.is_empty() else 64
+			B.panel.add_theme_stylebox_override("panel", band_style.call(key == R.focus_band))
+			var i = 0
+			for x in items:
+				var pl = Data.P(x.pid)
+				var c = UI.card(pl, 11.6 if key == "keep" else 5.2, false, func(): _item_details(x, R))
+				c.untr = x.untr; c.brackets = true
+				c.tag = "DUPLICATE" if Sys.owns_pid(pl.id) else "NEW"
+				var idx = i; var bk = key
+				c.focus_entered.connect(func():
+					c.z_index = 10
+					if R.focus_band != bk:
+						R.focus_band = bk
+						for kk in bands: bands[kk].panel.add_theme_stylebox_override("panel", band_style.call(kk == bk))
+					R.focus_i = idx)
+				c.focus_exited.connect(func(): c.z_index = 0)
+				c.gui_input.connect(func(e: InputEvent):
+					var d = 0
+					if e.is_action_pressed("ui_up"): d = -1
+					elif e.is_action_pressed("ui_down"): d = 1
+					if d != 0:
+						c.accept_event()
+						if move.call(x, d): R.focus_i = idx; R.render.call()
+					elif e.is_action_pressed("ui_left") and idx == 0: c.accept_event()
+					elif e.is_action_pressed("ui_right") and idx == items.size() - 1: c.accept_event())
+				B.row.add_child(c)
+				if key == R.focus_band and i == min(R.focus_i, items.size() - 1): focus_target = c
+				i += 1
+		if focus_target == null:
+			for key in ["keep", "tl", "qs"]:
+				if bands[key].row.get_child_count() > 0:
+					R.focus_band = key; R.focus_i = 0; focus_target = bands[key].row.get_child(0)
+					for kk in bands: bands[kk].panel.add_theme_stylebox_override("panel", band_style.call(kk == key))
+					break
+		if focus_target: focus_target.call_deferred("grab_focus")
 	R.render.call()
-	return {"node": f.node, "bg": "hub", "back": func():
-		for x in pend: if x.done == "": Sys.club_add(x.pid, x.untr, "pack")
-		Save.data.pending = []; Save.dirty(); UI.replace("store")}
+	var focused_item = func():
+		var fo = UI.get_viewport().gui_get_focus_owner()
+		if fo is PlayerCard:
+			for x in pend: if x.pid == fo.p.id: return x
+		return null
+	UI.keyhook(page, {
+		"k%d" % KEY_E: finish, "j%d" % JOY_BUTTON_START: finish,
+		"k%d" % KEY_D: func(): var x = focused_item.call(); if x: UI.compare_price(Data.P(x.pid)),
+		"j%d" % JOY_BUTTON_X: func(): var x = focused_item.call(); if x: UI.compare_price(Data.P(x.pid)),
+		"k%d" % KEY_W: func(): _all_qs(pend, R), "j%d" % JOY_BUTTON_Y: func(): _all_qs(pend, R),
+		"k%d" % KEY_Q: func(): var x = focused_item.call(); if x: _item_details(x, R)})
+	return {"node": page, "bg": "hub", "back": func(): UI.toast("Items kept in My Packs — confirm them any time"); UI.replace("store", {"tab": "mine"})}
+
+func _all_qs(pend: Array, R: Dictionary) -> void:
+	var all_q = pend.all(func(x): return x.dest == "qs")
+	for x in pend: x.dest = "keep" if all_q else "qs"
+	Sfx.play("whoosh"); R.focus_band = "qs" if not all_q else "keep"; R.focus_i = 0; Save.dirty(); R.render.call()
+
+func _item_details(x: Dictionary, R: Dictionary) -> void:
+	var pl = Data.P(x.pid)
+	var acts = []
+	if x.dest != "keep": acts.append(["Keep (send to club)", "keep", "Primary" if x.dest != "keep" else ""])
+	if x.dest != "tl" and not x.untr: acts.append(["Send to Transfer List", "tl", ""])
+	if x.dest != "qs": acts.append(["Quick sell (%s)" % Sys.fmt(Data.quick_sell_value(pl)), "qs", "Danger"])
+	acts.append(["Compare price", "cmp", ""])
+	var best = best_owned(pl.pos)
+	if not best.is_empty(): acts.append(["Compare with %d %s" % [best.ovr, Data.short_name(best.name)], "cmpo", ""])
+	var v = await UI.inspect(pl, acts, {"untr": x.untr})
+	match v:
+		"keep", "tl", "qs": x.dest = v; R.focus_band = v; Save.dirty(); R.render.call()
+		"cmp": await UI.compare_price(pl)
+		"cmpo": await UI.compare(pl, best)

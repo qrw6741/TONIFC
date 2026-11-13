@@ -25,7 +25,7 @@ func new_save(name: String) -> Dictionary:
 		"coins": 5000, "points": 500,
 		"tx": [{"t": now, "kind": "reward", "amount": 5000, "cur": "coins", "desc": "Welcome bonus"}, {"t": now, "kind": "reward", "amount": 500, "cur": "points", "desc": "Welcome Prime Points"}],
 		"club": [], "squads": [], "active_squad": 0, "unopened": [], "pending": [],
-		"market": {"listings": [], "mine": [], "bids": [], "history": [], "demand": {}, "last_filter": {}},
+		"market": {"listings": [], "mine": [], "bids": [], "history": [], "demand": {}, "last_filter": {}, "pool": [], "watch": [], "tl": []},
 		"objectives": {"progress": {}, "claimed": {}},
 		"sbc": {"done": {}, "draft": {}},
 		"modes": {
