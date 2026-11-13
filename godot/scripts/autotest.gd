@@ -30,6 +30,17 @@ func run() -> void:
 		UI.replace(t); await shot("g04_" + t)
 	UI.go("squad"); await shot("g05_squad")
 	for extra in OS.get_cmdline_user_args():
+		if extra == "--pack":
+			for pk in ["premium", "ultimate", "legends"]:
+				UI.replace("store")
+				UI.modules[1].open_pack(pk, true)
+				await w(1.2); await shot("g20_pack_" + pk)
+				await w(6.5); await shot("g21_reveal_" + pk)
+				var ov = UI.overlay.get_child(UI.overlay.get_child_count() - 1) if UI.overlay.get_child_count() > 0 else null
+				if ov and ov.has_method("done"): ov.done()
+				await w(1.0); await shot("g22_items_" + pk)
+				print("CUR ", UI.cur_name)
+				UI.modules[1].s_packresult  # noop
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

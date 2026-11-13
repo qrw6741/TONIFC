@@ -49,6 +49,7 @@ func _ready() -> void:
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE; toasts.add_theme_constant_override("separation", 8); root.add_child(toasts)
 	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new()]
 	Sys.currency_changed.connect(refresh_currency)
+	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
 	get_viewport().size_changed.connect(func(): toasts.position = Vector2(root.size.x - 430, 80))
 
@@ -219,7 +220,7 @@ func wrapl(l: Label, w := 0.0) -> Label:
 	return l
 
 func btn(text: String, cb: Callable, variant := "", autofocus := false) -> Button:
-	var b = Button.new(); b.text = text
+	var b = Button.new(); b.text = text.replace("Ⓐ", Pad.glyph("A")) if Pad.style == "ps" else text
 	if variant != "": b.theme_type_variation = variant
 	b.focus_mode = Control.FOCUS_ALL
 	b.pressed.connect(func(): Sfx.play("select"); cb.call())
@@ -337,7 +338,7 @@ func refresh_currency() -> void:
 
 func hints(extra := "") -> Control:
 	var h = hb(22)
-	h.add_child(_key_hint("A", "Select (Enter)")); h.add_child(_key_hint("B", "Back (Esc)"))
+	h.add_child(_key_hint(Pad.glyph("A"), "Select (Enter)")); h.add_child(_key_hint(Pad.glyph("B"), "Back (Esc)"))
 	h.add_child(spacer())
 	if extra != "": h.add_child(label(extra, 13, DIM))
 	var m = MarginContainer.new()
@@ -370,7 +371,7 @@ func hub_shell(tab: String) -> Dictionary:
 	top.add_child(icon("badge", Sys.D().profile.badge, Vector2(50, 54)))
 	top.add_child(bold("Ultimate XI", 26))
 	top.add_child(_sepline())
-	top.add_child(caps("Q", 10))
+	top.add_child(caps(Pad.glyph("LB") if Pad.style == "ps" else "Q", 10))
 	for t in HUB_TABS:
 		var b = btn(t[1], func(): if t[0] != tab: Sfx.play("tab"); replace(t[0]), "Tab")
 		if t[0] == tab:
@@ -378,9 +379,9 @@ func hub_shell(tab: String) -> Dictionary:
 			b.add_theme_stylebox_override("normal", _underline())
 		if t[0] == "objectives" and Sys.obj_claimable() > 0: b.text += " •"
 		top.add_child(b)
-	top.add_child(caps("E", 10))
+	top.add_child(caps(Pad.glyph("RB") if Pad.style == "ps" else "E", 10))
 	top.add_child(spacer()); top.add_child(currency_bar())
-	var f = frame(top, "Q / E  ·  LB / RB  switch tab")
+	var f = frame(top, ("L1 / R1" if Pad.style == "ps" else "Q / E  ·  LB / RB") + "  switch tab")
 	return f
 func _sepline() -> Control:
 	var c = ColorRect.new(); c.color = Color(1, 1, 1, 0.25); c.custom_minimum_size = Vector2(1, 30); return c

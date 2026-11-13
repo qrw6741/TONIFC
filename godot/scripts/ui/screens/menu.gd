@@ -22,7 +22,7 @@ func s_title(_p) -> Dictionary:
 		Sfx.play("boom"); Sfx.music_on()
 		UI.reset("onboard" if Save.data == null else "main"), "Primary", true)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(b)
-	var hint = UI.label("Keyboard, mouse or controller · Top 5 leagues 2025/26", 13, UI.DIM); hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(hint)
+	var hint = UI.label("Keyboard, mouse, Xbox or PS5 controller · Top 5 leagues 2025/26", 13, UI.DIM); hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(hint)
 	c.add_child(v)
 	return _ret(page, func(): pass, "menu", {"no_music": true})
 
@@ -398,9 +398,10 @@ func advance(T: Dictionary, cur: Array, my_won: bool) -> void:
 	Save.dirty()
 
 # ------------------------------------------------------------------ settings
-const CONTROLS := [["Move", "WASD / Arrows", "Left stick"], ["Sprint", "Shift", "RT"], ["Short pass / Header", "J", "A"], ["Through ball", "I", "Y"], ["Shoot (hold for power)", "K", "X"],
-	["Finesse shot", "O (hold)", "RB + X"], ["Lob pass / Cross", "L", "B"], ["Skill move", "E + direction", "Right stick"], ["Standing tackle", "J (defending)", "B"],
-	["Slide tackle", "K (defending)", "X"], ["Switch player", "Q", "LB"], ["Pause / Subs", "Esc / P", "Start"], ["Menu navigate", "Arrows / mouse", "D-pad"], ["Menu tabs", "Q / E", "LB / RB"]]
+const CONTROLS := [["Move", "WASD / Arrows", "Left stick", "Left stick"], ["Sprint", "Shift", "RT", "R2"], ["Short pass / Header", "J", "A", "✕"], ["Through ball", "I", "Y", "△"], ["Shoot (hold for power)", "K", "X", "□"],
+	["Finesse shot", "O (hold)", "RB + X", "R1 + □"], ["Lob pass / Cross", "L", "B", "○"], ["Skill move", "E + direction", "Right stick", "Right stick"], ["Standing tackle", "J (defending)", "B", "○"],
+	["Slide tackle", "K (defending)", "X", "□"], ["Switch player", "Q", "LB", "L1"], ["Pause / Subs", "Esc / P", "Start", "OPTIONS"], ["Show/hide controls", "H", "Back", "Touchpad"],
+	["Menu navigate", "Arrows / mouse", "D-pad", "D-pad / Left stick"], ["Menu select / back", "Enter / Esc", "A / B", "✕ / ○"], ["Menu tabs", "Q / E", "LB / RB", "L1 / R1"]]
 
 func s_settings(_p) -> Dictionary:
 	var f = UI.sub_shell("Settings", "Options", true)
@@ -418,10 +419,14 @@ func s_settings(_p) -> Dictionary:
 	var ck = CheckBox.new(); ck.text = "Show chemistry links on pitch"; ck.button_pressed = s.show_links; ck.toggled.connect(func(v): s.show_links = v; Save.dirty()); a.add_child(ck)
 	var fs = CheckBox.new(); fs.text = "Fullscreen"; fs.button_pressed = s.get("fullscreen", false)
 	fs.toggled.connect(func(v): s.fullscreen = v; Save.dirty(); DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if v else DisplayServer.WINDOW_MODE_WINDOWED)); a.add_child(fs)
+	var vib = CheckBox.new(); vib.text = "Controller vibration"; vib.button_pressed = s.get("vibration", true)
+	vib.toggled.connect(func(v): s.vibration = v; Save.dirty(); if v: Pad.rumble(0.4, 0.4, 0.3)); a.add_child(vib)
 	row.add_child(UI.panel(a))
-	var c = UI.vb(6, [UI.caps("Controls — Keyboard / Controller")])
-	var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 18)
-	for r in CONTROLS: g.add_child(UI.label(r[0], 13, UI.DIM)); g.add_child(UI.bold(r[1], 13)); g.add_child(UI.label(r[2], 13, UI.DIM))
+	var pad_name = Input.get_joy_name(Pad.device) if Pad.device >= 0 else "none connected"
+	var c = UI.vb(6, [UI.caps("Controls"), UI.label("Controller: " + pad_name, 12, UI.TEAL if Pad.device >= 0 else UI.DIM)])
+	var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 16)
+	for hdr in ["Action", "Keyboard", "Xbox", "PS5 DualSense"]: g.add_child(UI.caps(hdr, 10))
+	for r in CONTROLS: g.add_child(UI.label(r[0], 13, UI.DIM)); g.add_child(UI.bold(r[1], 13)); g.add_child(UI.label(r[2], 13, UI.DIM)); g.add_child(UI.bold(r[3], 13, UI.TEAL if Pad.style == "ps" else UI.TEXT))
 	c.add_child(g); row.add_child(UI.panel(c))
 	var d = UI.vb(12, [UI.caps("Save data"), UI.wrapl(UI.label("Progress saves automatically. The save file lives at:\n" + ProjectSettings.globalize_path(Save.PATH), 13, UI.DIM), 300),
 		UI.btn("Reset all progress", func():

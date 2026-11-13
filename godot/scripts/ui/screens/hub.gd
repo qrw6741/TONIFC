@@ -412,7 +412,7 @@ func open_pack(id: String, tradeable: bool) -> void:
 	o.finished.connect(func():
 		for i in UI.modals.size():
 			if UI.modals[i].node == o: UI.modals.remove_at(i); break
-		o.queue_free(); Sfx.music_on(); UI.go("packresult", {"pack": id}))
+		o.queue_free(); Sfx.music_on(); UI.go("packresult", {"pack": id}), CONNECT_ONE_SHOT)
 
 func s_packresult(p) -> Dictionary:
 	var f = UI.sub_shell("Pack Items", Data.packs[p.pack].name if p.has("pack") else "Unassigned")

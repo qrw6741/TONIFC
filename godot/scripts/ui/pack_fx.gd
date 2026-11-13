@@ -15,7 +15,9 @@ var sparks = []
 var stage: CenterContainer
 var timers = []
 var revealed = false
+var finished_called = false
 var colors = []
+var art: Control = null
 
 func setup(id: String, b: Dictionary, w: bool, l: int) -> void:
 	pack_id = id; best = b; walkout = w; lvl = l
@@ -26,15 +28,17 @@ func _ready() -> void:
 	stage = CenterContainer.new(); stage.set_anchors_preset(Control.PRESET_FULL_RECT); add_child(stage)
 	var skip_b = UI.btn("Skip ▸▸", skip, "Small"); skip_b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); skip_b.position = Vector2(-120, -60); skip_b.name = "skip"
 	add_child(skip_b)
-	var art = UI.icon("pack", pack_id, Vector2(200, 284))
+	art = UI.icon("pack", pack_id, Vector2(200, 284))
 	var v = UI.vb(20, [art, UI.bold("Opening %s…" % Data.packs[pack_id].name, 16, UI.DIM)])
 	v.alignment = BoxContainer.ALIGNMENT_CENTER; art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_set_stage(v)
 	art.pivot_offset = Vector2(100, 142)
-	var tw = create_tween().set_loops(); tw.tween_property(art, "position:y", art.position.y - 10, 1.2).set_trans(Tween.TRANS_SINE); tw.tween_property(art, "position:y", art.position.y, 1.2).set_trans(Tween.TRANS_SINE)
 	Sfx.play("riser")
 	create_tween().tween_property(self, "beams", 0.4 + lvl * 0.15, 1.4)
-	_at(1.5, func(): flash = 0.9; Sfx.play("whoosh"); var t2 = create_tween(); t2.tween_property(art, "scale", Vector2(1.4, 1.4), 0.3); t2.parallel().tween_property(art, "modulate:a", 0.0, 0.3))
+	_at(1.5, func():
+		flash = 0.9; Sfx.play("whoosh")
+		if is_instance_valid(art):
+			var t2 = art.create_tween(); t2.tween_property(art, "scale", Vector2(1.4, 1.4), 0.3); t2.parallel().tween_property(art, "modulate:a", 0.0, 0.3))
 	if walkout:
 		var steps = [
 			func(): return UI.vb(10, [UI.icon("flag", best.nat, Vector2(240, 160)), _center(UI.head(Data.nations[best.nat].name.to_upper(), 34))]),
@@ -45,7 +49,7 @@ func _ready() -> void:
 			_at(2.0 + i * 1.3, func():
 				var n: Control = steps[i].call()
 				_set_stage(n); n.pivot_offset = n.get_combined_minimum_size() / 2; n.scale = Vector2(1.6, 1.6); n.modulate.a = 0
-				var t3 = create_tween().set_parallel(); t3.tween_property(n, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT); t3.tween_property(n, "modulate:a", 1.0, 0.3)
+				var t3 = n.create_tween().set_parallel(); t3.tween_property(n, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT); t3.tween_property(n, "modulate:a", 1.0, 0.3)
 				Sfx.play("boom" if i == 3 else "reveal")
 				create_tween().tween_property(self, "beams", 0.6 + lvl * 0.1 + i * 0.1, 0.4)
 				if i == 3: burst(120); flash = 0.4)
@@ -57,7 +61,8 @@ func _center(l: Label) -> Label: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_C
 func _at(sec: float, cb: Callable) -> void:
 	var tm = get_tree().create_timer(sec)
 	timers.append(tm)
-	tm.timeout.connect(func(): if is_inside_tree() and not (revealed and cb != reveal): cb.call())
+	tm.timeout.connect(func():
+		if is_instance_valid(self) and is_inside_tree() and not revealed and not finished_called: cb.call())
 
 func _set_stage(n: Control) -> void:
 	for c in stage.get_children(): c.queue_free()
@@ -78,12 +83,16 @@ func reveal() -> void:
 	var v = UI.vb(16, [c, _center(UI.bold("%s · %s" % [best.name, Data.rarity_name(best)], 20)), cont]); v.alignment = BoxContainer.ALIGNMENT_CENTER
 	c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_set_stage(v)
-	var tw = create_tween().set_parallel(); tw.tween_property(c, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT); tw.tween_property(c, "modulate:a", 1.0, 0.4)
-	get_node("skip").visible = false
+	art = null
+	var tw = c.create_tween().set_parallel(); tw.tween_property(c, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT); tw.tween_property(c, "modulate:a", 1.0, 0.4)
+	var sk = get_node_or_null("skip")
+	if sk: sk.visible = false
 	await get_tree().create_timer(0.5).timeout
-	if is_instance_valid(cont): cont.grab_focus()
+	if is_instance_valid(cont) and cont.is_inside_tree(): cont.grab_focus()
 
 func done() -> void:
+	if finished_called: return
+	finished_called = true
 	finished.emit()
 
 func burst(n: int) -> void:
@@ -94,6 +103,7 @@ func burst(n: int) -> void:
 
 func _process(delta: float) -> void:
 	t += delta
+	if is_instance_valid(art) and art.is_inside_tree() and art.modulate.a > 0.99: art.position.y = sin(t * 2.6) * 8.0
 	flash = max(0.0, flash - delta * 2.4)
 	for s in sparks: s.p += s.v; s.v.y += 0.06; s.l -= 0.012
 	sparks = sparks.filter(func(s): return s.l > 0)

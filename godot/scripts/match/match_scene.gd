@@ -66,7 +66,12 @@ func _build_hud() -> void:
 	hud.power = UI.bar(0, 1, "GoldBar"); hud.power.custom_minimum_size = Vector2(220, 10); add_child(hud.power)
 	var ctrl = _panel(Color(0, 0, 0, 0.55), Vector4(12, 8, 12, 8), 10)
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 12); g.add_theme_constant_override("v_separation", 2)
-	for kv in [["WASD", "Move"], ["Shift", "Sprint"], ["J", "Pass / Tackle"], ["I", "Through ball"], ["K", "Shoot (hold) / Slide"], ["O", "Finesse shot"], ["L", "Lob / Cross"], ["E", "Skill move"], ["Q", "Switch player"], ["Esc", "Pause · H hide"]]:
+	var layout = [["WASD", "Move"], ["Shift", "Sprint"], ["J", "Pass / Tackle"], ["I", "Through ball"], ["K", "Shoot (hold) / Slide"], ["O", "Finesse shot"], ["L", "Lob / Cross"], ["E", "Skill move"], ["Q", "Switch player"], ["Esc", "Pause · H hide"]]
+	if Pad.style == "ps":
+		layout = [["L-stick", "Move"], ["R2", "Sprint"], ["✕", "Pass / Header"], ["△", "Through ball"], ["□", "Shoot (hold) · Slide"], ["R1+□", "Finesse shot"], ["○", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["L1", "Switch player"], ["OPTIONS", "Pause · Touchpad hide"]]
+	elif Pad.style == "xbox":
+		layout = [["L-stick", "Move"], ["RT", "Sprint"], ["A", "Pass / Header"], ["Y", "Through ball"], ["X", "Shoot (hold) · Slide"], ["RB+X", "Finesse shot"], ["B", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["LB", "Switch player"], ["Start", "Pause · Back hide"]]
+	for kv in layout:
 		g.add_child(UI.bold(kv[0], 12)); g.add_child(UI.label(kv[1], 12, Color("#cfd6de")))
 	ctrl.add_child(g); hud.ctrl = ctrl; add_child(ctrl)
 	if sim.user_side == "": ctrl.visible = false
@@ -84,18 +89,19 @@ func _input(event: InputEvent) -> void:
 		taps[event.physical_keycode] = true
 		if event.physical_keycode in [KEY_ESCAPE, KEY_P] and not sim.paused: get_viewport().set_input_as_handled(); _pause()
 		if event.physical_keycode == KEY_H: help_on = not help_on; hud.ctrl.visible = help_on and sim.user_side != ""
-	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START and not sim.paused:
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START and not sim.paused and not done:
 		get_viewport().set_input_as_handled(); _pause()
 
 func _read_input() -> void:
 	var k = func(code) -> bool: return Input.is_physical_key_pressed(code) or taps.get(code, false)
-	var jb = func(b) -> bool: return Input.is_joy_button_pressed(0, b)
+	var dev = Pad.id()
+	var jb = func(b) -> bool: return Input.is_joy_button_pressed(dev, b)
 	var x = 0.0; var y = 0.0
 	if k.call(KEY_A) or k.call(KEY_LEFT): x -= 1
 	if k.call(KEY_D) or k.call(KEY_RIGHT): x += 1
 	if k.call(KEY_W) or k.call(KEY_UP): y -= 1
 	if k.call(KEY_S) or k.call(KEY_DOWN): y += 1
-	var jx = Input.get_joy_axis(0, JOY_AXIS_LEFT_X); var jy = Input.get_joy_axis(0, JOY_AXIS_LEFT_Y)
+	var jx = Input.get_joy_axis(dev, JOY_AXIS_LEFT_X); var jy = Input.get_joy_axis(dev, JOY_AXIS_LEFT_Y)
 	if jb.call(JOY_BUTTON_DPAD_LEFT): jx = -1
 	if jb.call(JOY_BUTTON_DPAD_RIGHT): jx = 1
 	if jb.call(JOY_BUTTON_DPAD_UP): jy = -1
@@ -103,14 +109,23 @@ func _read_input() -> void:
 	if Vector2(jx, jy).length() > 0.25: x = jx; y = jy
 	var v = Vector2(x, y)
 	if v.length() > 1: v = v.normalized()
-	var rs = Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	var rs = Vector2(Input.get_joy_axis(dev, JOY_AXIS_RIGHT_X), Input.get_joy_axis(dev, JOY_AXIS_RIGHT_Y))
 	var rb: bool = jb.call(JOY_BUTTON_RIGHT_SHOULDER)
-	var cur = {"x": v.x, "y": v.y, "sprint": Input.is_physical_key_pressed(KEY_SHIFT) or Input.get_joy_axis(0, JOY_AXIS_TRIGGER_RIGHT) > 0.4,
-		"pass": k.call(KEY_J) or jb.call(JOY_BUTTON_A), "through": k.call(KEY_I) or jb.call(JOY_BUTTON_Y),
-		"shoot": Input.is_physical_key_pressed(KEY_K) or (jb.call(JOY_BUTTON_X) and not rb), "lob": k.call(KEY_L) or jb.call(JOY_BUTTON_B),
+	# FIFA-style pad layout: attacking ✕ pass · △ through · □ shoot · ○ lob/cross · R1+□ finesse
+	#                       defending ○ standing tackle · □ slide tackle · L1 switch · R2 sprint
+	var attacking: bool = sim.user_side != "" and sim.ball.owner != null and sim.ball.owner.side == sim.user_side
+	var setpiece_mine: bool = sim.state == "setpiece" and sim.sp != null and sim.teams[sim.sp.side].user
+	var defend_pad: bool = not attacking and not setpiece_mine
+	var sprint_axis = Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT)
+	var cur = {"x": v.x, "y": v.y, "sprint": Input.is_physical_key_pressed(KEY_SHIFT) or sprint_axis > 0.4 or jb.call(JOY_BUTTON_RIGHT_STICK),
+		"pass": k.call(KEY_J) or (jb.call(JOY_BUTTON_B) if defend_pad else jb.call(JOY_BUTTON_A)), "through": k.call(KEY_I) or jb.call(JOY_BUTTON_Y),
+		"shoot": Input.is_physical_key_pressed(KEY_K) or (jb.call(JOY_BUTTON_X) and not rb), "lob": k.call(KEY_L) or (jb.call(JOY_BUTTON_B) and not defend_pad),
 		"finesse": Input.is_physical_key_pressed(KEY_O) or (rb and jb.call(JOY_BUTTON_X)), "skill": k.call(KEY_E) or rs.length() > 0.7, "sw": k.call(KEY_Q) or jb.call(JOY_BUTTON_LEFT_SHOULDER)}
+	if jb.call(JOY_BUTTON_TOUCHPAD) and not prev_in.get("touch", false): help_on = not help_on; hud.ctrl.visible = help_on and sim.user_side != ""
+	cur.touch = jb.call(JOY_BUTTON_TOUCHPAD) or jb.call(JOY_BUTTON_BACK)
 	var edge = {}; var rel = {}
-	for key in cur: if typeof(cur[key]) == TYPE_BOOL: edge[key] = cur[key] and not prev_in.get(key, false)
+	for key in cur:
+		if typeof(cur[key]) == TYPE_BOOL: edge[key] = cur[key] and not prev_in.get(key, false)
 	for key in ["shoot", "finesse"]: rel[key] = (not cur[key]) and prev_in.get(key, false)
 	# quick tap of K/O (press+release inside one frame) still fires a shot
 	if (taps.get(KEY_K, false) and not Input.is_physical_key_pressed(KEY_K)) or (taps.get(KEY_O, false) and not Input.is_physical_key_pressed(KEY_O)):
@@ -202,7 +217,19 @@ func _subs() -> void:
 	await UI.modal("Substitutions", body, [["Done", true, "Primary"]], true)
 
 # ------------------------------------------------------------------ HUD
+var _rum = {"score": 0, "tackles": 0, "shots": 0, "state": ""}
+func _rumble_feedback() -> void:
+	if sim.user_side == "": return
+	var me = sim.si(sim.user_side)
+	var sc = sim.score.home + sim.score.away
+	if sc != _rum.score: Pad.rumble(1.0, 1.0, 0.7)
+	elif sim.stats.tackles[me] != _rum.tackles: Pad.rumble(0.5, 0.2, 0.15)
+	elif sim.stats.shots[0] + sim.stats.shots[1] != _rum.shots: Pad.rumble(0.3, 0.6, 0.12)
+	if sim.state == "fulltime" and _rum.state != "fulltime": Pad.rumble(0.6, 0.6, 0.5)
+	_rum = {"score": sc, "tackles": sim.stats.tackles[me], "shots": sim.stats.shots[0] + sim.stats.shots[1], "state": sim.state}
+
 func _update_hud() -> void:
+	_rumble_feedback()
 	var mins: float = min(45.0, sim.clock / sim.half_secs * 45.0) + (sim.half - 1) * 45
 	var mm = int(mins); var ss = int((mins - mm) * 60)
 	hud.clock.text = "GG" if sim.golden else "%02d:%02d" % [mm, ss]
