@@ -130,14 +130,14 @@ func s_galleryset(p) -> Dictionary:
 		var have: bool = Gallery.seen(pl.id)
 		var c = UI.card(pl, 4.6, true, func(): UI.inspect(pl))
 		if not have: c.modulate = Color(0.35, 0.35, 0.4, 0.55)
-		var lab = _gem_lab(pl) if have else UI.label("✦ %d" % Gallery.gems(pl), 11, UI.DIM)
+		var lab = _gem_lab(pl) if have else UI.label("✦ " + Sys.fmt(Gallery.gems(pl)), 11, UI.DIM)
 		grid.add_child(UI.vb(1, [c, lab]))
 	f.body.add_child(UI.hb(10, [UI.caps("Album · %d / %d collected%s" % [owned, alb.size(), (" · showing collected + 80+ rated" if show.size() < alb.size() else "")], 10), UI.spacer(), UI.label("Greyed cards are not in your Gallery yet", 12, UI.DIM)]))
 	f.body.add_child(UI.scroll(grid))
 	return {"node": f.node, "bg": "hub", "back": func(): UI.replace("gallery", {"lg": Data.clubs[id.substr(2)].lg if id.begins_with("C:") else id.substr(2)})}
 
 func _gem_lab(pl: Dictionary) -> Control:
-	var l = UI.bold(("✦ %d" % Gallery.gems(pl)) + ("  1st" if Gallery.first_owner(pl.id) else ""), 11, GEM)
+	var l = UI.bold(("✦ " + Sys.fmt(Gallery.gems(pl))) + ("  1st" if Gallery.first_owner(pl.id) else ""), 11, GEM)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 

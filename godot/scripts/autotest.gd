@@ -172,7 +172,7 @@ func run() -> void:
 			var gs: Dictionary = {}
 			for x in Data.sbcs: if x.id == "ex_gold": gs = x
 			var golds = Data.players.filter(func(x): return x.type == "base" and x.ovr >= 76 and x.ovr <= 82)
-			for k in 12: Sys.club_add(golds[k * 7].id, true, "pack")
+			for k in 30: Sys.club_add(golds[k * 3].id, true, "pack")
 			var fill = GemSBC.autofill(gs)
 			print("AUTOFILL ", fill.size(), " score ", GemSBC.score(fill), " / ", gs.target)
 			UI.go("gemsbc", {"id": "ex_gold", "cat": "Exchanges", "sel": fill}); await shot("g102_gemsbc")
