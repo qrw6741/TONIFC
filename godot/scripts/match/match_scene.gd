@@ -256,7 +256,13 @@ func _subs() -> void:
 			var b = UI.btn("%s   %s (%d)   %s %d%%" % [m.slot_pos, m.p.name, m.p.ovr, "⚠ stamina" if tired else "stamina", int(m.stamina * 100)], func():
 				if used >= 5: return
 				if st.bench >= 0: R.do_sub.call(i, st.bench)
-				else: st.on = i; st.focus = "bench"; st.fi = 0
+				else:
+					st.on = i; st.focus = "bench"; st.fi = 0
+					var bo = -999
+					for j in team.bench.size():
+						var bp: Dictionary = team.bench[j]
+						var sc = bp.ovr + (20 if Data.fits_pos(bp, m.slot_pos) else 0) - (60 if (bp.pos == "GK") != m.gk else 0)
+						if sc > bo: bo = sc; st.fi = j
 				R.draw.call(), "Row")
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			if i == st.on: b.add_theme_color_override("font_color", UI.TEAL); b.text = "▶ " + b.text

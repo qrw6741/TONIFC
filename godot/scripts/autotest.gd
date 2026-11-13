@@ -196,6 +196,23 @@ func run() -> void:
 			UI.replace("rivals"); await w(0.5); await shot("g111_rivals_claim")
 			var coins0 = Save.data.coins; print("CLAIM n ", Rivals.claim_all(), " coins +", Save.data.coins - coins0)
 			print("AI div10 ", Sys.rivals_ai(10), " div1 ", Sys.rivals_ai(1), " diff pro ", Data.difficulties.professional.ai)
+		if extra == "--subs":
+			UI.run_match({"home": Sys.user_team(), "away": Sys.club_team("RMA"), "user_side": "home", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): pass)
+			await w(2.0)
+			var ms = null
+			for ch in UI.root.get_children(): if ch.get("sim") != null: ms = ch
+			print("BENCH ", ms.sim.teams.home.bench.size())
+			ms.sim.paused = true; ms._subs(); await w(0.6); await shot("g120_subs")
+			var acc = func():
+				var e = InputEventAction.new(); e.action = "ui_accept"; e.pressed = true; Input.parse_input_event(e)
+				var e2 = InputEventAction.new(); e2.action = "ui_accept"; e2.pressed = false; Input.parse_input_event(e2)
+			UI._send_nav(Vector2i(0, 1)); await w(0.15)
+			acc.call(); await w(0.4)
+			print("AFTER PICK focus ", UI.get_viewport().gui_get_focus_owner().text if UI.get_viewport().gui_get_focus_owner() else null)
+			await shot("g121_subs_picked")
+			acc.call(); await w(0.4)
+			print("SUBS USED ", ms.sim.subs_used.home, " slot1 now ", ms.sim.teams.home.players[1].p.name)
+			await shot("g122_subs_done")
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

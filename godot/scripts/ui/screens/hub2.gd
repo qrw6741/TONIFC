@@ -352,6 +352,8 @@ func run_match(cfg: Dictionary, on_done: Callable) -> void:
 			var scene = preload("res://scripts/match/match_scene.gd").new()
 			scene.setup(cfg, on_done)
 			UI.root.add_child(scene)
+			# keep the match BELOW the overlay layer so the pause menu, substitutions and toasts show on top
+			UI.root.move_child(scene, UI.overlay.get_index())
 	if cfg.has("sim"): start.call(cfg.sim); return
 	var badge_for = func(t: Dictionary) -> Control:
 		if t.has("badge"): return UI.icon("badge", t.badge, Vector2(70, 70))
