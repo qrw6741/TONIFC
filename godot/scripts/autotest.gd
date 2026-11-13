@@ -91,5 +91,18 @@ func run() -> void:
 				var n := 0
 				while not sim.finished and n < 60 * 500: sim.update(1.0 / 60.0); n += 1
 				print("SIM ", sim.teams.home.short, " ", sim.score.home, "-", sim.score.away, " ", sim.teams.away.short, " shots ", sim.stats.shots, " sot ", sim.stats.sot, " passes ", sim.stats.passes, " fouls ", sim.stats.fouls, " corners ", sim.stats.corners)
+	for extra in OS.get_cmdline_user_args():
+		if extra == "--aitest":
+			for lvl in [0.45, 0.8, 1.2]:
+				var gs = [0, 0]; var sh = [0, 0]
+				for g in 3:
+					var sim := MatchSim.new({"home": Sys.club_team("ARS"), "away": Sys.club_team("LIV"), "user_side": "home" if g == 2 else "", "difficulty": "professional", "ai": lvl, "half_len": 3, "mode": "test"})
+					if g == 2: sim.inp = {"x": 0.0, "y": 0.0, "jockey": true, "contain": true}
+					var n := 0
+					while not sim.finished and n < 60 * 500: sim.update(1.0 / 60.0); n += 1
+					gs[0] += sim.score.home; gs[1] += sim.score.away; sh[0] += sim.stats.shots[0]; sh[1] += sim.stats.shots[1]
+				print("AI ", lvl, " goals ", gs, " shots ", sh)
+			print("RIVALS ai div10 ", Sys.rivals_ai(10), " div1 ", Sys.rivals_ai(1), " str ", Sys.rivals_strength(10), "/", Sys.rivals_strength(1))
+			UI.replace("play"); await w(0.2); UI.go("rivals"); await shot("g50_rivals")
 	print("AUTOTEST DONE")
 	get_tree().quit()

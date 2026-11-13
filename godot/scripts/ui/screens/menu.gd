@@ -400,7 +400,7 @@ func advance(T: Dictionary, cur: Array, my_won: bool) -> void:
 # ------------------------------------------------------------------ settings
 const CONTROLS := [["Move", "WASD / Arrows", "Left stick", "Left stick"], ["Sprint", "Shift", "RT", "R2"], ["Short pass / Header", "J", "A", "✕"], ["Through ball", "I", "Y", "△"], ["Shoot (hold for power)", "K", "X", "□"],
 	["Finesse shot", "O (hold)", "RB + X", "R1 + □"], ["Lob pass / Cross", "L", "B", "○"], ["Skill move", "E + direction", "Right stick", "Right stick"], ["Standing tackle", "J (defending)", "B", "○"],
-	["Slide tackle", "K (defending)", "X", "□"], ["Switch player", "Q", "LB", "L1"], ["Pause / Subs", "Esc / P", "Start", "OPTIONS"], ["Show/hide controls", "H", "Back", "Touchpad"],
+	["Slide tackle", "K (defending)", "X", "□"], ["Switch player", "Q", "LB", "L1"], ["Jockey (defending)", "Ctrl (hold)", "LT", "L2"], ["Teammate press (defending)", "C (hold)", "RB", "R1"], ["Pause / Subs", "Esc / P", "Start", "OPTIONS"], ["Show/hide controls", "H", "Back", "Touchpad"],
 	["Menu navigate", "Arrows / mouse", "D-pad", "D-pad / Left stick"], ["Menu select / back", "Enter / Esc", "A / B", "✕ / ○"], ["Menu tabs", "Q / E", "LB / RB", "L1 / R1"]]
 
 func s_settings(_p) -> Dictionary:

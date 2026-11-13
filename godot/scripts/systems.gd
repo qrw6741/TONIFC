@@ -632,7 +632,16 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 	Save.dirty(); return true
 
 # ------------------------------------------------------------------ competitions
-func rivals_strength(div: int) -> float: return 88.0 - (div - 1) * 2.4
+## Opponents scale with your division AND with how much you win:
+## every 10 career wins adds a little, and a win streak makes the next bot tougher.
+func experience() -> float: return min(0.12, float(D().stats.wins) * 0.0025)
+func rivals_streak() -> int: return int(D().modes.rivals.get("streak", 0))
+func rivals_strength(div: int) -> float:
+	return min(92.0, 74.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
+func rivals_ai(div: int) -> float:
+	return min(1.25, 0.42 + (10 - div) * 0.062 + experience() + min(5, rivals_streak()) * 0.025)
+func ai_label(a: float) -> String:
+	return "Beginner" if a < 0.35 else ("Amateur" if a < 0.5 else ("Semi-Pro" if a < 0.63 else ("Professional" if a < 0.76 else ("World Class" if a < 0.88 else ("Legendary" if a < 0.98 else ("Ultimate" if a < 1.1 else "Ultimate+"))))))
 func rivals_difficulty(div: int) -> String:
 	return ["", "legendary", "legendary", "worldclass", "worldclass", "professional", "professional", "semipro", "semipro", "amateur", "amateur"][div]
 func rivals_record(result: String) -> Dictionary:
@@ -640,6 +649,7 @@ func rivals_record(result: String) -> Dictionary:
 	if r.week != week_key(): r.week = week_key(); r.week_wins = 0
 	r.played += 1
 	var msg = ""
+	r.streak = int(r.get("streak", 0)) + 1 if result == "W" else 0
 	if result == "W": r.pts += 3; r.wins += 1; r.week_wins += 1; track("rivals_win")
 	elif result == "D": r.pts += 1
 	else: r.pts -= 1

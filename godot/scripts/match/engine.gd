@@ -24,7 +24,7 @@ class MP extends RefCounted:
 	var pac = 50.0; var sho = 50.0; var pas = 50.0; var dri = 50.0; var defn = 50.0; var phy = 50.0; var gkr = 0.0
 	var stamina = 1.0; var cool = 0.0; var tackle_cool = 0.0; var stun = 0.0; var dive = null; var decide_t = 0.0; var run = null; var ph = 0.0
 	var skill_t = 0.0; var yellow = 0; var label = ""; var label_t = 0.0; var sliding = 0.0; var target = null; var sp_move = false
-	var recv_t = -9.0; var hold_t = 0.0; var sprinting = false
+	var recv_t = -9.0; var hold_t = 0.0; var sprinting = false; var jockey = false
 
 var cfg: Dictionary
 var t = 0.0
@@ -67,6 +67,7 @@ var finished = false
 func _init(c: Dictionary) -> void:
 	cfg = c
 	ai = Data.difficulties[c.get("difficulty", "professional")].ai
+	if c.has("ai"): ai = clamp(float(c.ai), 0.2, 1.3)   # dynamic difficulty (Rivals divisions, win streaks, Champions)
 	half_secs = float(c.get("half_len", 3)) * 60.0
 	rules = c.get("rules", "classic")
 	user_side = c.get("user_side", "")
@@ -181,7 +182,9 @@ func give_ball(m: MP) -> void:
 	if m.team.user: switch_to(m)
 
 func switch_to(m: MP) -> void:
-	if ctrl != m: ctrl = m; charge = 0.0; charge_kind = ""
+	if ctrl != m:
+		if ctrl != null: ctrl.jockey = false
+		ctrl = m; charge = 0.0; charge_kind = ""
 
 func kick(m: MP, vx: float, vy: float, vz: float, kind: String, spin := 0.0) -> void:
 	var b = ball
@@ -196,7 +199,7 @@ func kick(m: MP, vx: float, vy: float, vz: float, kind: String, spin := 0.0) -> 
 func pass_to(m: MP, target: MP, kind: String) -> void:
 	var b = ball
 	var tx: float = target.x; var ty: float = target.y
-	var err: float = (1.0 - m.pas / 100.0) * 0.16 + (0.0 if m.team.user else (1.0 - m.team.ai) * 0.08) + (0.1 if m.stun > 0 else 0.0)
+	var err: float = max(0.01, (1.0 - m.pas / 100.0) * 0.16 + (0.0 if m.team.user else (1.0 - m.team.ai) * 0.08) + (0.1 if m.stun > 0 else 0.0))
 	if kind == "through":
 		tx = clamp(target.x + m.team.dir * (9.0 + m.pas / 20.0), 2.0, PW - 2.0); ty = target.y + (PH / 2 - target.y) * 0.15
 		target.run = {"x": tx, "y": ty, "t": 2.6}
@@ -328,6 +331,12 @@ func user_control(dt: float) -> void:
 	else:
 		m.vx = lerpf(m.vx, 0.0, min(1.0, 8.0 * dt)); m.vy = lerpf(m.vy, 0.0, min(1.0, 8.0 * dt))
 	m.sprinting = inp.get("sprint", false) and mag > 0.1
+	m.jockey = inp.get("jockey", false) and not has
+	if m.jockey:
+		var cap: float = max_speed(m, false) * 0.62
+		var sp = Vector2(m.vx, m.vy).length()
+		if sp > cap: m.vx *= cap / sp; m.vy *= cap / sp
+		m.face = atan2(b.y - m.y, b.x - m.x); m.sprinting = false
 	var ax: float = ix / mag if mag > 0.1 else cos(m.face); var ay: float = iy / mag if mag > 0.1 else sin(m.face)
 	if has:
 		if inp.get("shoot", false) or inp.get("finesse", false):
@@ -399,7 +408,7 @@ func try_tackle(m: MP, opp: MP, is_ai: bool) -> bool:
 	if d > 2.0:
 		m.vx += (opp.x - m.x) / d * 2; m.vy += (opp.y - m.y) / d * 2; return false
 	stats.tackles[si(m.side)] += 1; Sfx.play("tackle")
-	var p: float = clamp(0.3 + (m.defn - opp.dri) / 100.0 + ((m.team.ai - 0.6) * 0.25 if is_ai else 0.12) - (d - 1.0) * 0.15, 0.08, 0.8)
+	var p: float = clamp(0.3 + (m.defn - opp.dri) / 100.0 + ((m.team.ai - 0.6) * 0.25 if is_ai else 0.12) + (0.14 if m.jockey else 0.0) - (d - 1.0) * 0.15, 0.08, 0.85)
 	if t - opp.recv_t < 0.5: p *= 0.5
 	if randf() < p:
 		if randf() < 0.55: give_ball(m)
@@ -472,7 +481,12 @@ func team_ai(dt: float) -> void:
 						if randf() < agg * dt: try_tackle(m, b.owner, true)
 						elif not team.user and randf() < dt * 0.04 * team.ai and abs(b.owner.x - og) > 25: try_slide(m, (b.x - m.x) / max(d, 0.1), (b.y - m.y) / max(d, 0.1))
 			elif m == chaser2:
-				var og = own_goal_x(team); tx = lerpf(b.x, og, 0.4); ty = lerpf(b.y, PH / 2, 0.35)
+				var og = own_goal_x(team)
+				var double_press: bool = (team.user and inp.get("contain", false)) or (not team.user and team.ai >= 0.85 and abs(b.x - og) < 60)
+				if double_press:
+					tx = lerpf(b.x, og, 0.08); ty = lerpf(b.y, PH / 2, 0.08); sprint = true
+					if team.user and d2(b.x, b.y, m.x, m.y) < 1.6 and b.owner != null and randf() < 0.5 * dt: try_tackle(m, b.owner, true)
+				else: tx = lerpf(b.x, og, 0.4); ty = lerpf(b.y, PH / 2, 0.35)
 			elif not in_poss:
 				var mk = nearest(foe.players.filter(func(o): return not o.gk), home.x, home.y)
 				if mk and d2(mk.x, mk.y, home.x, home.y) < 14:
@@ -519,7 +533,14 @@ func carrier_ai(m: MP, dt: float) -> void:
 		var p_shoot = 0.95 if dist_goal < 12 else (0.6 + a * 0.2 if dist_goal < 17 else (0.25 + a * 0.15 if dist_goal < 22 else 0.08 + a * 0.08))
 		if randf() < p_shoot:
 			var aim = GY0 + randf_range(0.5, 1.6) if randf() < 0.5 else GY1 - randf_range(0.5, 1.6)
+			var kp = null
+			for o in foe.players: if o.gk: kp = o
+			if kp != null and randf() < clamp((a - 0.45) * 1.3, 0.0, 0.92):
+				aim = GY1 - randf_range(0.45, 1.1) if kp.y < PH / 2 else GY0 + randf_range(0.45, 1.1)
 			shoot(m, randf_range(0.45, 0.82), aim, dist_goal > 15 and dist_goal < 22 and randf() < 0.35); return
+	if press < 2.6 and m.skill_t <= 0 and m.p.sm >= 3 and randf() < clamp((a - 0.55) * 0.6, 0.0, 0.35) and dist_goal < 45:
+		var side = Vector2(-dv.y, dv.x) * (1.0 if randf() < 0.5 else -1.0)
+		do_skill(m, dv.x * 0.6 + side.x * 0.4, dv.y * 0.6 + side.y * 0.4); return
 	var best = null; var bs = -1e9
 	for tm in team.players:
 		if tm == m: continue

@@ -66,11 +66,11 @@ func _build_hud() -> void:
 	hud.power = UI.bar(0, 1, "GoldBar"); hud.power.custom_minimum_size = Vector2(220, 10); add_child(hud.power)
 	var ctrl = _panel(Color(0, 0, 0, 0.55), Vector4(12, 8, 12, 8), 10)
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 12); g.add_theme_constant_override("v_separation", 2)
-	var layout = [["WASD", "Move"], ["Shift", "Sprint"], ["J", "Pass / Tackle"], ["I", "Through ball"], ["K", "Shoot (hold) / Slide"], ["O", "Finesse shot"], ["L", "Lob / Cross"], ["E", "Skill move"], ["Q", "Switch player"], ["Esc", "Pause · H hide"]]
+	var layout = [["WASD", "Move"], ["Shift", "Sprint"], ["J", "Pass / Tackle"], ["I", "Through ball"], ["K", "Shoot (hold) / Slide"], ["O", "Finesse shot"], ["L", "Lob / Cross"], ["E", "Skill move"], ["Q", "Switch player"], ["Ctrl / C", "Jockey / Teammate press"], ["Esc", "Pause · H hide"]]
 	if Pad.style == "ps":
-		layout = [["L-stick", "Move"], ["R2", "Sprint"], ["✕", "Pass / Header"], ["△", "Through ball"], ["□", "Shoot (hold) · Slide"], ["R1+□", "Finesse shot"], ["○", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["L1", "Switch player"], ["OPTIONS", "Pause · Touchpad hide"]]
+		layout = [["L-stick", "Move"], ["R2", "Sprint"], ["✕", "Pass / Header"], ["△", "Through ball"], ["□", "Shoot (hold) · Slide"], ["R1+□", "Finesse shot"], ["○", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["L1", "Switch player"], ["L2 / R1", "Jockey / Teammate press"], ["OPTIONS", "Pause · Touchpad hide"]]
 	elif Pad.style == "xbox":
-		layout = [["L-stick", "Move"], ["RT", "Sprint"], ["A", "Pass / Header"], ["Y", "Through ball"], ["X", "Shoot (hold) · Slide"], ["RB+X", "Finesse shot"], ["B", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["LB", "Switch player"], ["Start", "Pause · Back hide"]]
+		layout = [["L-stick", "Move"], ["RT", "Sprint"], ["A", "Pass / Header"], ["Y", "Through ball"], ["X", "Shoot (hold) · Slide"], ["RB+X", "Finesse shot"], ["B", "Lob / Cross · Tackle"], ["R-stick", "Skill move"], ["LB", "Switch player"], ["LT / RB", "Jockey / Teammate press"], ["Start", "Pause · Back hide"]]
 	for kv in layout:
 		g.add_child(UI.bold(kv[0], 12)); g.add_child(UI.label(kv[1], 12, Color("#cfd6de")))
 	ctrl.add_child(g); hud.ctrl = ctrl; add_child(ctrl)
@@ -123,6 +123,8 @@ func _read_input() -> void:
 	var cur = {"x": v.x, "y": v.y, "sprint": Input.is_physical_key_pressed(KEY_SHIFT) or sprint_axis > 0.4 or jb.call(JOY_BUTTON_RIGHT_STICK),
 		"pass": k.call(KEY_J) or (jb.call(JOY_BUTTON_B) if defend_pad else jb.call(JOY_BUTTON_A)), "through": k.call(KEY_I) or jb.call(JOY_BUTTON_Y),
 		"shoot": Input.is_physical_key_pressed(KEY_K) or (jb.call(JOY_BUTTON_X) and not rb), "lob": k.call(KEY_L) or (jb.call(JOY_BUTTON_B) and not defend_pad),
+		"jockey": Input.is_physical_key_pressed(KEY_CTRL) or (defend_pad and Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_LEFT) > 0.4),
+		"contain": Input.is_physical_key_pressed(KEY_C) or (defend_pad and rb),
 		"finesse": Input.is_physical_key_pressed(KEY_O) or (rb and jb.call(JOY_BUTTON_X)), "skill": k.call(KEY_E) or rs.length() > 0.7, "sw": k.call(KEY_Q) or jb.call(JOY_BUTTON_LEFT_SHOULDER)}
 	if jb.call(JOY_BUTTON_TOUCHPAD) and not prev_in.get("touch", false): help_on = not help_on; hud.ctrl.visible = help_on and sim.user_side != ""
 	cur.touch = jb.call(JOY_BUTTON_TOUCHPAD) or jb.call(JOY_BUTTON_BACK)

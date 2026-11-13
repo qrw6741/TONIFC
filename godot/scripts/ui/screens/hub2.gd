@@ -351,7 +351,7 @@ func sb_play(o: Dictionary) -> void:
 	var D: Dictionary = Data.difficulties[d]
 	var ut = Sys.user_team(); var opp = Sys.ai_team(o.name, round((o.str + D.ovr) / 2.0))
 	Sys.league3_check(ut)
-	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": d, "half_len": int(Save.data.settings.half_len), "mode": "sb", "title": "Squad Battles"}, func(res):
+	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": d, "ai": min(1.3, Data.difficulties[d].ai + Sys.experience() * 0.5), "half_len": int(Save.data.settings.half_len), "mode": "sb", "title": "Squad Battles"}, func(res):
 		var sb: Dictionary = Save.data.modes.sb
 		var r = Sys.record_ut_match(res)
 		var pts = int(round(D.sbPts * (1.0 if r == "W" else (0.5 if r == "D" else 0.2)) + res.hg * 10 + (20 if res.ag == 0 else 0)))
@@ -374,7 +374,8 @@ func s_rivals(_p) -> Dictionary:
 		var c = ColorRect.new(); c.custom_minimum_size = Vector2(28, 10); c.color = UI.TEAL if i < rv.pts else Color(1, 1, 1, 0.12); dots.add_child(c)
 	var main = UI.vb(14, [UI.head("ELITE" if div == 1 else str(div), 90, UI.TEAL), UI.head(Data.division(div).name.to_upper(), 24), dots,
 		UI.label("%d/10 points to promotion · falling below 0 relegates" % rv.pts, 14, UI.DIM),
-		UI.label("Opponent strength ~%d · Difficulty %s" % [int(Sys.rivals_strength(div)), Data.difficulties[Sys.rivals_difficulty(div)].name], 14, UI.DIM),
+		UI.label("Next opponent: ~%d rated squad · AI %s (%d%%)" % [int(Sys.rivals_strength(div)), Sys.ai_label(Sys.rivals_ai(div)), int(Sys.rivals_ai(div) * 100)], 14, UI.DIM),
+		UI.label(("Win streak: %d — opponents are getting tougher" % Sys.rivals_streak()) if Sys.rivals_streak() > 1 else "Opponents get harder as you climb divisions and win more", 13, Color("#ff8a5c") if Sys.rivals_streak() > 1 else UI.DIM),
 		UI.btn("Ⓐ  Find match", func(): rivals_play(), "Primary", true)])
 	main.alignment = BoxContainer.ALIGNMENT_CENTER
 	for c in main.get_children(): c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -395,7 +396,7 @@ func rivals_play() -> void:
 	var name: String = Sys.pick(["Ace", "Pro", "King", "Volt", "Nova", "Zed", "Kai", "Rex"]) + Sys.pick(["_FC", "Gaming", "99", "Utd", "XI", "_27"])
 	var opp = Sys.ai_team(name, round(Sys.rivals_strength(div)))
 	Sys.league3_check(ut)
-	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(div), "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals"}, func(res):
+	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(div), "ai": Sys.rivals_ai(div), "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals"}, func(res):
 		var r = Sys.record_ut_match(res); var out = Sys.rivals_record(r)
 		Sys.log_match(res, "Rivals", r)
 		show_results(res, "Division Rivals", "+%s coins%s" % [Sys.fmt(out.coins), (" · " + out.msg) if out.msg != "" else ""], func(): UI.replace("rivals")))
@@ -446,9 +447,9 @@ func champs_finish() -> void:
 func champs_play() -> void:
 	if not require_squad(): return
 	var c: Dictionary = Save.data.modes.champs; var a: Dictionary = c.active
-	var ut = Sys.user_team(); var opp = Sys.ai_team("%s %s %d" % [Sys.pick(["Elite", "Prime", "Apex", "Legend"]), Sys.pick(["Gamer", "Squad", "FC", "XI"]), Sys.rint(1, 99)], Sys.rint(85, 90))
+	var ut = Sys.user_team(); var opp = Sys.ai_team("%s %s %d" % [Sys.pick(["Elite", "Prime", "Apex", "Legend"]), Sys.pick(["Gamer", "Squad", "FC", "XI"]), Sys.rint(1, 99)], min(93, 85 + int(a.w) * 0.6 + Sys.experience() * 20))
 	Sys.league3_check(ut)
-	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary", "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "Champions · Match %d" % (a.played + 1), "knockout": true}, func(res):
+	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary", "ai": min(1.3, 0.92 + int(a.w) * 0.03 + Sys.experience()), "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "Champions · Match %d" % (a.played + 1), "knockout": true}, func(res):
 		var r0 = Sys.record_ut_match(res); var r = r0
 		if r0 == "D": r = "W" if res.winner == "home" else "L"
 		a.played += 1
