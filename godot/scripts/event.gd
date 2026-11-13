@@ -160,7 +160,7 @@ func after_match(res: Dictionary, r: String) -> void:
 			var np = ensure_evo(evo_id(e.src, e.lvl))
 			it.pid = np.id
 			Gallery.record(np.id, "reward", true)
-			Sys.track("rs_evo")
+			Sys.track("rs_evo"); Sys.track("evo_lvl")
 			Sys.toast.emit("Evolution! %s is now %d OVR (Level %d)" % [Data.short_name(np.name), np.ovr, e.lvl], "good")
 		if int(e.lvl) >= EVO_LEVELS:
 			st().evolved[e.src] = true; done.append(e)

@@ -172,7 +172,7 @@ func after_match(res: Dictionary, r: String, ga: int) -> void:
 			e.xp = int(e.xp) - int(evo.xp); e.lvl = int(e.lvl) + 1
 			var np = ensure(ev_id(evo.id, e.lvl, e.src))
 			it.pid = np.id
-			Gallery.record(np.id, "reward", true)
+			Gallery.record(np.id, "reward", true); Sys.track("evo_lvl")
 			Sys.toast.emit("%s · %s reached Level %d — now %d OVR" % [evo.name, Data.short_name(np.name), e.lvl, np.ovr], "good")
 		if int(e.lvl) >= evo.levels.size():
 			finished.append(e)

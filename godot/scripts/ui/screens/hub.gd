@@ -18,7 +18,7 @@ func s_home(_p) -> Dictionary:
 	# left column
 	var left = UI.vb(14); left.custom_minimum_size.x = 300
 	left.add_child(UI.tile([UI.caps("Club overview"), UI.hb(10, [UI.icon("badge", pr.badge, Vector2(54, 58)), UI.vb(2, [UI.bold(pr.club_name, 20), UI.label("%d players · %d wins" % [Save.data.club.size(), Save.data.stats.wins], 13, UI.DIM)])])], func(): UI.replace("club"), Vector2(0, 120)))
-	var objs: Array = Data.objectives.filter(func(o): return not Sys.obj_claimed(o))
+	var objs: Array = Data.objectives.filter(func(o): return Sys.obj_live(o) and not Sys.obj_claimed(o))
 	objs.sort_custom(func(a, b): return (1 if Sys.obj_done(a) else 0) * 2 + float(Sys.obj_progress(a)) / a.target > (1 if Sys.obj_done(b) else 0) * 2 + float(Sys.obj_progress(b)) / b.target)
 	var ob = [UI.caps("Active objectives")]
 	for o in objs.slice(0, 3):
@@ -57,17 +57,26 @@ func s_home(_p) -> Dictionary:
 # ------------------------------------------------------------------ OBJECTIVES
 func s_objectives(p) -> Dictionary:
 	var f = UI.hub_shell("objectives")
-	var cat: String = p.get("cat", "daily")
-	var cats = [["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"]]
+	var cat: String = p.get("cat", "quick")
+	var cats = [["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"]]
 	var labs = cats.map(func(c): return [c[0], c[1] + (" •" if Data.objectives.any(func(o): return o.cat == c[0] and Sys.obj_done(o) and not Sys.obj_claimed(o)) else "")])
 	f.body.add_child(UI.hb(10, [page_title("Objectives"), UI.spacer(), UI.seg(labs, cat, func(v): UI.replace("objectives", {"cat": v}))]))
-	var sub = {"daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 1 · rewards Foundations players", "milestone": "Permanent milestones"}[cat]
+	var qlab = UI.bold("", 14, Color("#ffd23f"))
+	if cat == "quick":
+		var per = {"p": Sys.quick_period()}
+		var upd = func():
+			qlab.text = "⚡ New quick objectives in %s · rewards are given automatically when you complete them" % Sys.fmt_time(Sys.quick_left())
+			if Sys.quick_period() != per.p and UI.modals.is_empty() and UI.cur_name == "objectives": per.p = Sys.quick_period(); UI.replace("objectives", {"cat": "quick"})
+		upd.call()
+		var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm); tm.timeout.connect(upd)
+		f.body.add_child(qlab)
+	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 1 · rewards Foundations players", "milestone": "Permanent milestones"}[cat]
 	f.body.add_child(UI.label(sub, 13, UI.DIM))
 	var list = UI.vb(10)
-	for o in Data.objectives.filter(func(x): return x.cat == cat):
+	for o in Data.objectives.filter(func(x): return x.cat == cat and Sys.obj_live(x)):
 		var pr = Sys.obj_progress(o); var done = Sys.obj_done(o); var cl = Sys.obj_claimed(o)
 		var right: Control
-		if cl: right = UI.pill("Claimed", UI.GREEN)
+		if cl: right = UI.pill("Completed ✓" if cat == "quick" else "Claimed", UI.GREEN)
 		else:
 			var b = UI.btn("Claim reward" if done else "%d / %d" % [pr, o.target], func():
 				if Sys.obj_claim(o): Sfx.play("reveal"); UI.toast("Claimed: " + Sys.reward_text(o.reward), "good"); UI.replace("objectives", {"cat": cat}), "Primary" if done else "Small")
@@ -180,7 +189,7 @@ func item_actions(u: String, after: Callable) -> void:
 	var v = await UI.inspect(p, acts, it)
 	if v == "qs":
 		if Sys.in_any_squad(u) and not await UI.modal("Player is in a squad", "Quick selling removes him from your squads. Continue?", [["Cancel", null, ""], ["Quick sell", true, "Danger"]]): return
-		Sys.club_remove(u); Sys.add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell"); UI.toast("Quick sold " + p.name, "good")
+		Sys.club_remove(u); Sys.add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell"); Sys.track("quicksell"); UI.toast("Quick sold " + p.name, "good")
 	elif v == "list": await list_dialog(u)
 	elif v == "cmp": await UI.compare(p, best)
 	after.call()

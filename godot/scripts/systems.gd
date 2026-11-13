@@ -238,7 +238,7 @@ func build_ai_squad(strength: float, club := "", formation := "") -> Dictionary:
 	var slots: Array = Data.formations[formation].map(func(f): return f[0])
 	var pool: Array
 	if club != "": pool = Data.by_club[club].filter(func(p): return p.type == "base")
-	else: pool = Data.players.filter(func(p): return p.type == "base" or (p.type != "pass" and strength >= 84 and randf() < 0.3))
+	else: pool = Data.players.filter(func(p): return p.type == "base" or (not p.type in ["pass", "potm"] and strength >= 84 and randf() < 0.3))
 	var used = {}
 	var out = []
 	for pos in slots:
@@ -403,7 +403,7 @@ func M() -> Dictionary:
 	for k in ["pool", "watch", "tl"]: if not m.has(k): m[k] = []
 	return m
 func _market_player_pool() -> Array:
-	return Data.players.filter(func(p): return p.type != "found" and p.type != "pass" and not str(p.id).begins_with("ev"))
+	return Data.players.filter(func(p): return not p.type in ["found", "pass", "potm"] and not str(p.id).begins_with("ev"))
 var _mpp = []
 func _random_listing_player() -> Dictionary:
 	if _mpp.is_empty(): _mpp = _market_player_pool()
@@ -448,7 +448,7 @@ func tl_to_club(u: String) -> void:
 	if not it.is_empty(): D().club.append(it); Save.dirty()
 func tl_quick_sell(u: String) -> void:
 	var it = tl_take(u)
-	if not it.is_empty(): var p = Data.P(it.pid); add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell")
+	if not it.is_empty(): var p = Data.P(it.pid); add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell"); track("quicksell")
 
 ## apply the New Items screen: keep → club, tl → Transfer List, qs → coins
 func apply_pending() -> Dictionary:
@@ -459,7 +459,7 @@ func apply_pending() -> Dictionary:
 		elif dest == "qs":
 			var v = Data.quick_sell_value(Data.P(x.pid)); r.qs += 1; r.coins += v
 		else: club_add(x.pid, x.untr, "pack"); r.keep += 1
-	if r.coins: add("coins", r.coins, "Quick sold %d pack items" % r.qs, "quicksell")
+	if r.coins: add("coins", r.coins, "Quick sold %d pack items" % r.qs, "quicksell"); track("quicksell", r.qs)
 	D().pending = []; Save.dirty()
 	return r
 func price_range(p: Dictionary) -> Dictionary:
@@ -555,7 +555,7 @@ func list_item(u: String, start: int, bin: int, dur_min: int) -> bool:
 		for k in 11: if s.slots[k] == u: s.slots[k] = ""
 		for k in 7: if s.subs[k] == u: s.subs[k] = ""
 	D().market.mine.push_front({"id": uid(), "uid": u, "pid": p.id, "start": start, "bin": bin, "bid": 0, "ends": now() + dur_min * 60.0, "status": "active", "listed": now(), "lt": now()})
-	Save.dirty(); return true
+	track("list"); Save.dirty(); return true
 func remove_listing(id: String) -> bool:
 	for l in D().market.mine:
 		if l.id == id:
@@ -637,8 +637,42 @@ func sell(l: Dictionary, price: int) -> void:
 	toast.emit("%s sold for %s! +%s after tax" % [p.name, fmt(price), fmt(net)], "good")
 
 # ------------------------------------------------------------------ objectives & rewards
+# ------------------------------------------------------------------ quick objectives (refresh every 3 minutes)
+const QUICK_SECS := 180.0
+const QUICK_ACTION := [["q_pack", "Pack Opener", "Open 1 pack", "pack", 1, {"coins": 400, "sxp": 100}],
+	["q_pack2", "Double Rip", "Open 2 packs", "pack", 2, {"coins": 900}],
+	["q_buy", "Market Shopper", "Buy a player on the Transfer Market", "buy", 1, {"coins": 600}],
+	["q_list", "Trader", "List a player on the Transfer Market", "list", 1, {"coins": 300, "sxp": 100}],
+	["q_qs", "Clear Out", "Quick sell 3 items", "quicksell", 3, {"coins": 400}],
+	["q_sbc", "Squad Builder", "Complete any SBC", "sbc", 1, {"pack": "gold"}],
+	["q_sell", "Profit Maker", "Sell a player on the Transfer Market", "sell", 1, {"coins": 700}]]
+const QUICK_MATCH := [["q_goal", "On Target", "Score a goal in an Ultimate XI match", "goal", 1, {"coins": 700}],
+	["q_match", "Matchday", "Finish an Ultimate XI match", "match", 1, {"coins": 800, "sxp": 150}],
+	["q_win", "Quick Win", "Win an Ultimate XI match", "win", 1, {"pack": "premium"}],
+	["q_assist", "Provider", "Get an assist in Ultimate XI", "assist", 1, {"coins": 600}],
+	["q_goals3", "Hat-trick Hunt", "Score 3 goals in Ultimate XI", "goal", 3, {"coins": 1500, "sxp": 200}],
+	["q_evo", "Evolve", "Level up an Evolution", "evo_lvl", 1, {"coins": 800}]]
+func _ready() -> void:
+	for q in QUICK_ACTION + QUICK_MATCH:
+		Data.objectives.append({"id": q[0], "cat": "quick", "title": q[1], "desc": q[2], "ev": q[3], "target": q[4], "reward": q[5]})
+func quick_period() -> int: return int(floor(now() / QUICK_SECS))
+func quick_left() -> float: return (quick_period() + 1) * QUICK_SECS - now()
+var _qcache = {"p": -1, "ids": []}
+## the 4 quick objectives live in this 3-minute window (2 quick actions + 2 match goals)
+func quick_active() -> Array:
+	var pr = quick_period()
+	if _qcache.p != pr:
+		var rng = RandomNumberGenerator.new(); rng.seed = pr * 7919 + 17
+		var a = QUICK_ACTION.duplicate(); var m = QUICK_MATCH.duplicate(); var ids = []
+		for k in 2: ids.append(a.pop_at(rng.randi() % a.size())[0])
+		for k in 2: ids.append(m.pop_at(rng.randi() % m.size())[0])
+		_qcache = {"p": pr, "ids": ids}
+	return _qcache.ids
+func obj_live(o: Dictionary) -> bool: return o.cat != "quick" or quick_active().has(o.id)
+
 func obj_period(o: Dictionary) -> String:
 	match o.cat:
+		"quick": return "Q%d" % quick_period()
 		"daily": return day_key()
 		"weekly": return week_key()
 		"season": return "S1"
@@ -650,17 +684,22 @@ func obj_done(o: Dictionary) -> bool: return obj_progress(o) >= int(o.target)
 func obj_claimed(o: Dictionary) -> bool: return D().objectives.claimed.has(obj_key(o))
 func obj_claimable() -> int:
 	var n = 0
-	for o in Data.objectives: if obj_done(o) and not obj_claimed(o): n += 1
+	for o in Data.objectives: if o.cat != "quick" and obj_done(o) and not obj_claimed(o): n += 1
 	return n
 func track(ev: String, n := 1) -> void:
 	if D() == null: return
 	for o in Data.objectives:
-		if o.ev != ev: continue
+		if o.ev != ev or not obj_live(o): continue
 		var k = obj_key(o)
 		var before = int(D().objectives.progress.get(k, 0))
 		if before >= int(o.target): continue
 		D().objectives.progress[k] = min(int(o.target), before + n)
-		if D().objectives.progress[k] >= int(o.target): toast.emit("Objective complete: %s — claim your reward" % o.title, "good")
+		if D().objectives.progress[k] >= int(o.target):
+			if o.cat == "quick":
+				D().objectives.claimed[k] = true
+				grant(o.reward, "Quick objective: " + o.title)
+				toast.emit("⚡ Quick objective complete: %s · %s" % [o.title, reward_text(o.reward)], "good")
+			else: toast.emit("Objective complete: %s — claim your reward" % o.title, "good")
 	Save.dirty()
 func obj_claim(o: Dictionary) -> bool:
 	if not obj_done(o) or obj_claimed(o): return false
@@ -677,6 +716,7 @@ func reward_text(r: Dictionary) -> String:
 	if r.has("player"): var p = Data.P(r.player); parts.append("%d %s" % [p.ovr, p.name])
 	if r.get("xp", 0): parts.append("%s XP" % fmt(r.xp))
 	if r.get("tokens", 0): parts.append("%d Star Tokens" % int(r.tokens))
+	if r.get("sxp", 0): parts.append("%d Season XP" % int(r.sxp))
 	return " + ".join(parts)
 func grant(r: Dictionary, src: String) -> void:
 	if r.get("coins", 0): add("coins", int(r.coins), src)
@@ -688,6 +728,7 @@ func grant(r: Dictionary, src: String) -> void:
 		toast.emit("%d %s sent to your club" % [p.ovr, p.name], "good")
 	if r.get("xp", 0): add_xp(int(r.xp))
 	if r.get("tokens", 0): Event.add_tokens(int(r.tokens))
+	if r.get("sxp", 0): Season.add_xp(int(r.sxp), "Objective")
 	Save.dirty()
 
 # ------------------------------------------------------------------ SBC
@@ -777,7 +818,7 @@ func draft_reward(w: int) -> Dictionary:
 	return [{"coins": 1000, "pack": "gold"}, {"coins": 3000, "pack": "premium"}, {"coins": 8000, "pack": "draftreward", "points": 50}, {"coins": 15000, "pack": "jumbo", "points": 100}, {"coins": 30000, "pack": "mega", "points": 200}][w]
 const DRAFT_ROUNDS := ["Round of 16", "Quarter-Final", "Semi-Final", "Final"]
 func draft_choices(pos: String, exclude: Dictionary, captain := false) -> Array:
-	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and p.type != "pass")
+	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and not p.type in ["pass", "potm"])
 	if captain: return shuffled(pool).slice(0, 5)
 	var out = []; var seen = exclude.duplicate()
 	for i in 200:

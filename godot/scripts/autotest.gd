@@ -213,6 +213,23 @@ func run() -> void:
 			acc.call(); await w(0.4)
 			print("SUBS USED ", ms.sim.subs_used.home, " slot1 now ", ms.sim.teams.home.players[1].p.name)
 			await shot("g122_subs_done")
+		if extra == "--quick":
+			print("QUICK active ", Sys.quick_active(), " left ", int(Sys.quick_left()))
+			var c0 = Save.data.coins
+			for ev in ["pack", "pack", "buy", "list", "quicksell", "quicksell", "quicksell", "sbc", "sell", "goal", "goal", "goal", "match", "win", "assist", "evo_lvl"]: Sys.track(ev)
+			var done = Data.objectives.filter(func(o): return o.cat == "quick" and Sys.obj_live(o) and Sys.obj_claimed(o)).map(func(o): return o.id)
+			print("QUICK auto-completed ", done, " coins +", Save.data.coins - c0)
+			UI.replace("objectives"); await w(0.5); await shot("g130_quick")
+			UI.replace("sbc", {"cat": "POTM"}); await w(0.5); await shot("g131_potm")
+			var golds = Data.players.filter(func(x): return x.type == "base" and x.ovr >= 78 and x.ovr <= 84)
+			for k in 40: Sys.club_add(golds[k * 3].id, true, "pack")
+			var ps: Dictionary = {}
+			for x in Data.sbcs: if x.id == "potm_p230": ps = x
+			var fill = GemSBC.autofill(ps)
+			print("POTM autofill items ", fill.size(), " score ", GemSBC.score(fill), " / ", ps.target)
+			UI.go("gemsbc", {"id": "potm_p230", "cat": "POTM", "sel": fill}); await w(0.4); await shot("g132_potm_build")
+			print("POTM submit ", GemSBC.submit(ps, fill), " owns ", Sys.owns_pid("potm_p230"), " card ", Data.P("potm_p230").ovr)
+			UI.inspect(Data.P("potm_p230")); await w(0.4); await shot("g133_potm_card"); UI.close_top(null)
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

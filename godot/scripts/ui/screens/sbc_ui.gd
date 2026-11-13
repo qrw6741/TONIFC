@@ -3,7 +3,7 @@ extends RefCounted
 ## ("select & submit pre-filtered players until you reach the score") and its intro.
 
 const GEM := Color("#5fe3c8")
-const CATS := ["Exchanges", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
+const CATS := ["Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
 
 func gem_text(n: int) -> String: return "◆ " + Sys.fmt(n)
 
@@ -106,7 +106,7 @@ func s_gemsbc(p) -> Dictionary:
 	# header: progress to target + reward
 	var bar = UI.bar(min(tot, target), target, "GoldBar"); bar.custom_minimum_size = Vector2(520, 12)
 	var done_col = UI.GREEN if tot >= target else GEM
-	var head = UI.vb(6, [UI.hb(10, [UI.bold("Score", 15, UI.DIM), UI.head(Sys.fmt(tot), 34, done_col), UI.label("/ " + gem_text(target), 20, UI.DIM), UI.spacer(), UI.label("%d / %d items" % [sel.size(), GemSBC.MAX_ITEMS], 14, UI.DIM)]), bar,
+	var head = UI.vb(6, [UI.hb(10, [UI.bold("Score", 15, UI.DIM), UI.head(Sys.fmt(tot), 34, done_col), UI.label("/ " + gem_text(target), 20, UI.DIM), UI.spacer(), UI.label("%d items selected · no item limit" % sel.size(), 14, UI.DIM)]), bar,
 		UI.label(sbc.desc + "  ·  Eligible: " + GemSBC.filter_text(sbc), 13, UI.DIM)])
 	head.custom_minimum_size.x = 560
 	var submit = UI.btn("Submit (%s)" % ("ready" if tot >= target else "need %s more" % gem_text(target - tot)), func():
@@ -116,17 +116,16 @@ func s_gemsbc(p) -> Dictionary:
 	submit.disabled = tot < target
 	f.body.add_child(UI.hb(20, [head, UI.spacer(), UI.vb(4, [_reward_art(sbc.reward, false), UI.wrapl(UI.label(_reward_name(sbc.reward), 12), 200)]), UI.vb(8, [submit,
 		UI.hb(8, [UI.btn("Auto-fill (cheapest)", func(): sel = GemSBC.autofill(sbc, inc_sq); reload.call({"sel": sel}), "Small", tot < target), UI.btn("Clear", func(): reload.call({"sel": []}), "Small")])])]))
-	# selected items
+	# selected items (no limit — the row scrolls)
 	var srow = HBoxContainer.new(); srow.add_theme_constant_override("separation", 8)
-	for i in GemSBC.MAX_ITEMS:
-		if i < sel.size():
-			var it = Sys.item(sel[i]); var pl = Data.P(it.pid); var u: String = sel[i]
-			var c = UI.card(pl, 5.6, false, func(): sel.erase(u); reload.call({"sel": sel}))
-			srow.add_child(UI.vb(1, [c, _gem_lab(pl)]))
-		else:
-			var e = PlayerCard.make({}, 5.6); e.empty_pos = ""; e.focus_mode = Control.FOCUS_NONE
-			srow.add_child(UI.vb(1, [e, UI.label(" ", 11)]))
-	f.body.add_child(UI.panel(srow))
+	for u0 in sel:
+		var it = Sys.item(u0); var pl = Data.P(it.pid); var u: String = u0
+		var c = UI.card(pl, 5.6, false, func(): sel.erase(u); reload.call({"sel": sel}))
+		srow.add_child(UI.vb(1, [c, _gem_lab(pl)]))
+	var e = PlayerCard.make({}, 5.6); e.empty_pos = "add"; e.focus_mode = Control.FOCUS_NONE
+	srow.add_child(UI.vb(1, [e, UI.label(" ", 11)]))
+	var ssc = UI.scroll(srow, true); ssc.custom_minimum_size.y = 118; ssc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	f.body.add_child(UI.panel(ssc))
 	# pre-filtered club players
 	var dupes = {}
 	for it in Sys.duplicates(): dupes[it.uid] = true
@@ -136,10 +135,14 @@ func s_gemsbc(p) -> Dictionary:
 	var dk = CheckBox.new(); dk.text = "Duplicates only"; dk.button_pressed = only_dupes; dk.toggled.connect(func(v): reload.call({"dupes": v, "sel": sel}))
 	f.body.add_child(UI.hb(14, [UI.bold("Pre-filtered players · %d eligible" % items.size(), 16), UI.label("Select to add · lowest gems first", 13, UI.DIM), UI.spacer(), dk, ck]))
 	var grid = HFlowContainer.new(); grid.add_theme_constant_override("h_separation", 10); grid.add_theme_constant_override("v_separation", 10)
-	for it in items.slice(0, 80):
+	var add_all = UI.btn("Add all shown", func():
+		for it in items.slice(0, 120): if not sel.has(it.uid): sel.append(it.uid)
+		reload.call({"sel": sel}), "Small")
+	f.body.get_child(f.body.get_child_count() - 1).add_child(add_all)
+	for it in items.slice(0, 120):
 		var pl = Data.P(it.pid); var u: String = it.uid
 		var c = UI.card(pl, 5.2, false, func():
-			if sel.size() >= GemSBC.MAX_ITEMS: UI.toast("Max %d items" % GemSBC.MAX_ITEMS, "bad"); return
+			if GemSBC.full(sel.size()): UI.toast("Max %d items" % GemSBC.MAX_ITEMS, "bad"); return
 			sel.append(u); reload.call({"sel": sel}))
 		c.untr = it.untr
 		if dupes.has(u): c.tag = "DUPLICATE"
