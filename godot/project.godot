@@ -1,0 +1,44 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+config/name="Prime Football 27"
+config/description="Football game with Ultimate XI mode"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+boot_splash/bg_color=Color(0.027, 0.035, 0.05, 1)
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+
+[autoload]
+Data="*res://scripts/data.gd"
+Save="*res://scripts/save.gd"
+Sys="*res://scripts/systems.gd"
+Sfx="*res://scripts/audio.gd"
+UI="*res://scripts/ui/ui.gd"
+AutoTest="*res://scripts/autotest.gd"
+
+[display]
+window/size/viewport_width=1440
+window/size/viewport_height=860
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.027, 0.035, 0.05, 1)
+anti_aliasing/quality/msaa_2d=1
+
+[debug]
+gdscript/warnings/inference_on_variant=0
+gdscript/warnings/untyped_declaration=0
+gdscript/warnings/unsafe_property_access=0
+gdscript/warnings/unsafe_method_access=0
+gdscript/warnings/integer_division=0
+gdscript/warnings/narrowing_conversion=0
+gdscript/warnings/unused_parameter=0
+gdscript/warnings/unused_variable=0
+gdscript/warnings/shadowed_variable=0
+gdscript/warnings/shadowed_variable_base_class=0
+gdscript/warnings/return_value_discarded=0

@@ -8,16 +8,16 @@ Card tiers: Bronze < 71, Silver 71–75, Gold 76+ (rare variants and special car
 
 ## Run it
 
-**Easiest:** open `dist/index.html` in Chrome, Edge or Firefox (double-click it). It runs fully offline.
+### Godot version (Windows)
+Download **`dist/windows/PrimeFootball27.exe`** and double-click it — no install needed. (Windows may show a SmartScreen warning for unsigned games: *More info → Run anyway*.) Progress saves to `%APPDATA%\Godot\app_userdata\Prime Football 27\`.
 
-**From source (for development):**
+### Godot project (source)
+Open the `godot/` folder in **Godot 4.3** (Project → Import → `godot/project.godot`) and press F5. To rebuild the .exe: *Project → Export → Windows Desktop* (export templates required).
 
-```bash
-node tools/build.mjs          # bundles src/ → dist/index.html (single self-contained file)
-# or open src/dev.html to load the modules individually
-```
+### Web version
+Open `dist/index.html` in Chrome, Edge or Firefox. Rebuild with `node tools/build.mjs`.
 
-Requirements: any modern desktop browser. Node.js 18+ is needed only to rebuild. Progress is saved automatically in the browser's local storage. Use **Settings → Export save** to back it up or move it to another PC.
+Both versions share the same player database: `src/data/real_*.js` is the source, and `godot/data/gamedata.json` is exported from it.
 
 ## Controls
 
@@ -40,7 +40,21 @@ Requirements: any modern desktop browser. Node.js 18+ is needed only to rebuild.
 
 The mouse works in all menus. Drag and drop cards in the Squad Builder.
 
-## Project structure
+## Project structure (Godot)
+
+```
+godot/
+  project.godot · scenes/main.tscn · data/gamedata.json (players, clubs, packs, objectives, SBCs)
+  scripts/data.gd      database loader, tiers, values, rarity styles
+  scripts/save.gd      versioned JSON save (user://pf27_save.json), autosave
+  scripts/systems.gd   chemistry, squads, club, wallet/XP, packs & odds, transfer market, objectives, SBCs, competitions
+  scripts/audio.gd     synthesized music, SFX and crowd (no audio files)
+  scripts/ui/          ui.gd (theme, router, widgets, modals), card.gd, pitch.gd, gfx.gd (vector art), icon.gd,
+                       menu_bg.gd (animated stadium), pack_fx.gd (pack opening), screens/menu.gd · hub.gd · hub2.gd
+  scripts/match/       engine.gd (MatchSim: physics, AI, set pieces, rules) · match_scene.gd (renderer, HUD, input, pause/subs)
+```
+
+## Project structure (web)
 
 ```
 src/
