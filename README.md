@@ -1,6 +1,10 @@
 # Prime Football 27 — Ultimate XI
 
-A playable football game with a full Ultimate Team–style mode (**Ultimate XI**), built as a modular HTML5/JavaScript project. All branding, players, clubs, leagues, badges, portraits, music and sound effects are original and generated in code. There are no external assets and no real-money transactions.
+A playable football game with a full Ultimate Team–style mode (**Ultimate XI**), built as a modular HTML5/JavaScript project (a Godot 4.3 version lives in `godot/`).
+
+**Player database:** real players from Europe's top 5 leagues — Premier League, LaLiga, Serie A, Bundesliga and Ligue 1 (96 clubs, 2025/26 squads, ~1,780 players) plus 25 Icons and 14 Heroes (retired legends). Ratings are the developer's own estimates, not official game ratings. Squads reflect the 2025/26 season and may miss later transfers. Portraits are illustrated placeholders and club badges are original colour-matched designs, not official crests. Real names, clubs and leagues are trademarks of their owners — this is a personal, non-commercial project; don't sell or publicly distribute it without the relevant licences. Music and sound effects are synthesized in code, and there are no real-money transactions.
+
+Card tiers: Bronze < 71, Silver 71–75, Gold 76+ (rare variants and special cards on top).
 
 ## Run it
 
@@ -58,7 +62,7 @@ Pack odds are configurable in `PACKS` (`systems/economy.js`) and shown in-game u
 
 - **Main menu:** animated 3D stadium with running players, floodlights, haze and a moving camera. Gold broadcast styling, synthesized music and SFX, keyboard/mouse/controller navigation, and an animated transition into Ultimate XI. Includes Kick Off, Career Mode, Clubs, Tournaments, Customize, Profile and Settings.
 - **Ultimate XI hub:** Home (club overview, squad preview, promo cards, packs, objectives, competitions, balances, club level/XP), Objectives, Play, Club, SBC, Transfers and Store.
-- **Player database:** about 1,250 fictional cards across 20 nations, 6 leagues and 48 clubs. Each card has a generated portrait, 6 stats (GK-specific labels for keepers), foot, height, skill moves, weak foot, work rates, age and alternate positions.
+- **Player database:** ~1,780 real players across 96 clubs in the top 5 leagues, plus Icons, Heroes and special versions (TOTW, Nightfall, Foundations). Each card has a generated portrait, 6 stats (GK-specific labels for keepers), foot, height, skill moves, weak foot, work rates, age and alternate positions.
 - **Card rarities:** Bronze, Silver and Gold (each with a rare variant), Team of the Week, Nightfall promo, Foundations, Heroes and Icons. Each has its own visual design.
 - **Squad Builder:** 8 formations, drag-and-drop, click-to-swap (works on controller), captain, 7 substitutes, multiple squads with rename/delete/set active, auto-build and autosave.
 - **Chemistry:** club, nation and league thresholds per player (0–3, max 33). Icons and Heroes have special rules, and out-of-position players get 0. Green/yellow/red link lines on the pitch.
@@ -93,5 +97,5 @@ Pack odds are configurable in `PACKS` (`systems/economy.js`) and shown in-game u
 - **Offside** is not implemented. There are no red cards, and refereeing is simplified.
 - **Penalty shootouts** in knockout ties are resolved from shooter and keeper ratings rather than taken interactively. In-match penalties are fully playable.
 - **Graphics** are 2.5D canvas (a broadcast-perspective camera with stylized animated players), not 3D models with motion capture.
-- **Player portraits** are original procedural illustrations. Real licensed likenesses would need a licensing deal.
+- **Player portraits** are illustrated placeholders, not real likenesses; official photos and crests would need licences.
 - **Not yet built:** Evolutions, player loans and consumables (fitness, chem styles) are natural next systems.

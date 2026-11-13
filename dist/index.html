@@ -725,103 +725,184 @@ const Input = {
   padEdge(k) { return this.padState && this.padState[k] && !this._gamePrev?.[k]; }
 };
 
+/* ---- data/real_base.js ---- */
+/* ============================================================
+   DATA / REAL — nations & the top 5 leagues (2025/26 season).
+   Ratings are the developer's own estimates. Club badges in-game
+   are original colour-matched designs, not official crests.
+   ============================================================ */
+const REAL = { clubs: {}, order: [] };
+// code: [name, flagType, ...colours]
+const REAL_NATIONS = {
+  ENG: ['England', 'cross', '#ffffff', '#cf142b'], SCO: ['Scotland', 'saltire', '#005eb8', '#ffffff'], WAL: ['Wales', 'h2', '#ffffff', '#00b140'], NIR: ['Northern Ireland', 'cross', '#ffffff', '#cf142b'], IRL: ['Ireland', 'v3', '#169b62', '#ffffff', '#ff883e'],
+  ESP: ['Spain', 'h3w', '#aa151b', '#f1bf00', '#aa151b'], FRA: ['France', 'v3', '#0055a4', '#ffffff', '#ef4135'], GER: ['Germany', 'h3', '#000000', '#dd0000', '#ffce00'], ITA: ['Italy', 'v3', '#009246', '#ffffff', '#ce2b37'],
+  POR: ['Portugal', 'v2p', '#006600', '#ff0000'], NED: ['Netherlands', 'h3', '#ae1c28', '#ffffff', '#21468b'], BEL: ['Belgium', 'v3', '#000000', '#fdda24', '#ef3340'], CRO: ['Croatia', 'h3', '#ff0000', '#ffffff', '#171796'],
+  SUI: ['Switzerland', 'swiss', '#da291c', '#ffffff'], AUT: ['Austria', 'h3', '#ed2939', '#ffffff', '#ed2939'], DEN: ['Denmark', 'nordic', '#c8102e', '#ffffff', '#ffffff'], SWE: ['Sweden', 'nordic', '#006aa7', '#fecc00', '#fecc00'],
+  NOR: ['Norway', 'nordic', '#ba0c2f', '#ffffff', '#00205b'], FIN: ['Finland', 'nordic', '#ffffff', '#002f6c', '#002f6c'], ISL: ['Iceland', 'nordic', '#02529c', '#ffffff', '#dc1e35'], POL: ['Poland', 'h2', '#ffffff', '#dc143c'],
+  CZE: ['Czechia', 'czech', '#ffffff', '#d7141a', '#11457e'], SVK: ['Slovakia', 'h3', '#ffffff', '#0b4ea2', '#ee1c25'], SVN: ['Slovenia', 'h3', '#ffffff', '#005da4', '#ed1c24'], SRB: ['Serbia', 'h3', '#c6363c', '#0c4076', '#ffffff'],
+  HUN: ['Hungary', 'h3', '#ce2939', '#ffffff', '#477050'], UKR: ['Ukraine', 'h2', '#0057b7', '#ffd700'], TUR: ['Türkiye', 'crescent', '#e30a17', '#ffffff'], GRE: ['Greece', 'h5', '#0d5eaf', '#ffffff', '#0d5eaf', '#ffffff', '#0d5eaf'],
+  GEO: ['Georgia', 'cross', '#ffffff', '#ff0000'], ALB: ['Albania', 'solid', '#e41e20'], KOS: ['Kosovo', 'solid', '#244aa5'], BIH: ['Bosnia & Herzegovina', 'solid', '#002395'], MNE: ['Montenegro', 'solid', '#c40308'],
+  MKD: ['North Macedonia', 'circle', '#d20000', '#ffe600'], ROU: ['Romania', 'v3', '#002b7f', '#fcd116', '#ce1126'], BUL: ['Bulgaria', 'h3', '#ffffff', '#00966e', '#d62612'], ARM: ['Armenia', 'h3', '#d90012', '#0033a0', '#f2a800'],
+  LUX: ['Luxembourg', 'h3', '#ed2939', '#ffffff', '#00a1de'], CYP: ['Cyprus', 'solid', '#ffffff'], ISR: ['Israel', 'h3', '#ffffff', '#0038b8', '#ffffff'], LTU: ['Lithuania', 'h3', '#fdb913', '#006a44', '#c1272d'],
+  BRA: ['Brazil', 'diamond', '#009c3b', '#ffdf00', '#002776'], ARG: ['Argentina', 'h3', '#74acdf', '#ffffff', '#74acdf'], URU: ['Uruguay', 'h5', '#ffffff', '#0038a8', '#ffffff', '#0038a8', '#ffffff'], COL: ['Colombia', 'h3w', '#fcd116', '#003893', '#ce1126'],
+  ECU: ['Ecuador', 'h3w', '#ffdd00', '#034ea2', '#ed1c24'], PAR: ['Paraguay', 'h3', '#d52b1e', '#ffffff', '#0038a8'], CHI: ['Chile', 'h2', '#ffffff', '#d52b1e'], VEN: ['Venezuela', 'h3', '#ffcc00', '#00247d', '#cf142b'],
+  PER: ['Peru', 'v3', '#d91023', '#ffffff', '#d91023'], MEX: ['Mexico', 'v3', '#006847', '#ffffff', '#ce1126'], USA: ['United States', 'usa', '#b22234', '#ffffff', '#3c3b6e'], CAN: ['Canada', 'v3c', '#ff0000', '#ffffff', '#ff0000'],
+  JAM: ['Jamaica', 'saltire', '#009b3a', '#fed100'], HAI: ['Haiti', 'h2', '#00209f', '#d21034'], CUW: ['Curaçao', 'solid', '#002b7f'], SUR: ['Suriname', 'h3', '#377e3f', '#ffffff', '#b40a2d'],
+  NGA: ['Nigeria', 'v3', '#008751', '#ffffff', '#008751'], SEN: ['Senegal', 'v3', '#00853f', '#fdef42', '#e31b23'], GHA: ['Ghana', 'h3', '#ce1126', '#fcd116', '#006b3f'], CIV: ['Côte d’Ivoire', 'v3', '#f77f00', '#ffffff', '#009e60'],
+  CMR: ['Cameroon', 'v3', '#007a5e', '#ce1126', '#fcd116'], MLI: ['Mali', 'v3', '#14b53a', '#fcd116', '#ce1126'], GUI: ['Guinea', 'v3', '#ce1126', '#fcd116', '#009460'], MAR: ['Morocco', 'star', '#c1272d', '#006233'],
+  ALG: ['Algeria', 'v2', '#006633', '#ffffff'], TUN: ['Tunisia', 'circle', '#e70013', '#ffffff'], EGY: ['Egypt', 'h3', '#ce1126', '#ffffff', '#000000'], BFA: ['Burkina Faso', 'h2', '#ef2b2d', '#009e49'],
+  COD: ['DR Congo', 'solid', '#007fff'], GAB: ['Gabon', 'h3', '#009e60', '#fcd116', '#3a75c4'], GAM: ['Gambia', 'h3', '#ce1126', '#0c1c8c', '#3a7728'], CPV: ['Cape Verde', 'h3', '#003893', '#ffffff', '#003893'],
+  ANG: ['Angola', 'h2', '#cc092f', '#000000'], ZAM: ['Zambia', 'solid', '#198a00'], RSA: ['South Africa', 'h3', '#de3831', '#007a4d', '#002395'], BEN: ['Benin', 'v2', '#008751', '#fcd116'],
+  TOG: ['Togo', 'h5', '#006a4e', '#ffce00', '#006a4e', '#ffce00', '#006a4e'], EQG: ['Equatorial Guinea', 'h3', '#3e9a00', '#ffffff', '#e32118'], CGO: ['Congo', 'v3', '#009543', '#fbde4a', '#dc241f'], ZIM: ['Zimbabwe', 'h5', '#006400', '#ffd200', '#d40000', '#ffd200', '#006400'],
+  MOZ: ['Mozambique', 'h3', '#007168', '#000000', '#fce100'], COM: ['Comoros', 'h3', '#ffc61e', '#ffffff', '#3a75c4'], MAD: ['Madagascar', 'h2', '#fc3d32', '#007e3a'], SLE: ['Sierra Leone', 'h3', '#1eb53a', '#ffffff', '#0072c6'],
+  KOR: ['Korea Republic', 'circle', '#ffffff', '#cd2e3a'], JPN: ['Japan', 'circle', '#ffffff', '#bc002d'], AUS: ['Australia', 'solid', '#00008b'], NZL: ['New Zealand', 'solid', '#00247d'], UZB: ['Uzbekistan', 'h3', '#0099b5', '#ffffff', '#1eb53a'],
+  IRN: ['Iran', 'h3', '#239f40', '#ffffff', '#da0000'], UAE: ['United Arab Emirates', 'uae', '#00732f', '#ffffff', '#000000', '#ff0000'], KSA: ['Saudi Arabia', 'solid', '#006c35'], DOM: ['Dominican Republic', 'cross', '#002d62', '#ffffff'],
+  EST: ['Estonia', 'h3', '#0072ce', '#000000', '#ffffff'], LVA: ['Latvia', 'h3', '#9e3039', '#ffffff', '#9e3039'], MDA: ['Moldova', 'v3', '#0046ae', '#ffd200', '#cc092f'], FRO: ['Faroe Islands', 'nordic', '#ffffff', '#005eb8', '#ef303e'],
+  RUS: ['Russia', 'h3', '#ffffff', '#0039a6', '#d52b1e'], HON: ['Honduras', 'h3', '#0073cf', '#ffffff', '#0073cf'], CTA: ['Central African Rep.', 'h3', '#003082', '#ffffff', '#289728'], NIG: ['Niger', 'h3', '#e05206', '#ffffff', '#0db02b'],
+  PAN: ['Panama', 'v2', '#005293', '#d21034'], CAF: ['Central African Rep.', 'h3', '#003082', '#ffffff', '#289728'], JOR: ['Jordan', 'h3', '#000000', '#ffffff', '#007a3d'], GNB: ['Guinea-Bissau', 'h2', '#fcd116', '#009e49'],
+  GUF: ['French Guiana', 'v2', '#078930', '#fcdd09'], LBY: ['Libya', 'h3', '#e70013', '#000000', '#239e46'], IDN: ['Indonesia', 'h2', '#ce1126', '#ffffff']
+};
+const REAL_LEAGUES = {
+  ENG1: { name: 'Premier League', short: 'EPL', nat: 'ENG', color: '#3d195b' },
+  ESP1: { name: 'LaLiga', short: 'LIGA', nat: 'ESP', color: '#ff4b44' },
+  ITA1: { name: 'Serie A', short: 'SA', nat: 'ITA', color: '#0a3ccb' },
+  GER1: { name: 'Bundesliga', short: 'BL', nat: 'GER', color: '#d20515' },
+  FRA1: { name: 'Ligue 1', short: 'L1', nat: 'FRA', color: '#0c2340' },
+  LEG: { name: 'Legends', short: 'ICN', nat: null, color: '#e8d6a0', special: true }
+};
+/* register a club: roster = "Name;POS;NAT;OVR|..." */
+function club(code, name, lg, c1, c2, roster) {
+  REAL.clubs[code] = { name, lg, c: [c1, c2], roster };
+  REAL.order.push(code);
+}
+
+/* ---- data/real_eng.js ---- */
+/* Premier League 2025/26 */
+club('ARS', 'Arsenal', 'ENG1', '#ef0107', '#ffffff', 'David Raya;GK;ESP;87|Kepa Arrizabalaga;GK;ESP;79|William Saliba;CB;FRA;88|Gabriel Magalhães;CB;BRA;87|Jurriën Timber;RB;NED;84|Riccardo Calafiori;LB;ITA;81|Piero Hincapié;CB;ECU;81|Cristhian Mosquera;CB;ESP;77|Ben White;RB;ENG;81|Declan Rice;CM;ENG;87|Martin Zubimendi;CDM;ESP;86|Martin Ødegaard;CAM;NOR;87|Mikel Merino;CM;ESP;83|Eberechi Eze;CAM;ENG;84|Bukayo Saka;RW;ENG;88|Gabriel Martinelli;LW;BRA;82|Noni Madueke;RW;ENG;80|Leandro Trossard;LW;BEL;81|Viktor Gyökeres;ST;SWE;86|Kai Havertz;ST;GER;83|Ethan Nwaneri;CAM;ENG;74|Myles Lewis-Skelly;LB;ENG;76|Max Dowman;RW;ENG;63');
+club('AVL', 'Aston Villa', 'ENG1', '#670e36', '#95bfe5', 'Emiliano Martínez;GK;ARG;86|Marco Bizot;GK;NED;75|Ezri Konsa;CB;ENG;82|Pau Torres;CB;ESP;81|Tyrone Mings;CB;ENG;77|Matty Cash;RB;POL;79|Lucas Digne;LB;FRA;78|Ian Maatsen;LB;NED;77|Amadou Onana;CDM;BEL;81|Boubacar Kamara;CDM;FRA;82|Youri Tielemans;CM;BEL;82|John McGinn;CM;SCO;80|Morgan Rogers;CAM;ENG;83|Emiliano Buendía;CAM;ARG;77|Jadon Sancho;LW;ENG;78|Ollie Watkins;ST;ENG;84|Evann Guessand;ST;CIV;76|Harvey Elliott;CAM;ENG;78|Lamare Bogarde;CDM;NED;68');
+club('BOU', 'AFC Bournemouth', 'ENG1', '#da291c', '#000000', 'Đorđe Petrović;GK;SRB;79|Marcos Senesi;CB;ARG;79|James Hill;CB;ENG;72|Bafodé Diakité;CB;FRA;76|Adrien Truffert;LB;FRA;77|Adam Smith;RB;ENG;74|Álex Jiménez;RB;ESP;73|Tyler Adams;CDM;USA;79|Lewis Cook;CM;ENG;77|Alex Scott;CM;ENG;76|Ryan Christie;CAM;SCO;75|Marcus Tavernier;LM;ENG;77|Justin Kluivert;CAM;NED;79|David Brooks;RW;WAL;74|Antoine Semenyo;RW;GHA;83|Evanilson;ST;BRA;78|Eli Junior Kroupi;ST;FRA;70|Amine Adli;LW;MAR;76');
+club('BRE', 'Brentford', 'ENG1', '#e30613', '#ffffff', 'Caoimhín Kelleher;GK;IRL;80|Hákon Valdimarsson;GK;ISL;71|Nathan Collins;CB;IRL;79|Sepp van den Berg;CB;NED;76|Kristoffer Ajer;CB;NOR;75|Ethan Pinnock;CB;JAM;74|Aaron Hickey;RB;SCO;74|Rico Henry;LB;ENG;74|Michael Kayode;RB;ITA;74|Vitaly Janelt;CM;GER;75|Mathias Jensen;CM;DEN;76|Yehor Yarmoliuk;CM;UKR;73|Jordan Henderson;CDM;ENG;76|Mikkel Damsgaard;CAM;DEN;78|Kevin Schade;LW;GER;76|Keane Lewis-Potter;LW;ENG;73|Dango Ouattara;RW;BFA;77|Igor Thiago;ST;BRA;79|Fábio Carvalho;CAM;POR;72');
+club('BHA', 'Brighton & Hove Albion', 'ENG1', '#0057b8', '#ffffff', 'Bart Verbruggen;GK;NED;80|Jason Steele;GK;ENG;70|Lewis Dunk;CB;ENG;78|Jan Paul van Hecke;CB;NED;79|Olivier Boscagli;CB;FRA;75|Joël Veltman;RB;NED;74|Ferdi Kadıoğlu;LB;TUR;78|Maxim De Cuyper;LB;BEL;76|Carlos Baleba;CDM;CMR;81|Mats Wieffer;CM;NED;77|Yasin Ayari;CM;SWE;74|Jack Hinshelwood;CM;ENG;73|Kaoru Mitoma;LW;JPN;80|Georginio Rutter;CAM;FRA;78|Yankuba Minteh;RW;GAM;76|Danny Welbeck;ST;ENG;76|Stefanos Tzimas;ST;GRE;72|Diego Gómez;CM;PAR;74');
+club('BUR', 'Burnley', 'ENG1', '#6c1d45', '#99d6ea', 'Martin Dúbravka;GK;SVK;77|Max Weiß;GK;GER;68|Maxime Estève;CB;FRA;75|Hjalmar Ekdal;CB;SWE;72|Axel Tuanzebe;CB;COD;71|Kyle Walker;RB;ENG;77|Quilindschy Hartman;LB;NED;73|Lucas Pires;LB;BRA;70|Josh Cullen;CDM;IRL;74|Josh Laurent;CM;ENG;71|Hannibal Mejbri;CAM;TUN;72|Lesley Ugochukwu;CDM;FRA;72|Jaidon Anthony;LM;ENG;73|Loum Tchaouna;RW;FRA;72|Lyle Foster;ST;RSA;72|Zian Flemming;ST;NED;73|Marcus Edwards;RW;ENG;71|Armando Broja;ST;ALB;71|Jacob Bruun Larsen;LW;DEN;70');
+club('CHE', 'Chelsea', 'ENG1', '#034694', '#ffffff', 'Robert Sánchez;GK;ESP;80|Filip Jörgensen;GK;DEN;74|Levi Colwill;CB;ENG;81|Wesley Fofana;CB;FRA;80|Trevoh Chalobah;CB;ENG;79|Tosin Adarabioyo;CB;ENG;76|Jorrel Hato;CB;NED;77|Reece James;RB;ENG;83|Malo Gusto;RB;FRA;79|Marc Cucurella;LB;ESP;82|Moisés Caicedo;CDM;ECU;87|Enzo Fernández;CM;ARG;85|Roméo Lavia;CDM;BEL;78|Andrey Santos;CM;BRA;75|Cole Palmer;CAM;ENG;88|Pedro Neto;RW;POR;82|Estêvão;RW;BRA;79|Alejandro Garnacho;LW;ARG;80|Jamie Gittens;LW;ENG;78|João Pedro;ST;BRA;83|Liam Delap;ST;ENG;78|Marc Guiu;ST;ESP;68');
+club('CRY', 'Crystal Palace', 'ENG1', '#1b458f', '#c4122e', 'Dean Henderson;GK;ENG;82|Walter Benítez;GK;ARG;74|Marc Guéhi;CB;ENG;84|Maxence Lacroix;CB;FRA;80|Chris Richards;CB;USA;76|Jaydee Canvot;CB;FRA;70|Daniel Muñoz;RWB;COL;81|Tyrick Mitchell;LWB;ENG;77|Adam Wharton;CM;ENG;80|Jefferson Lerma;CDM;COL;77|Will Hughes;CM;ENG;74|Daichi Kamada;CAM;JPN;76|Ismaïla Sarr;RW;SEN;79|Yeremy Pino;RW;ESP;78|Jean-Philippe Mateta;ST;FRA;80|Eddie Nketiah;ST;ENG;74|Justin Devenny;CM;NIR;69|Borna Sosa;LB;CRO;74');
+club('EVE', 'Everton', 'ENG1', '#003399', '#ffffff', 'Jordan Pickford;GK;ENG;83|Mark Travers;GK;IRL;71|James Tarkowski;CB;ENG;80|Jarrad Branthwaite;CB;ENG;79|Michael Keane;CB;ENG;75|Jake O’Brien;CB;IRL;74|Vitalii Mykolenko;LB;UKR;76|Nathan Patterson;RB;SCO;72|Seamus Coleman;RB;IRL;70|Idrissa Gana Gueye;CDM;SEN;77|James Garner;CM;ENG;77|Tim Iroegbunam;CM;ENG;72|Kiernan Dewsbury-Hall;CM;ENG;77|Jack Grealish;LW;ENG;80|Iliman Ndiaye;LW;SEN;79|Dwight McNeil;LM;ENG;75|Tyler Dibling;RW;ENG;72|Beto;ST;POR;75|Thierno Barry;ST;FRA;75|Carlos Alcaraz;CAM;ARG;72');
+club('FUL', 'Fulham', 'ENG1', '#000000', '#ffffff', 'Bernd Leno;GK;GER;81|Benjamin Lecomte;GK;FRA;70|Joachim Andersen;CB;DEN;79|Calvin Bassey;CB;NGA;77|Issa Diop;CB;FRA;74|Kenny Tete;RB;NED;75|Timothy Castagne;RB;BEL;76|Antonee Robinson;LB;USA;79|Sander Berge;CDM;NOR;78|Sasa Lukić;CM;SRB;77|Tom Cairney;CM;SCO;74|Emile Smith Rowe;CAM;ENG;77|Andreas Pereira;CAM;BRA;77|Alex Iwobi;RW;NGA;79|Harry Wilson;RW;WAL;77|Adama Traoré;RW;ESP;75|Samuel Chukwueze;RW;NGA;75|Raúl Jiménez;ST;MEX;77|Rodrigo Muniz;ST;BRA;76|Josh King;CM;ENG;66');
+club('LEE', 'Leeds United', 'ENG1', '#ffffff', '#1d428a', 'Lucas Perri;GK;BRA;76|Karl Darlow;GK;WAL;70|Pascal Struijk;CB;NED;75|Joe Rodon;CB;WAL;75|Jaka Bijol;CB;SVN;77|Sebastiaan Bornauw;CB;BEL;72|Jayden Bogle;RB;ENG;74|Gabriel Gudmundsson;LB;SWE;73|Ethan Ampadu;CDM;WAL;75|Ao Tanaka;CM;JPN;75|Anton Stach;CM;GER;76|Sean Longstaff;CM;ENG;74|Brenden Aaronson;CAM;USA;73|Wilfried Gnonto;LW;ITA;73|Daniel James;RW;WAL;73|Noah Okafor;LW;SUI;74|Dominic Calvert-Lewin;ST;ENG;75|Lukas Nmecha;ST;GER;72|Joël Piroe;ST;NED;72');
+club('LIV', 'Liverpool', 'ENG1', '#c8102e', '#00b2a9', 'Alisson Becker;GK;BRA;88|Giorgi Mamardashvili;GK;GEO;80|Virgil van Dijk;CB;NED;88|Ibrahima Konaté;CB;FRA;84|Joe Gomez;CB;ENG;77|Giovanni Leoni;CB;ITA;70|Jeremie Frimpong;RB;NED;82|Conor Bradley;RB;NIR;77|Andy Robertson;LB;SCO;81|Milos Kerkez;LB;HUN;80|Ryan Gravenberch;CDM;NED;85|Alexis Mac Allister;CM;ARG;85|Dominik Szoboszlai;CM;HUN;84|Curtis Jones;CM;ENG;79|Florian Wirtz;CAM;GER;88|Mohamed Salah;RW;EGY;89|Cody Gakpo;LW;NED;83|Federico Chiesa;RW;ITA;77|Alexander Isak;ST;SWE;87|Hugo Ekitike;ST;FRA;83|Rio Ngumoha;LW;ENG;65|Wataru Endo;CDM;JPN;74');
+club('MCI', 'Manchester City', 'ENG1', '#6cabdd', '#1c2c5b', 'Gianluigi Donnarumma;GK;ITA;89|James Trafford;GK;ENG;77|Rúben Dias;CB;POR;87|Joško Gvardiol;CB;CRO;86|John Stones;CB;ENG;82|Nathan Aké;CB;NED;81|Abdukodir Khusanov;CB;UZB;76|Matheus Nunes;RB;POR;80|Rico Lewis;RB;ENG;78|Rayan Aït-Nouri;LB;ALG;82|Rodri;CDM;ESP;90|Tijjani Reijnders;CM;NED;85|Bernardo Silva;CM;POR;85|Nico González;CDM;ESP;79|Phil Foden;CAM;ENG;86|Rayan Cherki;CAM;FRA;83|Jérémy Doku;LW;BEL;83|Savinho;RW;BRA;81|Omar Marmoush;ST;EGY;84|Erling Haaland;ST;NOR;91|Oscar Bobb;RW;NOR;74|Nico O’Reilly;LB;ENG;72');
+club('MUN', 'Manchester United', 'ENG1', '#da291c', '#fbe122', 'Senne Lammens;GK;BEL;77|Altay Bayındır;GK;TUR;73|Lisandro Martínez;CB;ARG;83|Matthijs de Ligt;CB;NED;82|Leny Yoro;CB;FRA;78|Harry Maguire;CB;ENG;77|Ayden Heaven;CB;ENG;68|Diogo Dalot;RB;POR;80|Noussair Mazraoui;RB;MAR;79|Luke Shaw;LB;ENG;78|Patrick Dorgu;LWB;DEN;76|Bruno Fernandes;CAM;POR;87|Casemiro;CDM;BRA;80|Kobbie Mainoo;CM;ENG;79|Manuel Ugarte;CDM;URU;79|Mason Mount;CAM;ENG;78|Bryan Mbeumo;RW;CMR;83|Matheus Cunha;CF;BRA;83|Amad Diallo;RW;CIV;80|Benjamin Šeško;ST;SVN;81|Joshua Zirkzee;ST;NED;75');
+club('NEW', 'Newcastle United', 'ENG1', '#241f20', '#ffffff', 'Nick Pope;GK;ENG;82|Aaron Ramsdale;GK;ENG;78|Sven Botman;CB;NED;81|Fabian Schär;CB;SUI;80|Dan Burn;CB;ENG;79|Malick Thiaw;CB;GER;78|Kieran Trippier;RB;ENG;78|Tino Livramento;RB;ENG;79|Lewis Hall;LB;ENG;78|Bruno Guimarães;CM;BRA;86|Sandro Tonali;CDM;ITA;84|Joelinton;CM;BRA;81|Jacob Ramsey;CM;ENG;76|Joe Willock;CM;ENG;74|Anthony Gordon;LW;ENG;82|Harvey Barnes;LW;ENG;77|Jacob Murphy;RW;ENG;77|Anthony Elanga;RW;SWE;78|Nick Woltemade;ST;GER;80|Yoane Wissa;ST;COD;79|William Osula;ST;DEN;70');
+club('NFO', 'Nottingham Forest', 'ENG1', '#dd0000', '#ffffff', 'Matz Sels;GK;BEL;81|John Victor;GK;BRA;72|Murillo;CB;BRA;81|Nikola Milenković;CB;SRB;80|Morato;CB;BRA;74|Ola Aina;RB;NGA;78|Neco Williams;LB;WAL;77|Nicolò Savona;RB;ITA;73|Elliot Anderson;CM;ENG;81|Ibrahim Sangaré;CDM;CIV;77|Douglas Luiz;CM;BRA;77|Nicolás Domínguez;CM;ARG;75|Morgan Gibbs-White;CAM;ENG;82|Omari Hutchinson;RW;JAM;76|Callum Hudson-Odoi;LW;ENG;77|Dan Ndoye;RW;SUI;78|Chris Wood;ST;NZL;80|Igor Jesus;ST;BRA;76|Arnaud Kalimuendo;ST;FRA;76|James McAtee;CAM;ENG;73');
+club('SUN', 'Sunderland', 'ENG1', '#eb172b', '#ffffff', 'Robin Roefs;GK;NED;74|Anthony Patterson;GK;ENG;70|Omar Alderete;CB;PAR;75|Daniel Ballard;CB;NIR;72|Nordi Mukiele;CB;FRA;75|Trai Hume;RB;NIR;71|Reinildo Mandava;LB;MOZ;74|Dennis Cirkin;LB;ENG;68|Granit Xhaka;CDM;SUI;81|Noah Sadiki;CM;COD;74|Habib Diarra;CM;SEN;75|Enzo Le Fée;CAM;FRA;75|Chris Rigg;CM;ENG;70|Simon Adingra;LW;CIV;74|Bertrand Traoré;RW;BFA;73|Chemsdine Talbi;RW;MAR;72|Wilson Isidor;ST;FRA;74|Eliezer Mayenda;ST;ESP;70|Brian Brobbey;ST;NED;74');
+club('TOT', 'Tottenham Hotspur', 'ENG1', '#ffffff', '#132257', 'Guglielmo Vicario;GK;ITA;82|Antonín Kinský;GK;CZE;72|Cristian Romero;CB;ARG;85|Micky van de Ven;CB;NED;83|Kevin Danso;CB;AUT;77|Radu Drăgușin;CB;ROU;74|Pedro Porro;RB;ESP;81|Djed Spence;LB;ENG;76|Destiny Udogie;LB;ITA;78|João Palhinha;CDM;POR;81|Yves Bissouma;CDM;MLI;77|Rodrigo Bentancur;CM;URU;78|Pape Matar Sarr;CM;SEN;78|Lucas Bergvall;CM;SWE;76|James Maddison;CAM;ENG;81|Xavi Simons;CAM;NED;83|Mohammed Kudus;RW;GHA;82|Brennan Johnson;RW;WAL;78|Wilson Odobert;LW;FRA;74|Dominic Solanke;ST;ENG;80|Richarlison;ST;BRA;77|Randal Kolo Muani;ST;FRA;79|Archie Gray;CM;ENG;72');
+club('WHU', 'West Ham United', 'ENG1', '#7a263a', '#1bb1e7', 'Alphonse Areola;GK;FRA;78|Mads Hermansen;GK;DEN;75|Max Kilman;CB;ENG;77|Konstantinos Mavropanos;CB;GRE;76|Jean-Clair Todibo;CB;FRA;77|Igor Julio;CB;BRA;73|Aaron Wan-Bissaka;RB;COD;78|El Hadji Malick Diouf;LB;SEN;75|Kyle Walker-Peters;RB;ENG;75|Tomáš Souček;CM;CZE;77|Mateus Fernandes;CM;POR;74|Freddie Potts;CDM;ENG;66|Soungoutou Magassa;CDM;FRA;73|Lucas Paquetá;CAM;BRA;81|Jarrod Bowen;RW;ENG;82|Crysencio Summerville;LW;NED;76|Callum Wilson;ST;ENG;74|Niclas Füllkrug;ST;GER;76|Luis Guilherme;RW;BRA;68');
+club('WOL', 'Wolverhampton Wanderers', 'ENG1', '#fdb913', '#231f20', 'José Sá;GK;POR;78|Sam Johnstone;GK;ENG;74|Emmanuel Agbadou;CB;CIV;75|Toti Gomes;CB;POR;75|Santiago Bueno;CB;URU;73|Ladislav Krejčí;CB;CZE;75|Matt Doherty;RB;IRL;72|Jackson Tchatchoua;RWB;CMR;73|Hugo Bueno;LB;ESP;72|David Møller Wolfe;LB;NOR;72|André;CDM;BRA;76|João Gomes;CM;BRA;79|Marshall Munetsi;CM;ZIM;73|Jean-Ricner Bellegarde;CAM;HAI;74|Hwang Hee-chan;LW;KOR;74|Jhon Arias;RW;COL;76|Rodrigo Gomes;RW;POR;72|Jørgen Strand Larsen;ST;NOR;77|Tolu Arokodare;ST;NGA;73|Fer López;CAM;ESP;70');
+
+/* ---- data/real_esp.js ---- */
+/* LaLiga 2025/26 */
+club('RMA', 'Real Madrid', 'ESP1', '#ffffff', '#febe10', 'Thibaut Courtois;GK;BEL;89|Andriy Lunin;GK;UKR;78|Antonio Rüdiger;CB;GER;84|Éder Militão;CB;BRA;83|Dean Huijsen;CB;ESP;82|Raúl Asencio;CB;ESP;75|David Alaba;CB;AUT;79|Trent Alexander-Arnold;RB;ENG;85|Dani Carvajal;RB;ESP;82|Álvaro Carreras;LB;ESP;80|Ferland Mendy;LB;FRA;79|Fran García;LB;ESP;76|Aurélien Tchouaméni;CDM;FRA;85|Federico Valverde;CM;URU;88|Eduardo Camavinga;CM;FRA;83|Jude Bellingham;CAM;ENG;89|Arda Güler;CAM;TUR;82|Dani Ceballos;CM;ESP;78|Kylian Mbappé;ST;FRA;91|Vinícius Júnior;LW;BRA;89|Rodrygo;RW;BRA;84|Franco Mastantuono;RW;ARG;76|Brahim Díaz;CAM;MAR;79|Gonzalo García;ST;ESP;71|Endrick;ST;BRA;74');
+club('FCB', 'FC Barcelona', 'ESP1', '#a50044', '#004d98', 'Joan García;GK;ESP;83|Marc-André ter Stegen;GK;GER;85|Wojciech Szczęsny;GK;POL;78|Pau Cubarsí;CB;ESP;83|Ronald Araújo;CB;URU;83|Eric García;CB;ESP;79|Andreas Christensen;CB;DEN;79|Jules Koundé;RB;FRA;85|Alejandro Balde;LB;ESP;82|Gerard Martín;LB;ESP;72|Pedri;CM;ESP;89|Frenkie de Jong;CM;NED;85|Gavi;CM;ESP;82|Marc Casadó;CDM;ESP;77|Fermín López;CAM;ESP;80|Dani Olmo;CAM;ESP;84|Lamine Yamal;RW;ESP;90|Raphinha;LW;BRA;89|Marcus Rashford;LW;ENG;81|Ferran Torres;ST;ESP;79|Robert Lewandowski;ST;POL;86|Roony Bardghji;RW;SWE;70|Marc Bernal;CDM;ESP;70');
+club('ATM', 'Atlético de Madrid', 'ESP1', '#cb3524', '#272e61', 'Jan Oblak;GK;SVN;87|Juan Musso;GK;ARG;77|José María Giménez;CB;URU;81|Robin Le Normand;CB;ESP;81|Clément Lenglet;CB;FRA;77|Dávid Hancko;CB;SVK;81|Marc Pubill;RB;ESP;75|Nahuel Molina;RB;ARG;78|Matteo Ruggeri;LB;ITA;76|Koke;CM;ESP;80|Pablo Barrios;CM;ESP;80|Johnny Cardoso;CDM;USA;77|Conor Gallagher;CM;ENG;80|Thiago Almada;CAM;ARG;79|Álex Baena;LM;ESP;82|Marcos Llorente;RM;ESP;81|Giuliano Simeone;RW;ARG;77|Nico González;LW;ARG;79|Julián Álvarez;ST;ARG;87|Antoine Griezmann;CF;FRA;84|Alexander Sørloth;ST;NOR;80');
+club('ATH', 'Athletic Club', 'ESP1', '#ee2523', '#ffffff', 'Unai Simón;GK;ESP;85|Julen Agirrezabala;GK;ESP;73|Dani Vivian;CB;ESP;81|Aitor Paredes;CB;ESP;78|Yeray Álvarez;CB;ESP;77|Aymeric Laporte;CB;ESP;79|Óscar de Marcos;RB;ESP;74|Andoni Gorosabel;RB;ESP;74|Yuri Berchiche;LB;ESP;76|Jesús Areso;RB;ESP;74|Mikel Jauregizar;CDM;ESP;76|Iñigo Ruiz de Galarreta;CM;ESP;77|Mikel Vesga;CM;ESP;74|Oihan Sancet;CAM;ESP;81|Unai Gómez;CAM;ESP;73|Nico Williams;LW;ESP;85|Iñaki Williams;ST;GHA;80|Robert Navarro;RW;ESP;75|Gorka Guruzeta;ST;ESP;75|Maroan Sannadi;ST;ESP;70');
+club('VIL', 'Villarreal CF', 'ESP1', '#ffe667', '#005187', 'Luiz Júnior;GK;BRA;78|Diego Conde;GK;ESP;75|Juan Foyth;CB;ARG;79|Logan Costa;CB;CPV;76|Renato Veiga;CB;POR;77|Rafa Marín;CB;ESP;75|Santiago Mouriño;RB;URU;74|Sergi Cardona;LB;ESP;75|Alfonso Pedraza;LB;ESP;76|Santi Comesaña;CM;ESP;76|Dani Parejo;CM;ESP;79|Pape Gueye;CDM;SEN;77|Thomas Partey;CDM;GHA;80|Alberto Moleiro;CAM;ESP;79|Tajon Buchanan;RM;CAN;75|Nicolas Pépé;RW;CIV;78|Ilias Akhomach;RW;MAR;74|Ayoze Pérez;CF;ESP;79|Gerard Moreno;ST;ESP;79|Georges Mikautadze;ST;GEO;78|Tani Oluwaseyi;ST;CAN;71');
+club('BET', 'Real Betis', 'ESP1', '#00954c', '#ffffff', 'Álvaro Vallés;GK;ESP;75|Pau López;GK;ESP;76|Diego Llorente;CB;ESP;76|Natan;CB;BRA;76|Marc Bartra;CB;ESP;74|Valentín Gómez;CB;ARG;74|Héctor Bellerín;RB;ESP;75|Junior Firpo;LB;DOM;74|Ricardo Rodríguez;LB;SUI;74|Marc Roca;CDM;ESP;76|Sofyan Amrabat;CDM;MAR;77|Sergi Altimira;CM;ESP;74|Giovani Lo Celso;CAM;ARG;80|Isco;CAM;ESP;81|Pablo Fornals;CM;ESP;77|Abde Ezzalzouli;LW;MAR;78|Antony;RW;BRA;79|Rodrigo Riquelme;LW;ESP;75|Cucho Hernández;ST;COL;77|Chimy Ávila;ST;ARG;73|Cédric Bakambu;ST;COD;73');
+club('RSO', 'Real Sociedad', 'ESP1', '#0067b1', '#ffffff', 'Álex Remiro;GK;ESP;82|Unai Marrero;GK;ESP;70|Igor Zubeldia;CB;ESP;79|Jon Martín;CB;ESP;70|Duje Ćaleta-Car;CB;CRO;75|Aritz Elustondo;CB;ESP;73|Jon Aramburu;RB;VEN;75|Sergio Gómez;LB;ESP;76|Aihen Muñoz;LB;ESP;72|Jon Gorrotxategi;CDM;ESP;72|Brais Méndez;CM;ESP;79|Beñat Turrientes;CM;ESP;75|Luka Sučić;CM;CRO;76|Takefusa Kubo;RW;JPN;81|Ander Barrenetxea;LW;ESP;77|Pablo Marín;CM;ESP;71|Mikel Oyarzabal;ST;ESP;82|Orri Óskarsson;ST;ISL;74|Gonçalo Guedes;RW;POR;76|Arsen Zakharyan;CAM;RUS;73');
+club('CEL', 'RC Celta', 'ESP1', '#8ac3ee', '#e5254e', 'Iván Villar;GK;ESP;74|Ionuț Radu;GK;ROU;74|Carl Starfelt;CB;SWE;75|Carlos Domínguez;CB;ESP;72|Marcos Alonso;CB;ESP;75|Javi Rodríguez;CB;ESP;72|Óscar Mingueza;RB;ESP;77|Javi Rueda;RB;ESP;71|Sergio Carreira;RB;ESP;72|Ilaix Moriba;CM;GUI;75|Fran Beltrán;CM;ESP;75|Hugo Sotelo;CM;ESP;70|Williot Swedberg;CAM;SWE;73|Hugo Álvarez;LW;ESP;72|Bryan Zaragoza;LW;ESP;75|Pablo Durán;ST;ESP;72|Iago Aspas;CF;ESP;78|Borja Iglesias;ST;ESP;76|Ferran Jutglà;ST;ESP;73');
+club('SEV', 'Sevilla FC', 'ESP1', '#ffffff', '#d4011d', 'Orjan Nyland;GK;NOR;75|Odysseas Vlachodimos;GK;GRE;75|Kike Salas;CB;ESP;73|Tanguy Nianzou;CB;FRA;74|Marcão;CB;BRA;75|Andrés Castrín;CB;ESP;68|José Ángel Carmona;RB;ESP;73|Juanlu Sánchez;RB;ESP;73|Gabriel Suazo;LB;CHI;73|Nemanja Gudelj;CDM;SRB;75|Lucien Agoumé;CDM;FRA;75|Batista Mendy;CDM;FRA;73|Djibril Sow;CM;SUI;75|Joan Jordán;CM;ESP;73|Rubén Vargas;LW;SUI;76|Chidera Ejuke;LW;NGA;74|Alexis Sánchez;CF;CHI;74|Isaac Romero;ST;ESP;73|Akor Adams;ST;NGA;73|Peque Fernández;RW;ESP;71');
+club('VAL', 'Valencia CF', 'ESP1', '#ffffff', '#ee3524', 'Stole Dimitrievski;GK;MKD;73|César Tárrega;CB;ESP;76|Mouctar Diakhaby;CB;GUI;75|José Copete;CB;ESP;73|Eray Cömert;CB;SUI;72|Thierry Correia;RB;POR;72|Dimitri Foulquier;RB;FRA;72|José Luis Gayà;LB;ESP;78|Jesús Vázquez;LB;ESP;72|Pepelu;CDM;ESP;77|Javi Guerra;CM;ESP;77|André Almeida;CM;POR;76|Filip Ugrinic;CM;SUI;73|Diego López;LW;ESP;76|Luis Rioja;LM;ESP;74|Arnaut Danjuma;LW;NED;75|Hugo Duro;ST;ESP;76|Lucas Beltrán;ST;ARG;74');
+club('GIR', 'Girona FC', 'ESP1', '#cd2534', '#ffffff', 'Paulo Gazzaniga;GK;ARG;77|Dominik Livaković;GK;CRO;78|Daley Blind;CB;NED;76|David López;CB;ESP;74|Alejandro Francés;CB;ESP;71|Arnau Martínez;RB;ESP;76|Hugo Rincón;RB;ESP;70|Álex Moreno;LB;ESP;75|Yangel Herrera;CM;VEN;77|Iván Martín;CM;ESP;75|Axel Witsel;CDM;BEL;75|Donny van de Beek;CM;NED;73|Viktor Tsygankov;RW;UKR;78|Bryan Gil;LW;ESP;74|Joel Roca;LW;ESP;71|Abel Ruiz;ST;ESP;74|Cristhian Stuani;ST;URU;73|Vladyslav Vanat;ST;UKR;75|Thomas Lemar;CAM;FRA;74');
+club('OSA', 'CA Osasuna', 'ESP1', '#d91a21', '#0a346f', 'Sergio Herrera;GK;ESP;77|Aitor Fernández;GK;ESP;73|Alejandro Catena;CB;ESP;76|Enzo Boyomo;CB;CMR;74|Jorge Herrando;CB;ESP;71|Flavien Boyomo;CB;CMR;72|Valentin Rosier;RB;FRA;73|Abel Bretones;LB;ESP;72|Juan Cruz;LB;ESP;72|Lucas Torró;CDM;ESP;75|Jon Moncayola;CM;ESP;76|Iker Muñoz;CM;ESP;72|Aimar Oroz;CAM;ESP;76|Rubén García;LM;ESP;75|Moi Gómez;LM;ESP;74|Kike Barja;RW;ESP;71|Ante Budimir;ST;CRO;78|Raúl García;ST;ESP;72|Víctor Muñoz;LW;ESP;72');
+club('RAY', 'Rayo Vallecano', 'ESP1', '#ffffff', '#e53027', 'Augusto Batalla;GK;ARG;77|Dani Cárdenas;GK;ESP;72|Florian Lejeune;CB;FRA;77|Abdul Mumin;CB;GHA;74|Luiz Felipe;CB;ITA;73|Iván Balliu;RB;ALB;74|Andrei Rațiu;RB;ROU;75|Pep Chavarría;LB;ESP;73|Pathé Ciss;CDM;SEN;75|Óscar Valentín;CDM;ESP;75|Unai López;CM;ESP;75|Isi Palazón;CAM;ESP;77|Óscar Trejo;CAM;ARG;73|Jorge de Frutos;RW;ESP;76|Álvaro García;LW;ESP;75|Pedro Díaz;CM;ESP;72|Alemão;ST;BRA;72|Sergio Camello;ST;ESP;73|Randy Nteka;ST;FRA;71');
+club('MLL', 'RCD Mallorca', 'ESP1', '#e20613', '#000000', 'Leo Román;GK;ESP;74|Dominik Greif;GK;SVK;74|Martin Valjent;CB;SVK;76|Antonio Raíllo;CB;ESP;76|Johan Mojica;LB;COL;74|Pablo Maffeo;RB;ARG;75|Toni Lato;LB;ESP;71|Mateu Morey;RB;ESP;71|Samú Costa;CDM;POR;76|Omar Mascarell;CDM;ESP;73|Sergi Darder;CM;ESP;76|Manu Morlanes;CM;ESP;73|Antonio Sánchez;CM;ESP;72|Dani Rodríguez;LM;ESP;74|Takuma Asano;RW;JPN;73|Jan Virgili;LW;ESP;70|Vedat Muriqi;ST;KOS;77|Cyle Larin;ST;CAN;73|Mateo Joseph;ST;ESP;70');
+club('GET', 'Getafe CF', 'ESP1', '#005999', '#ffffff', 'David Soria;GK;ESP;78|Jiří Letáček;GK;CZE;70|Djené Dakonam;CB;TOG;77|Domingos Duarte;CB;POR;74|Abdel Abqar;CB;MAR;72|Juan Iglesias;RB;ESP;72|Allan Nyom;RB;CMR;70|Diego Rico;LB;ESP;73|Mauro Arambarri;CDM;URU;77|Luis Milla;CM;ESP;77|Mario Martín;CM;ESP;71|Carles Aleñá;CM;ESP;72|Coba da Costa;LW;POR;68|Adrián Liso;RW;ESP;72|Juanmi;LW;ESP;72|Borja Mayoral;ST;ESP;75|Álex Sancris;ST;ESP;68|Juan Bernat;LB;ESP;72');
+club('ESP', 'RCD Espanyol', 'ESP1', '#007fc8', '#ffffff', 'Marko Dmitrović;GK;SRB;75|Ángel Fortuño;GK;ESP;68|Leandro Cabrera;CB;URU;75|Fernando Calero;CB;ESP;73|Clemens Riedel;CB;GER;70|Omar El Hilali;RB;MAR;73|Rubén Sánchez;RB;ESP;71|Carlos Romero;LB;ESP;75|Pol Lozano;CDM;ESP;74|Edu Expósito;CM;ESP;75|Urko González de Zárate;CDM;ESP;72|Ramón Terrats;CM;ESP;72|Charles Pickel;CDM;SUI;72|Pere Milla;LW;ESP;72|Tyrhys Dolan;RW;ENG;72|Javi Puado;ST;ESP;76|Roberto Fernández;ST;ESP;72|Kike García;ST;ESP;72|Jofre Carreras;RW;ESP;72');
+club('ALA', 'Deportivo Alavés', 'ESP1', '#0761af', '#ffffff', 'Antonio Sivera;GK;ESP;76|Raúl Fernández;GK;ESP;68|Nahuel Tenaglia;CB;ARG;75|Facundo Garcés;CB;ARG;72|Víctor Parada;CB;ESP;70|Jon Pacheco;CB;ESP;72|Jonny Otto;RB;ESP;72|Ángel Pérez;RB;ESP;68|Antonio Blanco;CDM;ESP;75|Ander Guevara;CM;ESP;74|Denis Suárez;CM;ESP;73|Pablo Ibáñez;CM;ESP;72|Carlos Vicente;RW;ESP;74|Abde Rebbach;LW;ALG;72|Calebe;CAM;BRA;70|Toni Martínez;ST;ESP;74|Lucas Boyé;ST;ARG;74|Mariano Díaz;ST;DOM;70');
+club('ELC', 'Elche CF', 'ESP1', '#ffffff', '#05642c', 'Matías Dituro;GK;CHI;73|Iñaki Peña;GK;ESP;74|Pedro Bigas;CB;ESP;72|David Affengruber;CB;AUT;73|John Chetauya;CB;ESP;67|Víctor Chust;CB;ESP;71|Álvaro Núñez;RB;ESP;71|Josan;RB;ESP;69|Adrià Pedrosa;LB;ESP;72|Marc Aguado;CDM;ESP;72|Aleix Febas;CM;ESP;73|Martim Neto;CM;POR;70|Rodrigo Mendoza;CM;ESP;69|Germán Valera;RW;ESP;71|Yago Santiago;LW;ESP;69|Rafa Mir;ST;ESP;74|André Silva;ST;POR;74|Álvaro Rodríguez;ST;URU;71');
+club('LEV', 'Levante UD', 'ESP1', '#004b93', '#a50044', 'Mathew Ryan;GK;AUS;74|Pablo Campos;GK;ESP;68|Unai Elgezabal;CB;ESP;71|Adrián de la Fuente;CB;ESP;70|Matías Moreno;CB;ARG;70|Jeremy Toljan;RB;GER;71|Manu Sánchez;LB;ESP;71|Diego Pampín;LB;ESP;70|Oriol Rey;CDM;ESP;72|Unai Vencedor;CM;ESP;72|Pablo Martínez;CM;ESP;71|Kervin Arriaga;CM;HON;70|Carlos Álvarez;CAM;ESP;73|Iker Losada;CAM;ESP;70|Roger Brugué;RW;ESP;72|José Luis Morales;LW;ESP;72|Iván Romero;ST;ESP;73|Etta Eyong;ST;CMR;72|Goduine Koyalipou;ST;CTA;70');
+club('OVI', 'Real Oviedo', 'ESP1', '#0055a5', '#ffffff', 'Aarón Escandell;GK;ESP;73|Horatiu Moldovan;GK;ROU;71|David Costas;CB;ESP;71|Dani Calvo;CB;ESP;70|Eric Bailly;CB;CIV;72|Nacho Vidal;RB;ESP;70|Rahim Alhassane;LB;NIG;68|David Carmo;CB;ANG;72|Santi Cazorla;CAM;ESP;74|Alberto Reina;CM;ESP;70|Leander Dendoncker;CDM;BEL;73|Kwasi Sibo;CDM;GHA;70|Santiago Colombatto;CM;ARG;72|Ilyas Chaira;LW;MAR;70|Haissem Hassan;RW;FRA;72|Federico Viñas;ST;URU;72|Salomón Rondón;ST;VEN;73|Ovie Ejaria;CAM;ENG;68');
+
+/* ---- data/real_ita.js ---- */
+/* Serie A 2025/26 */
+club('INT', 'Inter', 'ITA1', '#010e80', '#000000', 'Yann Sommer;GK;SUI;85|Josep Martínez;GK;ESP;76|Alessandro Bastoni;CB;ITA;87|Francesco Acerbi;CB;ITA;81|Stefan de Vrij;CB;NED;80|Yann Bisseck;CB;GER;80|Manuel Akanji;CB;SUI;83|Denzel Dumfries;RWB;NED;83|Federico Dimarco;LWB;ITA;85|Carlos Augusto;LWB;BRA;77|Matteo Darmian;RB;ITA;76|Hakan Çalhanoğlu;CDM;TUR;85|Nicolò Barella;CM;ITA;87|Henrikh Mkhitaryan;CM;ARM;81|Davide Frattesi;CM;ITA;80|Petar Sučić;CM;CRO;77|Piotr Zieliński;CM;POL;79|Lautaro Martínez;ST;ARG;88|Marcus Thuram;ST;FRA;85|Ange-Yoan Bonny;ST;FRA;76|Francesco Pio Esposito;ST;ITA;73|Luis Henrique;RWB;BRA;76');
+club('ACM', 'AC Milan', 'ITA1', '#fb090b', '#000000', 'Mike Maignan;GK;FRA;87|Pietro Terracciano;GK;ITA;72|Fikayo Tomori;CB;ENG;80|Strahinja Pavlović;CB;SRB;78|Matteo Gabbia;CB;ITA;77|Koni De Winter;CB;BEL;76|Pervis Estupiñán;LB;ECU;78|Davide Bartesaghi;LB;ITA;70|Alexis Saelemaekers;RM;BEL;78|Zachary Athekame;RB;SUI;72|Luka Modrić;CM;CRO;84|Youssouf Fofana;CDM;FRA;80|Adrien Rabiot;CM;FRA;83|Ruben Loftus-Cheek;CM;ENG;77|Samuele Ricci;CDM;ITA;78|Ardon Jashari;CM;SUI;77|Christian Pulisic;RW;USA;84|Rafael Leão;LW;POR;85|Santiago Giménez;ST;MEX;79|Christopher Nkunku;CF;FRA;80');
+club('JUV', 'Juventus', 'ITA1', '#ffffff', '#000000', 'Michele Di Gregorio;GK;ITA;82|Mattia Perin;GK;ITA;77|Gleison Bremer;CB;BRA;84|Federico Gatti;CB;ITA;79|Pierre Kalulu;CB;FRA;79|Lloyd Kelly;CB;ENG;76|Juan Cabal;LB;COL;74|Andrea Cambiaso;LB;ITA;81|Joao Mário;RB;POR;75|Manuel Locatelli;CDM;ITA;81|Khéphren Thuram;CM;FRA;81|Weston McKennie;CM;USA;78|Teun Koopmeiners;CAM;NED;81|Kenan Yıldız;LW;TUR;83|Francisco Conceição;RW;POR;81|Edon Zhegrova;RW;KOS;78|Dušan Vlahović;ST;SRB;82|Jonathan David;ST;CAN;82|Loïs Openda;ST;BEL;80|Arkadiusz Milik;ST;POL;74|Fabio Miretti;CM;ITA;72');
+club('NAP', 'SSC Napoli', 'ITA1', '#12a0d7', '#ffffff', 'Alex Meret;GK;ITA;81|Vanja Milinković-Savić;GK;SRB;80|Amir Rrahmani;CB;KOS;81|Alessandro Buongiorno;CB;ITA;81|Sam Beukema;CB;NED;79|Juan Jesus;CB;BRA;74|Giovanni Di Lorenzo;RB;ITA;82|Mathías Olivera;LB;URU;79|Leonardo Spinazzola;LB;ITA;76|Miguel Gutiérrez;LB;ESP;78|Stanislav Lobotka;CDM;SVK;84|Scott McTominay;CM;SCO;85|Frank Anguissa;CM;CMR;82|Kevin De Bruyne;CAM;BEL;86|Billy Gilmour;CM;SCO;77|Matteo Politano;RW;ITA;79|David Neres;RW;BRA;79|Noa Lang;LW;NED;79|Romelu Lukaku;ST;BEL;82|Rasmus Højlund;ST;DEN;80|Lorenzo Lucca;ST;ITA;76');
+club('ATA', 'Atalanta', 'ITA1', '#1e71b8', '#000000', 'Marco Carnesecchi;GK;ITA;81|Marco Sportiello;GK;ITA;72|Isak Hien;CB;SWE;79|Berat Djimsiti;CB;ALB;78|Sead Kolašinac;CB;BIH;76|Odilon Kossounou;CB;CIV;78|Giorgio Scalvini;CB;ITA;79|Raoul Bellanova;RWB;ITA;77|Davide Zappacosta;RWB;ITA;76|Nicola Zalewski;LWB;POL;76|Marten de Roon;CDM;NED;79|Éderson;CM;BRA;81|Mario Pašalić;CM;CRO;78|Lazar Samardžić;CAM;SRB;78|Charles De Ketelaere;CAM;BEL;82|Ademola Lookman;LW;NGA;84|Kamaldeen Sulemana;LW;GHA;74|Nikola Krstović;ST;MNE;78|Gianluca Scamacca;ST;ITA;79|Yunus Musah;CM;USA;75');
+club('ROM', 'AS Roma', 'ITA1', '#8e1f2f', '#f0bc42', 'Mile Svilar;GK;SRB;84|Pierluigi Gollini;GK;ITA;72|Gianluca Mancini;CB;ITA;80|Evan Ndicka;CB;CIV;80|Mario Hermoso;CB;ESP;76|Zeki Çelik;RB;TUR;75|Wesley França;RB;BRA;77|Angeliño;LB;ESP;78|Konstantinos Tsimikas;LB;GRE;76|Bryan Cristante;CDM;ITA;78|Manu Koné;CM;FRA;81|Lorenzo Pellegrini;CAM;ITA;78|Neil El Aynaoui;CM;MAR;76|Niccolò Pisilli;CM;ITA;72|Paulo Dybala;CF;ARG;82|Matías Soulé;RW;ARG;79|Stephan El Shaarawy;LW;ITA;75|Leon Bailey;RW;JAM;77|Evan Ferguson;ST;IRL;76|Artem Dovbyk;ST;UKR;79');
+club('LAZ', 'SS Lazio', 'ITA1', '#87d8f7', '#ffffff', 'Ivan Provedel;GK;ITA;81|Christos Mandas;GK;GRE;74|Alessio Romagnoli;CB;ITA;79|Mario Gila;CB;ESP;79|Samuel Gigot;CB;FRA;75|Adam Marušić;RB;MNE;76|Manuel Lazzari;RB;ITA;74|Nuno Tavares;LB;POR;78|Luca Pellegrini;LB;ITA;74|Nicolò Rovella;CDM;ITA;79|Matteo Guendouzi;CM;FRA;80|Toma Bašić;CM;CRO;74|Mattia Zaccagni;LW;ITA;81|Gustav Isaksen;RW;DEN;77|Pedro;RW;ESP;74|Boulaye Dia;ST;SEN;77|Taty Castellanos;ST;ARG;79|Tijjani Noslin;ST;NED;74|Fisayo Dele-Bashiru;CM;NGA;72');
+club('BOL', 'Bologna', 'ITA1', '#1a2f48', '#a21c26', 'Łukasz Skorupski;GK;POL;80|Federico Ravaglia;GK;ITA;72|Jhon Lucumí;CB;COL;80|Nicolò Casale;CB;ITA;74|Martin Vitík;CB;CZE;72|Emil Holm;RB;SWE;76|Lorenzo De Silvestri;RB;ITA;72|Juan Miranda;LB;ESP;76|Charalampos Lykogiannis;LB;GRE;73|Remo Freuler;CDM;SUI;78|Lewis Ferguson;CM;SCO;79|Nikola Moro;CM;CRO;75|Tommaso Pobega;CM;ITA;75|Riccardo Orsolini;RW;ITA;80|Jonathan Rowe;LW;ENG;75|Benjamín Domínguez;LW;ARG;73|Jens Odgaard;CAM;DEN;74|Santiago Castro;ST;ARG;77|Ciro Immobile;ST;ITA;76|Federico Bernardeschi;RW;ITA;75');
+club('FIO', 'Fiorentina', 'ITA1', '#482e92', '#ffffff', 'David de Gea;GK;ESP;83|Luca Lezzerini;GK;ITA;68|Pietro Comuzzo;CB;ITA;76|Luca Ranieri;CB;ITA;76|Marin Pongračić;CB;CRO;76|Pablo Marí;CB;ESP;74|Dodô;RB;BRA;79|Robin Gosens;LWB;GER;78|Fabiano Parisi;LB;ITA;73|Rolando Mandragora;CM;ITA;77|Nicolò Fagioli;CM;ITA;76|Cher Ndour;CM;ITA;72|Hans Nicolussi Caviglia;CDM;ITA;74|Albert Guðmundsson;CF;ISL;79|Jacopo Fazzini;CAM;ITA;72|Moise Kean;ST;ITA;82|Edin Džeko;ST;BIH;76|Roberto Piccoli;ST;ITA;75|Simon Sohm;CM;SUI;74');
+club('COM', 'Como 1907', 'ITA1', '#1c5eab', '#ffffff', 'Jean Butez;GK;FRA;77|Mauro Vigorito;GK;ITA;68|Diego Carlos;CB;BRA;76|Marc-Oliver Kempf;CB;GER;75|Jacobo Ramón;CB;ESP;72|Ignace Van der Brempt;RB;BEL;73|Alberto Moreno;LB;ESP;73|Álex Valle;LB;ESP;74|Sergi Roberto;CM;ESP;75|Maximo Perrone;CDM;ARG;77|Lucas da Cunha;CM;FRA;76|Nico Paz;CAM;ARG;81|Jesús Rodríguez;LW;ESP;74|Assane Diao;RW;SEN;75|Jayden Addai;RW;NED;71|Álvaro Morata;ST;ESP;77|Anastasios Douvikas;ST;GRE;73|Martin Baturina;CAM;CRO;76|Gabriel Strefezza;LW;ITA;74');
+club('TOR', 'Torino', 'ITA1', '#8a1e03', '#ffffff', 'Alberto Paleari;GK;ITA;72|Franco Israel;GK;URU;74|Saúl Coco;CB;EQG;76|Guillermo Maripán;CB;CHI;75|Adam Masina;CB;MAR;72|Ardian Ismajli;CB;ALB;73|Marcus Pedersen;RB;NOR;72|Valentino Lazaro;RB;AUT;73|Cristiano Biraghi;LB;ITA;72|Kristjan Asllani;CDM;ALB;74|Gvidas Gineitis;CM;LTU;73|Adrien Tamèze;CM;FRA;72|Nikola Vlašić;CAM;CRO;77|Cyril Ngonge;RW;BEL;73|Giovanni Simeone;ST;ARG;75|Duván Zapata;ST;COL;76|Che Adams;ST;SCO;75|Zakaria Aboukhlal;RW;MAR;72');
+club('UDI', 'Udinese', 'ITA1', '#000000', '#ffffff', 'Maduka Okoye;GK;NGA;77|Razvan Sava;GK;ROU;71|Thomas Kristensen;CB;DEN;76|Christian Kabasele;CB;BEL;73|Oumar Solet;CB;FRA;78|Nicolò Bertola;CB;ITA;69|Kingsley Ehizibue;RB;NED;72|Hassane Kamara;LB;CIV;73|Jordan Zemura;LB;ZIM;72|Jesper Karlström;CDM;SWE;74|Sandi Lovrić;CM;SVN;74|Jakub Piotrowski;CM;POL;73|Arthur Atta;CM;FRA;73|Jurgen Ekkelenkamp;CAM;NED;74|Iker Bravo;ST;ESP;71|Keinan Davis;ST;ENG;74|Nicolò Zaniolo;CAM;ITA;75|Adam Buksa;ST;POL;72|Idrissa Gueye;ST;SEN;68');
+club('GEN', 'Genoa', 'ITA1', '#a51d2d', '#002d62', 'Nicola Leali;GK;ITA;74|Benjamin Siegrist;GK;SUI;70|Johan Vásquez;CB;MEX;77|Leo Østigård;CB;NOR;75|Alessandro Marcandalli;CB;ITA;70|Sebastian Otoa;CB;DEN;68|Brooke Norton-Cuffy;RB;ENG;72|Aaron Martin;LB;ESP;74|Stefano Sabelli;RB;ITA;71|Morten Frendrup;CDM;DEN;76|Patrizio Masini;CM;ITA;71|Ruslan Malinovskyi;CAM;UKR;74|Morten Thorsby;CM;NOR;72|Mikael Ellertsson;CM;ISL;69|Junior Messias;RW;BRA;72|Jeff Ekhator;ST;ITA;68|Lorenzo Colombo;ST;ITA;72|Caleb Ekuban;ST;GHA;70|Vitinha;LW;POR;72|Valentín Carboni;CAM;ARG;71');
+club('PAR', 'Parma', 'ITA1', '#ffde00', '#002d72', 'Zion Suzuki;GK;JPN;76|Edoardo Corvi;GK;ITA;67|Alessandro Circati;CB;AUS;73|Enrico Delprato;CB;ITA;74|Mariano Troilo;CB;ARG;69|Abdoulaye Ndiaye;CB;SEN;70|Emanuele Valeri;LB;ITA;73|Lautaro Valenti;CB;ARG;72|Woyo Coulibaly;RB;FRA;71|Adrián Bernabé;CM;ESP;75|Mandela Keita;CDM;BEL;74|Nahuel Estévez;CM;ARG;72|Christian Ordóñez;CM;ARG;70|Jacob Ondrejka;LW;SWE;72|Matija Frigan;RW;CRO;70|Mateo Pellegrino;ST;ARG;74|Gabriel Strefezza;LW;ITA;73|Patrick Cutrone;ST;ITA;72|Pontus Almqvist;RW;SWE;71');
+club('LEC', 'US Lecce', 'ITA1', '#ffed00', '#e30613', 'Wladimiro Falcone;GK;ITA;78|Christian Früchtl;GK;GER;68|Kialonda Gaspar;CB;ANG;73|Tiago Gabriel;CB;POR;71|Jamil Siebert;CB;GER;69|Danilo Veiga;RB;POR;70|Antonino Gallo;LB;ITA;73|Frédéric Guilbert;RB;FRA;70|Ylber Ramadani;CDM;ALB;73|Lassana Coulibaly;CM;MLI;73|Medon Berisha;CM;ALB;70|Mohamed Kaba;CDM;FRA;70|Lameck Banda;LW;ZAM;72|Santiago Pierotti;RW;ARG;71|Tete Morente;RW;ESP;70|Riccardo Sottil;LW;ITA;71|Nikola Štulić;ST;SRB;70|Francesco Camarda;ST;ITA;68');
+club('CAG', 'Cagliari', 'ITA1', '#002350', '#a50b2c', 'Elia Caprile;GK;ITA;75|Alen Sherri;GK;ALB;67|Yerry Mina;CB;COL;74|Sebastiano Luperto;CB;ITA;73|Alessandro Deiola;CM;ITA;71|Gabriele Zappa;RB;ITA;72|Marco Palestra;RB;ITA;72|Adam Obert;LB;SVK;70|Tommaso Augello;LB;ITA;70|Michel Adopo;CDM;FRA;71|Matteo Prati;CM;ITA;71|Gianluca Gaetano;CAM;ITA;73|Michael Folorunsho;CM;ITA;72|Mattia Felici;LW;ITA;70|Zito Luvumbo;LW;ANG;72|Andrea Belotti;ST;ITA;72|Sebastiano Esposito;ST;ITA;72|Semih Kılıçsoy;ST;TUR;71|Leonardo Pavoletti;ST;ITA;68');
+club('VER', 'Hellas Verona', 'ITA1', '#002d72', '#ffd700', 'Lorenzo Montipò;GK;ITA;75|Simone Perilli;GK;ITA;66|Victor Nelsson;CB;DEN;74|Nicolò Valentini;CB;ARG;70|Unai Núñez;CB;ESP;71|Domagoj Bradarić;LB;CRO;72|Rafik Belghali;RB;BEL;71|Martin Frese;LB;DEN;70|Suat Serdar;CM;GER;73|Antoine Bernede;CDM;FRA;71|Roberto Gagliardini;CM;ITA;71|Abdou Harroui;CAM;MAR;71|Grigoris Kastanos;CM;CYP;71|Gift Orban;ST;NGA;72|Amin Sarr;ST;SWE;72|Giovane;ST;BRA;69|Tomás Suslov;CAM;SVK;72');
+club('SAS', 'Sassuolo', 'ITA1', '#00a752', '#000000', 'Arijanet Muric;GK;KOS;75|Giacomo Satalino;GK;ITA;67|Jay Idzes;CB;IDN;73|Tarik Muharemović;CB;BIH;71|Filippo Romagna;CB;ITA;70|Sebastian Walukiewicz;CB;POL;72|Josh Doig;LB;SCO;72|Woyo Coulibaly;RB;FRA;70|Kristian Thorstvedt;CM;NOR;73|Nemanja Matić;CDM;SRB;74|Daniel Boloca;CM;ITA;70|Luca Lipani;CM;ITA;69|Armand Laurienté;LW;FRA;77|Domenico Berardi;RW;ITA;79|Andrea Pinamonti;ST;ITA;75|Cristian Volpato;CAM;AUS;71|Luca Moro;ST;ITA;70');
+club('PIS', 'Pisa', 'ITA1', '#000000', '#0067b2', 'Adrian Šemper;GK;CRO;71|Simone Scuffet;GK;ITA;72|Antonio Caracciolo;CB;ITA;70|Simone Canestrelli;CB;ITA;71|Arturo Calabresi;CB;ITA;68|Raúl Albiol;CB;ESP;73|Idrissa Touré;RWB;GER;71|Samuele Angori;LWB;ITA;69|Michel Aebischer;CM;SUI;73|Marius Marin;CDM;ROU;71|Ebenezer Akinsanmiro;CM;NGA;69|Malthe Højholt;CM;DEN;69|Matteo Tramoni;CAM;FRA;72|Juan Cuadrado;RW;COL;72|M’Bala Nzola;ST;ANG;72|Henrik Meister;ST;DEN;70|Stefano Moreo;ST;ITA;69');
+club('CRE', 'Cremonese', 'ITA1', '#9b1c31', '#a5a5a5', 'Emil Audero;GK;ITA;73|Marco Silvestri;GK;ITA;70|Federico Baschirotto;CB;ITA;72|Matteo Bianchetti;CB;ITA;69|Mikayil Faye;CB;SEN;70|Giuseppe Pezzella;LB;ITA;71|Tommaso Barbieri;RB;ITA;69|Filippo Terracciano;RB;ITA;70|Alberto Grassi;CDM;ITA;69|Jari Vandeputte;CAM;BEL;71|Martín Payero;CM;ARG;72|Warren Bondo;CM;FRA;70|Franco Vázquez;CAM;ARG;71|Jamie Vardy;ST;ENG;75|Federico Bonazzoli;ST;ITA;72|Antonio Sanabria;ST;PAR;72|Dennis Johnsen;RW;NOR;69');
+
+/* ---- data/real_ger.js ---- */
+/* Bundesliga 2025/26 */
+club('FCB2', 'FC Bayern München', 'GER1', '#dc052d', '#0066b2', 'Manuel Neuer;GK;GER;86|Jonas Urbig;GK;GER;74|Dayot Upamecano;CB;FRA;84|Jonathan Tah;CB;GER;84|Kim Min-jae;CB;KOR;82|Hiroki Ito;CB;JPN;77|Josip Stanišić;RB;CRO;79|Konrad Laimer;RB;AUT;80|Alphonso Davies;LB;CAN;83|Raphaël Guerreiro;LB;POR;78|Joshua Kimmich;CDM;GER;88|Aleksandar Pavlović;CM;GER;81|Leon Goretzka;CM;GER;80|Jamal Musiala;CAM;GER;88|Michael Olise;RW;FRA;87|Luis Díaz;LW;COL;86|Serge Gnabry;RW;GER;80|Lennart Karl;RW;GER;70|Nicolas Jackson;ST;SEN;80|Harry Kane;ST;ENG;90|Tom Bischof;CM;GER;74');
+club('B04', 'Bayer 04 Leverkusen', 'GER1', '#e32221', '#000000', 'Mark Flekken;GK;NED;80|Janis Blaswich;GK;GER;72|Edmond Tapsoba;CB;BFA;81|Jarell Quansah;CB;ENG;78|Loïc Badé;CB;FRA;78|Lucas Vázquez;RB;ESP;77|Arthur;RB;BRA;72|Alejandro Grimaldo;LWB;ESP;84|Robert Andrich;CDM;GER;79|Ezequiel Fernández;CM;ARG;77|Exequiel Palacios;CM;ARG;80|Malik Tillman;CAM;USA;79|Ibrahim Maza;CAM;ALG;74|Ernest Poku;RW;NED;75|Martin Terrier;LW;FRA;78|Nathan Tella;RW;NGA;75|Patrik Schick;ST;CZE;81|Christian Kofane;ST;CMR;72|Eliesse Ben Seghir;LW;MAR;76');
+club('BVB', 'Borussia Dortmund', 'GER1', '#fde100', '#000000', 'Gregor Kobel;GK;SUI;86|Alexander Meyer;GK;GER;70|Nico Schlotterbeck;CB;GER;83|Waldemar Anton;CB;GER;80|Niklas Süle;CB;GER;77|Emre Can;CDM;GER;78|Ramy Bensebaini;LB;ALG;77|Daniel Svensson;LB;SWE;75|Julian Ryerson;RB;NOR;78|Yan Couto;RB;BRA;76|Felix Nmecha;CM;GER;80|Marcel Sabitzer;CM;AUT;79|Pascal Groß;CM;GER;79|Jobe Bellingham;CM;ENG;77|Julian Brandt;CAM;GER;81|Karim Adeyemi;LW;GER;80|Maximilian Beier;RW;GER;78|Carney Chukwuemeka;CM;ENG;73|Serhou Guirassy;ST;GUI;85|Fábio Silva;ST;POR;75');
+club('RBL', 'RB Leipzig', 'GER1', '#dd0741', '#ffffff', 'Péter Gulácsi;GK;HUN;79|Maarten Vandevoordt;GK;BEL;74|Willi Orbán;CB;HUN;80|Castello Lukeba;CB;FRA;80|El Chadaille Bitshiabu;CB;FRA;72|Ridle Baku;RB;GER;76|David Raum;LB;GER;79|Benjamin Henrichs;RB;GER;76|Nicolas Seiwald;CDM;AUT;77|Xaver Schlager;CM;AUT;80|Christoph Baumgartner;CAM;AUT;79|Assan Ouédraogo;CM;GER;72|Antonio Nusa;LW;NOR;78|Yan Diomande;RW;CIV;73|Johan Bakayoko;RW;BEL;77|Romulo;ST;BRA;73|Conrad Harder;ST;DEN;72');
+club('SGE', 'Eintracht Frankfurt', 'GER1', '#e1000f', '#000000', 'Kauã Santos;GK;BRA;75|Michael Zetterer;GK;GER;74|Robin Koch;CB;GER;80|Arthur Theate;CB;BEL;78|Nnamdi Collins;CB;GER;73|Aurèle Amenda;CB;SUI;71|Rasmus Kristensen;RB;DEN;76|Nathaniel Brown;LB;GER;74|Ellyes Skhiri;CDM;TUN;77|Hugo Larsson;CM;SWE;78|Mahmoud Dahoud;CM;GER;73|Oscar Højlund;CM;DEN;71|Can Uzun;CAM;TUR;77|Farès Chaïbi;CAM;ALG;77|Ansgar Knauff;RW;GER;75|Jean-Mattéo Bahoya;LW;FRA;72|Ritsu Dōan;RW;JPN;78|Jonathan Burkardt;ST;GER;79|Michy Batshuayi;ST;BEL;73|Elye Wahi;ST;FRA;74');
+club('VFB', 'VfB Stuttgart', 'GER1', '#ffffff', '#e32219', 'Alexander Nübel;GK;GER;81|Fabian Bredlow;GK;GER;70|Jeff Chabot;CB;GER;77|Finn Jeltsch;CB;GER;73|Ramon Hendriks;CB;NED;73|Josha Vagnoman;RB;GER;74|Pascal Stenzel;RB;GER;72|Maximilian Mittelstädt;LB;GER;78|Angelo Stiller;CDM;GER;81|Atakan Karazor;CDM;GER;76|Chema Andrés;CM;ESP;73|Lazar Jovanović;CM;SRB;69|Jamie Leweling;RW;GER;77|Chris Führich;LW;GER;77|Bilal El Khannouss;CAM;MAR;76|Tiago Tomás;LW;POR;74|Deniz Undav;ST;GER;79|Ermedin Demirović;ST;BIH;79|Nikolas Nartey;CM;DEN;72');
+club('SCF', 'SC Freiburg', 'GER1', '#000000', '#ffffff', 'Noah Atubolu;GK;GER;78|Florian Müller;GK;GER;70|Matthias Ginter;CB;GER;79|Philipp Lienhart;CB;AUT;77|Max Rosenfelder;CB;GER;73|Bruno Ogbus;CB;SUI;69|Lukas Kübler;RB;GER;74|Jordy Makengo;LB;FRA;71|Christian Günter;LB;GER;75|Maximilian Eggestein;CM;GER;76|Nicolas Höfler;CDM;GER;74|Johan Manzambi;CM;SUI;73|Patrick Osterhage;CM;GER;72|Vincenzo Grifo;LW;ITA;78|Yuito Suzuki;RW;JPN;74|Derry Scherhant;LW;GER;71|Lucas Höler;ST;GER;73|Igor Matanović;ST;CRO;73|Junior Adamu;ST;AUT;72');
+club('WOB', 'VfL Wolfsburg', 'GER1', '#65b32e', '#ffffff', 'Kamil Grabara;GK;POL;78|Marius Müller;GK;GER;70|Denis Vavro;CB;SVK;75|Konstantinos Koulierakis;CB;GRE;75|Moritz Jenz;CB;GER;73|Kilian Fischer;RB;GER;74|Joakim Mæhle;LB;DEN;76|Jenson Seelt;CB;NED;71|Maximilian Arnold;CDM;GER;77|Vinicius Souza;CDM;BRA;74|Aster Vranckx;CM;BEL;73|Christian Eriksen;CAM;DEN;78|Lovro Majer;CAM;CRO;76|Patrick Wimmer;RW;AUT;76|Mattias Svanberg;CM;SWE;75|Dženan Pejčinović;ST;GER;70|Mohamed Amoura;ST;ALG;78|Jonas Wind;ST;DEN;75|Andreas Skov Olsen;RW;DEN;75');
+club('M05', '1. FSV Mainz 05', 'GER1', '#c3141e', '#ffffff', 'Robin Zentner;GK;GER;75|Lasse Rieß;GK;GER;68|Danny da Costa;RB;GER;73|Stefan Bell;CB;GER;72|Andreas Hanche-Olsen;CB;NOR;74|Dominik Kohr;CB;GER;73|Phillipp Mwene;LB;AUT;72|Anthony Caci;LWB;FRA;72|Kacper Potulski;CB;POL;68|Kaishu Sano;CDM;JPN;76|Nadiem Amiri;CAM;GER;77|Lee Jae-sung;CAM;KOR;76|Paul Nebel;RW;GER;74|Silvan Widmer;RB;SUI;74|Sota Kawasaki;CM;JPN;68|Armindo Sieb;LW;GER;71|Benedict Hollerbach;ST;GER;73|Nelson Weiper;ST;GER;71|Phillip Tietz;ST;GER;72');
+club('BMG', 'Borussia Mönchengladbach', 'GER1', '#000000', '#00b140', 'Moritz Nicolas;GK;GER;75|Jonas Omlin;GK;SUI;75|Nico Elvedi;CB;SUI;76|Ko Itakura;CB;JPN;76|Kevin Diks;CB;NED;75|Marvin Friedrich;CB;GER;72|Joe Scally;RB;USA;74|Luca Netz;LB;GER;73|Lukas Ullrich;LB;GER;71|Julian Weigl;CDM;GER;77|Rocco Reitz;CM;GER;76|Yannik Engelhardt;CM;GER;72|Philipp Sander;CM;GER;71|Kevin Stöger;CAM;AUT;76|Franck Honorat;RW;FRA;76|Robin Hack;LW;GER;74|Florian Neuhaus;CAM;GER;74|Haris Tabaković;ST;BIH;74|Shuto Machino;ST;JPN;73|Tim Kleindienst;ST;GER;77');
+club('TSG', 'TSG Hoffenheim', 'GER1', '#1c63b7', '#ffffff', 'Oliver Baumann;GK;GER;80|Luca Philipp;GK;GER;67|Ozan Kabak;CB;TUR;76|Kevin Akpoguma;CB;NGA;73|Albian Hajdari;CB;SUI;73|Robin Hranáč;CB;CZE;73|Vladimír Coufal;RB;CZE;74|Bernardo;LB;BRA;73|Alexander Prass;LB;AUT;74|Grischa Prömel;CM;GER;74|Wouter Burger;CDM;NED;73|Leon Avdullahu;CDM;SUI;72|Andrej Kramarić;CF;CRO;79|Bazoumana Touré;LW;CIV;74|Tim Lemperle;ST;GER;72|Fisnik Asllani;ST;KOS;73|Max Moerstedt;ST;GER;68|Adam Hložek;ST;CZE;74');
+club('FCU', '1. FC Union Berlin', 'GER1', '#eb1923', '#ffd700', 'Frederik Rønnow;GK;DEN;78|Carl Klaus;GK;GER;67|Diogo Leite;CB;POR;76|Danilho Doekhi;CB;NED;76|Leopold Querfeld;CB;AUT;75|Stanley Nsoki;CB;FRA;72|Christopher Trimmel;RB;AUT;72|Tom Rothe;LB;GER;73|Derrick Köhn;LB;GHA;71|Rani Khedira;CDM;GER;75|Aljoscha Kemlein;CM;GER;72|András Schäfer;CM;HUN;73|Janik Haberer;CM;GER;71|Tim Skarke;RW;GER;71|Ilyas Ansah;ST;GER;70|Andrej Ilić;ST;SRB;73|Oliver Burke;ST;SCO;71|Livan Burcu;LW;TUR;70');
+club('SVW', 'SV Werder Bremen', 'GER1', '#1d9053', '#ffffff', 'Mio Backhaus;GK;GER;74|Marco Friedl;CB;AUT;76|Niklas Stark;CB;GER;74|Amos Pieper;CB;GER;73|Karim Coulibaly;CB;GER;69|Mitchell Weiser;RB;GER;76|Felix Agu;LB;GER;72|Isaac Schmidt;RB;SUI;71|Senne Lynen;CDM;BEL;76|Jens Stage;CM;DEN;77|Leonardo Bittencourt;CAM;GER;73|Romano Schmid;CAM;AUT;77|Cameron Puertas;CM;BEL;72|Justin Njinmah;RW;GER;73|Marco Grüll;LW;AUT;73|Keke Topp;ST;GER;71|Samuel Mbangula;LW;BEL;73|Victor Boniface;ST;NGA;78');
+club('FCA', 'FC Augsburg', 'GER1', '#ba3733', '#46714d', 'Finn Dahmen;GK;GER;76|Nediljko Labrović;GK;CRO;72|Jeffrey Gouweleeuw;CB;NED;74|Keven Schlotterbeck;CB;GER;74|Cédric Zesiger;CB;SUI;73|Chrislain Matsima;CB;FRA;72|Marius Wolf;RB;GER;73|Dimitrios Giannoulis;LB;GRE;73|Mads Pedersen;LB;DEN;72|Kristijan Jakić;CDM;CRO;74|Elvis Rexhbeçaj;CM;KOS;73|Fredrik Jensen;CAM;FIN;72|Alexis Claude-Maurice;CAM;FRA;74|Anton Kade;LW;GER;71|Mert Kömür;RW;GER;70|Samuel Essende;ST;COD;72|Michael Gregoritsch;ST;AUT;72');
+club('STP', 'FC St. Pauli', 'GER1', '#624839', '#ffffff', 'Nikola Vasilj;GK;BIH;76|Ben Voll;GK;GER;67|Eric Smith;CB;SWE;75|Hauke Wahl;CB;GER;74|David Nemeth;CB;AUT;72|Karol Mets;CB;EST;71|Manolis Saliakas;RB;GRE;73|Louis Oppie;LB;GER;69|Jackson Irvine;CM;AUS;74|James Sands;CDM;USA;72|Connor Metcalfe;CM;AUS;71|Joel Chima Fujita;CM;JPN;72|Danel Sinani;CAM;LUX;72|Oladapo Afolayan;LW;ENG;72|Mathias Pereira Lage;RW;FRA;71|Andréas Hountondji;ST;BEN;71|Martijn Kaars;ST;NED;70');
+club('FCH', '1. FC Heidenheim', 'GER1', '#e2001a', '#003d7c', 'Diant Ramaj;GK;GER;73|Frank Feller;GK;GER;68|Patrick Mainka;CB;GER;73|Benedikt Gimber;CB;GER;72|Tim Siersleben;CB;GER;70|Omar Traoré;RB;GER;72|Jonas Föhrenbach;LB;GER;71|Leart Paqarada;LB;KOS;71|Jan Schöppner;CDM;GER;71|Niklas Dorsch;CM;GER;72|Adrian Beck;CAM;GER;71|Mathias Honsak;LW;AUT;71|Eren Dinkçi;RW;GER;72|Sirlord Conteh;LW;GER;70|Marvin Pieringer;ST;GER;71|Budu Zivzivadze;ST;GEO;71|Stefan Schimmer;ST;GER;69');
+club('KOE', '1. FC Köln', 'GER1', '#ed1c24', '#ffffff', 'Marvin Schwäbe;GK;GER;74|Ron-Robert Zieler;GK;GER;70|Timo Hübers;CB;GER;73|Joel Schmied;CB;SUI;71|Cenk Özkacar;CB;TUR;71|Rav van den Berg;CB;NED;70|Kristoffer Lund;LB;USA;71|Sebastian Sebulonsen;RB;NOR;70|Eric Martel;CDM;GER;74|Isak Bergmann Jóhannesson;CM;ISL;74|Tom Krauß;CM;GER;72|Florian Kainz;CAM;AUT;73|Jan Thielmann;RW;GER;72|Linton Maina;LW;GER;72|Said El Mala;LW;GER;72|Marius Bülter;ST;GER;72|Ragnar Ache;ST;GER;72|Luca Waldschmidt;ST;GER;72');
+club('HSV', 'Hamburger SV', 'GER1', '#0a3f86', '#ffffff', 'Daniel Heuer Fernandes;GK;POR;73|Fernando Dickes;GK;GER;64|Luka Vušković;CB;CRO;74|Dennis Hadžikadunić;CB;BIH;72|Jordan Torunarigha;CB;NGA;71|Daniel Elfadli;CB;LBY;71|William Mikelbrencis;RB;FRA;70|Miro Muheim;LB;SUI;72|Bakery Jatta;RW;GAM;71|Nicolás Capaldo;CM;ARG;73|Albert Sambi Lokonga;CM;BEL;73|Fábio Vieira;CAM;POR;75|Jonas Meffert;CDM;GER;71|Emir Sahiti;LW;KOS;71|Jean-Luc Dompé;LW;FRA;72|Rayan Philippe;ST;FRA;71|Yussuf Poulsen;ST;DEN;72|Robert Glatzel;ST;GER;72');
+
+/* ---- data/real_fra.js ---- */
+/* Ligue 1 2025/26 */
+club('PSG', 'Paris Saint-Germain', 'FRA1', '#004170', '#da291c', 'Lucas Chevalier;GK;FRA;83|Matvey Safonov;GK;RUS;77|Marquinhos;CB;BRA;85|Willian Pacho;CB;ECU;85|Lucas Beraldo;CB;BRA;77|Illia Zabarnyi;CB;UKR;80|Achraf Hakimi;RB;MAR;88|Nuno Mendes;LB;POR;87|Lucas Hernández;LB;FRA;80|Vitinha;CM;POR;89|João Neves;CM;POR;86|Fabián Ruiz;CM;ESP;84|Warren Zaïre-Emery;CM;FRA;81|Senny Mayulu;CM;FRA;72|Ousmane Dembélé;RW;FRA;90|Khvicha Kvaratskhelia;LW;GEO;88|Désiré Doué;RW;FRA;85|Bradley Barcola;LW;FRA;83|Lee Kang-in;CAM;KOR;80|Gonçalo Ramos;ST;POR;80|Ibrahim Mbaye;RW;FRA;68');
+club('OM', 'Olympique de Marseille', 'FRA1', '#2faee0', '#ffffff', 'Gerónimo Rulli;GK;ARG;82|Jeffrey de Lange;GK;NED;70|Leonardo Balerdi;CB;ARG;80|Nayef Aguerd;CB;MAR;79|Benjamin Pavard;CB;FRA;80|CJ Egan-Riley;CB;ENG;72|Facundo Medina;LB;ARG;77|Emerson Palmieri;LB;ITA;75|Amir Murillo;RB;PAN;74|Pierre-Emile Højbjerg;CDM;DEN;80|Geoffrey Kondogbia;CDM;CAF;75|Arthur Vermeeren;CM;BEL;74|Angel Gomes;CM;ENG;77|Matt O’Riley;CAM;DEN;78|Mason Greenwood;RW;JAM;83|Igor Paixão;LW;BRA;77|Timothy Weah;RW;USA;76|Hamed Junior Traorè;CAM;CIV;74|Amine Gouiri;ST;ALG;80|Pierre-Emerick Aubameyang;ST;GAB;79');
+club('ASM', 'AS Monaco', 'FRA1', '#e51b22', '#ffffff', 'Philipp Köhn;GK;SUI;76|Lukáš Hrádecký;GK;FIN;77|Thilo Kehrer;CB;GER;77|Mohammed Salisu;CB;GHA;77|Eric Dier;CB;ENG;76|Christian Mawissa;CB;FRA;73|Vanderson;RB;BRA;79|Caio Henrique;LB;BRA;78|Kassoum Ouattara;LB;BFA;72|Denis Zakaria;CDM;SUI;80|Lamine Camara;CM;SEN;77|Mamadou Coulibaly;CM;FRA;73|Aleksandr Golovin;CAM;RUS;79|Paul Pogba;CM;FRA;76|Maghnes Akliouche;RW;FRA;80|Takumi Minamino;CAM;JPN;78|Ansu Fati;LW;ESP;75|Folarin Balogun;ST;USA;78|Mika Biereth;ST;DEN;75|Eliesse Ben Seghir;LW;MAR;76');
+club('LOSC', 'LOSC Lille', 'FRA1', '#e01e13', '#20325f', 'Berke Özer;GK;TUR;76|Arnaud Bodart;GK;BEL;69|Alexsandro Ribeiro;CB;BRA;78|Nathan Ngoy;CB;BEL;72|Aïssa Mandi;CB;ALG;74|Tiago Santos;RB;POR;76|Thomas Meunier;RB;BEL;75|Romain Perraud;LB;FRA;74|Ayyoub Bouaddi;CDM;FRA;74|Benjamin André;CDM;FRA;77|Nabil Bentaleb;CM;ALG;74|Ngal’ayel Mukau;CM;BEL;72|Hákon Arnar Haraldsson;CAM;ISL;78|Osame Sahraoui;LW;NOR;74|Matías Fernández-Pardo;RW;BEL;73|Hamza Igamane;ST;MAR;73|Olivier Giroud;ST;FRA;75|Felix Correia;RW;POR;72|Ethan Mbappé;CM;FRA;70');
+club('OL', 'Olympique Lyonnais', 'FRA1', '#ffffff', '#da0812', 'Dominik Greif;GK;SVK;76|Rémy Descamps;GK;FRA;69|Moussa Niakhaté;CB;SEN;78|Clinton Mata;CB;ANG;75|Ruben Kluivert;CB;NED;71|Ainsley Maitland-Niles;RB;ENG;73|Nicolás Tagliafico;LB;ARG;77|Abner;LB;BRA;73|Tanner Tessmann;CDM;USA;74|Orel Mangala;CM;BEL;75|Corentin Tolisso;CM;FRA;77|Tyler Morton;CM;ENG;73|Khalis Merah;CM;FRA;66|Pavel Šulc;CAM;CZE;75|Malick Fofana;LW;BEL;79|Ernest Nuamah;RW;GHA;75|Afonso Moreira;LW;POR;71|Adam Karabec;LW;CZE;72|Martin Satriano;ST;URU;72|Georges Mikautadze;ST;GEO;77');
+club('OGCN', 'OGC Nice', 'FRA1', '#000000', '#e31b23', 'Yehvann Diouf;GK;FRA;75|Marcin Bułka;GK;POL;77|Dante;CB;BRA;74|Juma Bah;CB;SLE;71|Antoine Mendy;CB;FRA;70|Melvin Bard;LB;FRA;75|Jonathan Clauss;RB;FRA;77|Ali Abdi;LB;TUN;73|Charles Vanhoutte;CM;BEL;74|Hicham Boudaoui;CM;ALG;76|Tom Louchet;CM;FRA;70|Morgan Sanson;CAM;FRA;74|Sofiane Diop;LW;MAR;77|Tanguy Ndombélé;CM;FRA;73|Jérémie Boga;LW;CIV;75|Mohamed-Ali Cho;RW;FRA;73|Terem Moffi;ST;NGA;76|Jérémy Pembélé;ST;FRA;66|Kevin Carlos;ST;BRA;72');
+club('RCL', 'RC Lens', 'FRA1', '#ffd700', '#da291c', 'Robin Risser;GK;FRA;74|Régis Gurtner;GK;FRA;68|Malang Sarr;CB;FRA;74|Jonathan Gradit;CB;FRA;74|Samson Baidoo;CB;AUT;72|Ismaëlo Ganiou;CB;FRA;70|Ruben Aguilar;RB;FRA;73|Matthieu Udol;LB;FRA;72|Andy Diouf;CM;FRA;76|Adrien Thomasson;CM;FRA;74|Mamadou Sangaré;CM;MLI;72|Florian Sotoca;RW;FRA;73|Jhoanner Chávez;LB;ECU;72|Abdallah Sima;LW;SEN;74|Rayan Fofana;RW;FRA;68|Wesley Saïd;ST;FRA;73|Odsonne Édouard;ST;FRA;74|Allan Saint-Maximin;LW;FRA;75|Florian Thauvin;RW;FRA;77');
+club('SRFC', 'Stade Rennais', 'FRA1', '#e13327', '#000000', 'Brice Samba;GK;FRA;79|Mathys Silistrie;GK;FRA;64|Jérémy Jacquet;CB;FRA;72|Anthony Rouault;CB;FRA;74|Christopher Wooh;CB;CMR;73|Abdelhamid Aït Boudlal;CB;MAR;70|Przemysław Frankowski;RB;POL;74|Lilian Brassier;CB;FRA;73|Quentin Merlin;LB;FRA;74|Seko Fofana;CM;CIV;77|Djaoui Cissé;CM;FRA;72|Valentin Rongier;CM;FRA;76|Mahdi Camara;CDM;FRA;73|Ludovic Blas;CAM;FRA;76|Breel Embolo;ST;SUI;76|Esteban Lepaul;ST;FRA;74|Mousa Al-Tamari;RW;JOR;75|Arnaud Nordin;LW;FRA;72|Sebastian Szymański;CAM;POL;76');
+club('RCSA', 'RC Strasbourg', 'FRA1', '#009fe3', '#ffffff', 'Mike Penders;GK;BEL;72|Karl-Johan Johnsson;GK;SWE;70|Mamadou Sarr;CB;FRA;73|Guéla Doué;RB;CIV;74|Ismaël Doukouré;CB;FRA;73|Andrew Omobamidele;CB;IRL;72|Abakar Sylla;CB;CIV;72|Ben Chilwell;LB;ENG;74|Valentín Barco;LB;ARG;74|Mathis Amougou;CDM;FRA;71|Félix Lemaréchal;CM;FRA;71|Andrey Santos;CM;BRA;75|Dilane Bakwa;RW;FRA;76|Diego Moreira;LW;BEL;74|Sebastian Nanasi;RW;SWE;74|Julio Enciso;CAM;PAR;76|Joaquín Panichelli;ST;ARG;73|Emanuel Emegha;ST;NED;74|Martial Godo;LW;CIV;69');
+club('TFC', 'Toulouse FC', 'FRA1', '#5b2c83', '#ffffff', 'Guillaume Restes;GK;FRA;76|Kjetil Haug;GK;NOR;67|Charlie Cresswell;CB;ENG;74|Rasmus Nicolaisen;CB;DEN;74|Mark McKenzie;CB;USA;73|Warren Kamanzi;RB;NOR;72|Djibril Sidibé;RB;FRA;71|Aron Dønnum;LW;NOR;74|Cristian Cásseres Jr.;CM;VEN;74|Vincent Sierro;CM;SUI;74|Abu Francis;CDM;GHA;72|Alexis Vossah;CM;FRA;66|Yann Gboho;RW;FRA;73|Santiago Hidalgo;CAM;ARG;70|Frank Magri;ST;CMR;73|Emersonn;ST;BRA;71|Joshua King;ST;NOR;71');
+club('SB29', 'Stade Brestois 29', 'FRA1', '#e30613', '#ffffff', 'Grégoire Coudert;GK;FRA;71|Radosław Majecki;GK;POL;73|Brendan Chardonnet;CB;FRA;73|Soumaïla Coulibaly;CB;FRA;72|Bradley Locko;LB;FRA;73|Kenny Lala;RB;FRA;73|Julien Le Cardinal;CB;FRA;71|Hugo Magnetti;CM;FRA;73|Mahdi Camara;CM;FRA;73|Pierre Lees-Melou;CM;FRA;74|Edimilson Fernandes;CM;SUI;72|Kamory Doumbia;CAM;MLI;72|Romain Del Castillo;RW;FRA;74|Mama Baldé;LW;GNB;72|Ludovic Ajorque;ST;FRA;73|Rémy Labeau Lascary;LW;FRA;68');
+club('FCN', 'FC Nantes', 'FRA1', '#fcdd00', '#00994d', 'Anthony Lopes;GK;POR;75|Patrik Carlgren;GK;SWE;69|Chidozie Awaziem;CB;NGA;72|Tylel Tati;CB;FRA;68|Jean-Kévin Duverne;CB;FRA;71|Kelvin Amian;RB;FRA;71|Nicolas Cozza;LB;FRA;71|Johann Lepenant;CM;FRA;72|Francis Coquelin;CDM;FRA;72|Louis Leroux;CM;FRA;68|Mostafa Mohamed;ST;EGY;73|Matthis Abline;ST;FRA;74|Ignatius Ganago;ST;CMR;70|Moses Simon;LW;NGA;74|Bahereba Guirassy;RW;FRA;67|Youssef El Arabi;ST;MAR;70|Uroš Radaković;CB;SRB;71');
+club('AJA', 'AJ Auxerre', 'FRA1', '#ffffff', '#0050a0', 'Donovan Léon;GK;GUF;73|Théo De Percin;GK;FRA;68|Jubal;CB;BRA;72|Clément Akpa;CB;FRA;70|Sinaly Diomandé;CB;CIV;70|Gideon Mensah;LB;GHA;71|Fredrik Oppegård;LB;NOR;69|Paul Joly;RB;FRA;69|Elisha Owusu;CDM;GHA;72|Kévin Danois;CM;FRA;70|Hamed Junior Traoré;CAM;CIV;73|Lassine Sinayoko;LW;MLI;73|Ado Onaiwu;RW;JPN;70|Lasso Coulibaly;CM;CIV;68|Sekou Mara;ST;FRA;70|Danny Namaso;ST;ENG;70');
+club('SCO2', 'Angers SCO', 'FRA1', '#000000', '#ffffff', 'Hervé Koffi;GK;BFA;72|Yahia Fofana;GK;FRA;72|Jordan Lefort;CB;FRA;70|Emmanuel Biumla;CB;CMR;68|Marius Courcoul;CB;FRA;68|Carlens Arcus;RB;HAI;70|Florent Hanin;LB;FRA;69|Haris Belkebla;CDM;ALG;71|Pierrick Capelle;CM;FRA;70|Himad Abdelli;CM;ALG;73|Jacques Ekomié;LW;GAB;69|Lilian Raolisoa;RW;MAD;67|Sidiki Chérif;ST;FRA;71|Prosper Peter;ST;NGA;67');
+club('HAC', 'Le Havre AC', 'FRA1', '#13213e', '#7ab5d4', 'Arthur Desmas;GK;FRA;73|Mathieu Gorgelin;GK;FRA;70|Arouna Sangante;CB;SEN;71|Gautier Lloris;CB;FRA;71|Étienne Youté Kinkoué;CB;FRA;70|Loïc Nego;RB;HUN;70|Yanis Zouaoui;LB;ALG;69|Abdoulaye Touré;CDM;GUI;72|Daler Kuzyayev;CM;RUS;71|Rassoul Ndiaye;CM;SEN;70|Yassine Kechta;CM;MAR;71|Josué Casimir;RW;FRA;71|Issa Soumaré;RW;SEN;69|André Ayew;LW;GHA;71|Ahmed Hassan;ST;EGY;68|Abdoulaye Kanté;ST;MLI;66');
+club('FCL', 'FC Lorient', 'FRA1', '#f58113', '#000000', 'Yvon Mvogo;GK;SUI;74|Benjamin Leroy;GK;FRA;67|Montassar Talbi;CB;TUN;73|Bamba Dieng;ST;SEN;72|Isaak Touré;CB;FRA;70|Darlin Yongwa;LB;CMR;69|Igor Silva;RB;BRA;71|Laurent Abergel;CDM;FRA;72|Jean-Victor Makengo;CM;FRA;71|Arthur Avom;CM;CMR;69|Théo Le Bris;LW;FRA;71|Pablo Pagis;RW;FRA;71|Tosin Aiyegun;LW;BEN;71|Mohamed Bamba;ST;CIV;70');
+club('PFC', 'Paris FC', 'FRA1', '#0c2340', '#d4b26a', 'Obed Nkambadio;GK;FRA;70|Kevin Trapp;GK;GER;78|Otávio;CB;BRA;72|Moustapha Mbow;CB;SEN;71|Thibault De Smet;LB;BEL;70|Nhoa Sangui;LB;FRA;70|Tuomas Ollila;RB;FIN;69|Maxime López;CM;FRA;75|Vincent Marchetti;CM;FRA;70|Lohann Doucet;CM;FRA;69|Pierre-Yves Hamel;ST;FRA;70|Jean-Philippe Krasso;ST;CIV;72|Ilan Kebbal;CAM;ALG;74|Julien López;LW;FRA;68|Willem Geubbels;ST;FRA;70|Luca Koleosho;LW;ITA;71');
+club('FCM', 'FC Metz', 'FRA1', '#7d1b2c', '#ffffff', 'Jonathan Fischer;GK;DEN;70|Pape Mamadou Sy;GK;SEN;66|Sadibou Sané;CB;SEN;70|Terry Yegbe;CB;GHA;69|Koffi Kouao;LB;CIV;70|Fodé Ballo-Touré;LB;SEN;70|Matthieu Udol;LB;FRA;71|Benjamin Stambouli;CDM;FRA;71|Jessy Deminguet;CM;FRA;71|Boubacar Traoré;CM;MLI;69|Gauthier Hein;CAM;FRA;70|Cheikh Sabaly;RW;SEN;70|Gaëtan Laura;RW;FRA;68|Habib Diallo;ST;SEN;71|Georgiy Tsitaishvili;LW;GEO;70|Ibou Sané;LW;SEN;67');
+
+/* ---- data/real_legends.js ---- */
+/* Icons & Heroes — retired legends (ratings are the developer's estimates) */
+const REAL_ICONS = 'Pelé;CF;BRA;97|Diego Maradona;CAM;ARG;96|Johan Cruyff;CF;NED;95|Ronaldo Nazário;ST;BRA;95|Zinedine Zidane;CAM;FRA;94|Ronaldinho;CAM;BRA;93|Thierry Henry;ST;FRA;93|Paolo Maldini;CB;ITA;93|Franz Beckenbauer;CB;GER;93|Lev Yashin;GK;RUS;92|Andrés Iniesta;CM;ESP;92|Gianluigi Buffon;GK;ITA;92|Xavi;CM;ESP;91|Andrea Pirlo;CM;ITA;91|Kaká;CAM;BRA;91|Steven Gerrard;CM;ENG;91|Zlatan Ibrahimović;ST;SWE;91|Roberto Carlos;LB;BRA;90|Cafu;RB;BRA;90|Patrick Vieira;CDM;FRA;90|Carles Puyol;CB;ESP;90|Frank Lampard;CM;ENG;90|Wayne Rooney;ST;ENG;90|David Beckham;RM;ENG;89|Rio Ferdinand;CB;ENG;89';
+// heroes: Name;POS;NAT;OVR;LEAGUE
+const REAL_HEROES = 'Juan Román Riquelme;CAM;ARG;88;ESP1|Jay-Jay Okocha;CAM;NGA;87;ENG1|Diego Forlán;ST;URU;87;ESP1|Lúcio;CB;BRA;87;GER1|Dimitar Berbatov;ST;BUL;86;ENG1|Antonio Di Natale;ST;ITA;86;ITA1|Rafael Márquez;CB;MEX;86;ESP1|Joaquín;RW;ESP;86;ESP1|Mario Gómez;ST;GER;86;GER1|Ji-sung Park;CM;KOR;85;ENG1|Hidetoshi Nakata;CAM;JPN;85;ITA1|Tim Cahill;CAM;AUS;85;ENG1|Sidney Govou;RW;FRA;85;FRA1|Pauleta;ST;POR;86;FRA1';
+
 /* ---- data/world.js ---- */
 /* ============================================================
    DATA / WORLD — nations, fictional leagues & clubs
    All club and league names are original/fictional.
    ============================================================ */
-const NATIONS = {
-  ENG: { name: 'England', flag: { t: 'cross', c: ['#ffffff', '#cf142b'] }, first: ['Harry', 'Jack', 'Oliver', 'Callum', 'Mason', 'Reece', 'Tom', 'Ben', 'Jordan', 'Luke', 'Alfie', 'Charlie'], last: ['Whitmore', 'Ashdown', 'Fletcher', 'Hollis', 'Bramwell', 'Cartwright', 'Pembroke', 'Langley', 'Thornton', 'Hadley', 'Kingsley', 'Rowntree'] },
-  ESP: { name: 'Spain', flag: { t: 'h3', c: ['#aa151b', '#f1bf00', '#aa151b'], w: [1, 2, 1] }, first: ['Pablo', 'Álvaro', 'Iker', 'Sergio', 'Dani', 'Marcos', 'Rubén', 'Hugo', 'Adrián', 'Javi', 'Nico', 'Raúl'], last: ['Montoya', 'Salvatierra', 'Quintero', 'Barrera', 'Escudero', 'Navarro', 'Peñalver', 'Robledo', 'Cuadrado', 'Lozano', 'Valdés', 'Arrieta'] },
-  FRA: { name: 'France', flag: { t: 'v3', c: ['#0055a4', '#ffffff', '#ef4135'] }, first: ['Théo', 'Lucas', 'Antoine', 'Mathis', 'Hugo', 'Clément', 'Rayan', 'Enzo', 'Bastien', 'Yanis', 'Jules', 'Maxime'], last: ['Delacroix', 'Moreau', 'Lefèvre', 'Garnier', 'Bonnard', 'Fontaine', 'Rousseau', 'Chevalier', 'Mercier', 'Dufresne', 'Laurent', 'Perrin'] },
-  GER: { name: 'Germany', flag: { t: 'h3', c: ['#000000', '#dd0000', '#ffce00'] }, first: ['Lukas', 'Jonas', 'Felix', 'Leon', 'Niklas', 'Tim', 'Florian', 'Kai', 'Julian', 'Moritz', 'Jan', 'Paul'], last: ['Brandt', 'Hoffmann', 'Kessler', 'Vogel', 'Steinbach', 'Krüger', 'Lindner', 'Hartmann', 'Weber', 'Adler', 'Neumann', 'Falk'] },
-  ITA: { name: 'Italy', flag: { t: 'v3', c: ['#009246', '#ffffff', '#ce2b37'] }, first: ['Marco', 'Lorenzo', 'Federico', 'Matteo', 'Giacomo', 'Davide', 'Riccardo', 'Alessio', 'Nicolò', 'Simone', 'Andrea', 'Pietro'], last: ['Ferraro', 'Bellandi', 'Carbone', 'Montalto', 'Ricci', 'Lombardi', 'Santoro', 'Galli', 'Vitale', 'Romagnoli', 'DeLuca', 'Fabbri'] },
-  POR: { name: 'Portugal', flag: { t: 'v2', c: ['#006600', '#ff0000'], w: [2, 3] }, first: ['João', 'Diogo', 'Rafael', 'Tiago', 'Gonçalo', 'Rúben', 'Bruno', 'Pedro', 'Vitinha', 'Nuno', 'André', 'Fábio'], last: ['Carvalho', 'Pereira', 'Monteiro', 'Teixeira', 'Figueira', 'Sardinha', 'Barroso', 'Couto', 'Mendonça', 'Rebelo', 'Amaral', 'Pinto'] },
-  NED: { name: 'Netherlands', flag: { t: 'h3', c: ['#ae1c28', '#ffffff', '#21468b'] }, first: ['Daan', 'Sem', 'Tijn', 'Joris', 'Bram', 'Stijn', 'Ruben', 'Milan', 'Jesse', 'Lars', 'Thijs', 'Noah'], last: ['van Dijkhuis', 'de Groot', 'Bakker', 'Visser', 'Smit', 'Mulder', 'de Wit', 'Kuipers', 'Vermeer', 'Hendriks', 'Jansen', 'van Leeuwen'] },
-  BRA: { name: 'Brazil', flag: { t: 'diamond', c: ['#009c3b', '#ffdf00', '#002776'] }, first: ['Gabriel', 'Lucas', 'Matheus', 'Rodrigo', 'Thiago', 'Vitor', 'Felipe', 'Caio', 'Davi', 'Igor', 'Renan', 'Wesley'], last: ['Silvano', 'Andrade', 'Barbosa', 'Cardoso', 'Nogueira', 'Moraes', 'Siqueira', 'Rocha', 'Batista', 'Freitas', 'Lima', 'Vasconcelos'] },
-  ARG: { name: 'Argentina', flag: { t: 'h3', c: ['#74acdf', '#ffffff', '#74acdf'] }, first: ['Lautaro', 'Julián', 'Tomás', 'Bautista', 'Valentín', 'Nahuel', 'Facundo', 'Gonzalo', 'Franco', 'Santiago', 'Ezequiel', 'Leandro'], last: ['Ferreyra', 'Acosta', 'Correa', 'Gaitán', 'Benítez', 'Sosa', 'Medina', 'Villalba', 'Aguirre', 'Ledesma', 'Quiroga', 'Ojeda'] },
-  BEL: { name: 'Belgium', flag: { t: 'v3', c: ['#000000', '#fdda24', '#ef3340'] }, first: ['Arthur', 'Louis', 'Jérémy', 'Maxim', 'Wout', 'Arne', 'Senne', 'Loïs', 'Charles', 'Yari', 'Hans', 'Dries'], last: ['Peeters', 'Claes', 'Wouters', 'Maes', 'Lambert', 'Dumont', 'Vandamme', 'Goossens', 'Declercq', 'Willems', 'Martens', 'Michiels'] },
-  CRO: { name: 'Croatia', flag: { t: 'h3', c: ['#ff0000', '#ffffff', '#171796'] }, first: ['Filip', 'Ivan', 'Marko', 'Josip', 'Mateo', 'Ante', 'Nikola', 'Dominik', 'Toni', 'Petar', 'Borna', 'Lovro'], last: ['Horvat', 'Babić', 'Marić', 'Jurić', 'Knežević', 'Vuković', 'Perić', 'Pavlović', 'Šimić', 'Radić', 'Tomić', 'Novak'] },
-  URU: { name: 'Uruguay', flag: { t: 'h5', c: ['#ffffff', '#0038a8', '#ffffff', '#0038a8', '#ffffff'] }, first: ['Federico', 'Rodrigo', 'Bruno', 'Manuel', 'Agustín', 'Facundo', 'Nicolás', 'Maxi', 'Matías', 'Gastón', 'Sebastián', 'Brian'], last: ['Olivera', 'Castro', 'Pereyra', 'Rodríguez', 'Silveira', 'Larrosa', 'Cabrera', 'Ferrando', 'Techera', 'Morales', 'Acuña', 'Gómez'] },
-  NGA: { name: 'Nigeria', flag: { t: 'v3', c: ['#008751', '#ffffff', '#008751'] }, first: ['Victor', 'Samuel', 'Chinedu', 'Ifeanyi', 'Kelechi', 'Ademola', 'Uche', 'Segun', 'Taiwo', 'Chidera', 'Emeka', 'Tolu'], last: ['Okafor', 'Adeyemi', 'Nwosu', 'Eze', 'Balogun', 'Okonkwo', 'Afolabi', 'Obi', 'Ajayi', 'Uzor', 'Chukwu', 'Adebayo'] },
-  SEN: { name: 'Senegal', flag: { t: 'v3', c: ['#00853f', '#fdef42', '#e31b23'] }, first: ['Mamadou', 'Ousmane', 'Pape', 'Ibrahima', 'Aliou', 'Cheikh', 'Moussa', 'Abdou', 'Malick', 'Habib', 'Babacar', 'Assane'], last: ['Diallo', 'Ndiaye', 'Sarr', 'Gueye', 'Diouf', 'Cissé', 'Sow', 'Thiam', 'Faye', 'Ba', 'Fall', 'Seck'] },
-  JPN: { name: 'Japan', flag: { t: 'circle', c: ['#ffffff', '#bc002d'] }, first: ['Takumi', 'Kaoru', 'Daichi', 'Ritsu', 'Wataru', 'Haruto', 'Hiroki', 'Sota', 'Junya', 'Ren', 'Kenta', 'Yuto'], last: ['Tanaka', 'Yamada', 'Saito', 'Kobayashi', 'Hayashi', 'Morita', 'Nakamura', 'Fujita', 'Ogawa', 'Sasaki', 'Matsuda', 'Inoue'] },
-  USA: { name: 'United States', flag: { t: 'h5', c: ['#b22234', '#ffffff', '#b22234', '#ffffff', '#3c3b6e'], w: [1, 1, 1, 1, 1] }, first: ['Cole', 'Brandon', 'Tyler', 'Mason', 'Logan', 'Ryan', 'Josh', 'Caleb', 'Dylan', 'Austin', 'Wyatt', 'Matt'], last: ['Bennett', 'Hughes', 'Coleman', 'Parker', 'Sullivan', 'Brooks', 'Hayes', 'Foster', 'Griffin', 'Wallace', 'Harper', 'Morris'] },
-  MAR: { name: 'Morocco', flag: { t: 'solidstar', c: ['#c1272d', '#006233'] }, first: ['Anas', 'Yassine', 'Soufiane', 'Youssef', 'Hamza', 'Nabil', 'Bilal', 'Karim', 'Amine', 'Ilias', 'Mehdi', 'Zakaria'], last: ['Benali', 'Tazi', 'Alaoui', 'Bennani', 'Idrissi', 'Chraibi', 'Fassi', 'Berrada', 'Lahlou', 'Kettani', 'Sebti', 'Amrani'] },
-  NOR: { name: 'Norway', flag: { t: 'nordic', c: ['#ba0c2f', '#ffffff', '#00205b'] }, first: ['Even', 'Martin', 'Sander', 'Alexander', 'Kristoffer', 'Jørgen', 'Fredrik', 'Oscar', 'Leo', 'Henrik', 'Sindre', 'Mats'], last: ['Aasen', 'Lunde', 'Brekke', 'Solheim', 'Fjeld', 'Strand', 'Larsen', 'Haugen', 'Nygaard', 'Bakken', 'Berg', 'Moen'] },
-  COL: { name: 'Colombia', flag: { t: 'h3', c: ['#fcd116', '#003893', '#ce1126'], w: [2, 1, 1] }, first: ['Luis', 'Andrés', 'Jhon', 'Camilo', 'Richard', 'Jefferson', 'Sebastián', 'Daniel', 'Rafael', 'Mateus', 'Kevin', 'Juan'], last: ['Ospina', 'Zapata', 'Restrepo', 'Valencia', 'Ríos', 'Montoya', 'Mosquera', 'Muñoz', 'Henao', 'Uribe', 'Castaño', 'Cuesta'] },
-  UAE: { name: 'United Arab Emirates', flag: { t: 'uae', c: ['#00732f', '#ffffff', '#000000', '#ff0000'] }, first: ['Ali', 'Khalifa', 'Harib', 'Yahya', 'Abdullah', 'Rashid', 'Sultan', 'Omar', 'Majed', 'Saeed', 'Khalid', 'Hamad'], last: ['AlKetbi', 'AlShamsi', 'AlNeyadi', 'AlDhaheri', 'AlMansoori', 'AlKaabi', 'AlMenhali', 'AlSuwaidi', 'AlBlooshi', 'AlZaabi', 'AlMazrouei', 'AlHosani'] }
-};
-
-const LEAGUES = {
-  PCL: { name: 'Premier Crown League', short: 'PCL', nat: 'ENG', strength: 6, color: '#7a2ff5' },
-  LSO: { name: 'Liga Sol', short: 'SOL', nat: 'ESP', strength: 5, color: '#ff6a2b' },
-  SAU: { name: 'Serie Aurea', short: 'AUR', nat: 'ITA', strength: 4, color: '#1f7bff' },
-  BKL: { name: 'Bundesklasse', short: 'BKL', nat: 'GER', strength: 4, color: '#e21b2c' },
-  LLU: { name: 'Ligue Lumière', short: 'LUM', nat: 'FRA', strength: 3, color: '#13c9a8' },
-  APL: { name: 'Atlantic Pro League', short: 'ATL', nat: 'POR', alt: 'NED', strength: 2, color: '#19b34b' },
-  LEG: { name: 'Legends', short: 'ICN', nat: null, strength: 0, color: '#e8d6a0', special: true }
-};
-
-const CLUBS = {
-  // Premier Crown League
-  KBU: { name: 'Kingsbridge United', lg: 'PCL', c: ['#c8102e', '#ffffff'], str: 83 },
-  NGC: { name: 'Northgate City', lg: 'PCL', c: ['#6cabdd', '#1c2c5b'], str: 85 },
-  RVA: { name: 'Ravenmoor Athletic', lg: 'PCL', c: ['#111111', '#d4af37'], str: 78 },
-  TVR: { name: 'Thamesview Rovers', lg: 'PCL', c: ['#034694', '#ffffff'], str: 80 },
-  IVF: { name: 'Ironvale FC', lg: 'PCL', c: ['#7a263a', '#1bb1e7'], str: 75 },
-  WBW: { name: 'Westbury Wanderers', lg: 'PCL', c: ['#fdb913', '#231f20'], str: 73 },
-  HMT: { name: 'Hollowmere Town', lg: 'PCL', c: ['#ffffff', '#132257'], str: 79 },
-  CFA: { name: 'Castleford Albion', lg: 'PCL', c: ['#0057b8', '#ffcd00'], str: 70 },
-  // Liga Sol
-  RAU: { name: 'Real Aurora', lg: 'LSO', c: ['#ffffff', '#febe10'], str: 86 },
-  AVD: { name: 'Atlético Valdoro', lg: 'LSO', c: ['#cb3524', '#272e61'], str: 80 },
-  CDM: { name: 'CD Marisol', lg: 'LSO', c: ['#004d98', '#a50044'], str: 84 },
-  DSI: { name: 'Deportivo Sierra', lg: 'LSO', c: ['#0067b1', '#ffffff'], str: 72 },
-  RCO: { name: 'Racing Costa', lg: 'LSO', c: ['#00954c', '#ffffff'], str: 74 },
-  UDM: { name: 'UD Montaña', lg: 'LSO', c: ['#ffe667', '#005999'], str: 76 },
-  CFB: { name: 'CF Bravía', lg: 'LSO', c: ['#e30613', '#ffffff'], str: 69 },
-  CLB: { name: 'Ciudad Lumbre', lg: 'LSO', c: ['#f48120', '#0a0a0a'], str: 71 },
-  // Serie Aurea
-  ACV: { name: 'AC Vesuvio', lg: 'SAU', c: ['#12a0d7', '#ffffff'], str: 81 },
-  ILG: { name: 'Inter Laguna', lg: 'SAU', c: ['#010e80', '#000000'], str: 83 },
-  STO: { name: 'Sporting Torre', lg: 'SAU', c: ['#ffffff', '#000000'], str: 80 },
-  ASC: { name: 'AS Corvo', lg: 'SAU', c: ['#8e1f2f', '#f0bc42'], str: 77 },
-  VMA: { name: 'Virtus Marea', lg: 'SAU', c: ['#87d8f7', '#ffffff'], str: 75 },
-  OSE: { name: 'Olimpia Serra', lg: 'SAU', c: ['#482e92', '#ffffff'], str: 74 },
-  USP: { name: 'US Pietra', lg: 'SAU', c: ['#1e71b8', '#000000'], str: 76 },
-  CLI: { name: 'Calcio Lirico', lg: 'SAU', c: ['#fb090b', '#000000'], str: 69 },
-  // Bundesklasse
-  FCA: { name: 'FC Adlerberg', lg: 'BKL', c: ['#dc052d', '#0066b2'], str: 85 },
-  SVR: { name: 'SV Rheinstahl', lg: 'BKL', c: ['#fde100', '#000000'], str: 80 },
-  ENW: { name: 'Eintracht Nordwald', lg: 'BKL', c: ['#e1000f', '#000000'], str: 76 },
-  FKF: { name: '1. FC Kaiserfeld', lg: 'BKL', c: ['#e32221', '#ffffff'], str: 74 },
-  TBT: { name: 'TSV Bergtal', lg: 'BKL', c: ['#1c63b7', '#ffffff'], str: 72 },
-  UHS: { name: 'Union Hafenstadt', lg: 'BKL', c: ['#eb1923', '#ffd700'], str: 75 },
-  FEL: { name: 'Fortuna Elbstein', lg: 'BKL', c: ['#e2001a', '#ffffff'], str: 68 },
-  SLH: { name: 'SC Löwenhof', lg: 'BKL', c: ['#005ca9', '#ffffff'], str: 79 },
-  // Ligue Lumière
-  OAZ: { name: 'Olympique Azur', lg: 'LLU', c: ['#2faee0', '#ffffff'], str: 79 },
-  EPA: { name: 'Étoile Parisienne', lg: 'LLU', c: ['#004170', '#da291c'], str: 85 },
-  SAR: { name: 'Stade Ardent', lg: 'LLU', c: ['#e2001a', '#000000'], str: 74 },
-  ASB: { name: 'AS Bellerive', lg: 'LLU', c: ['#da291c', '#ffffff'], str: 76 },
-  FMC: { name: 'FC Montclair', lg: 'LLU', c: ['#ffffff', '#1c3f94'], str: 72 },
-  RLU: { name: 'Racing Lune', lg: 'LLU', c: ['#ffd800', '#000000'], str: 70 },
-  RVB: { name: 'RC Vauban', lg: 'LLU', c: ['#00a650', '#ffffff'], str: 71 },
-  EAB: { name: 'En Avant Brume', lg: 'LLU', c: ['#4a2e7c', '#ffffff'], str: 67 },
-  // Atlantic Pro League
-  SAT: { name: 'Sporting Atlântico', lg: 'APL', c: ['#008057', '#ffffff'], str: 78 },
-  SLN: { name: 'SL Navegantes', lg: 'APL', c: ['#e83030', '#ffffff'], str: 79 },
-  FCF: { name: 'FC Farol', lg: 'APL', c: ['#003893', '#ffffff'], str: 77 },
-  VKA: { name: 'Vitesse Kanaal', lg: 'APL', c: ['#d2122e', '#ffffff'], str: 76 },
-  FMW: { name: 'FC Molenwijk', lg: 'APL', c: ['#ed1c24', '#000000'], str: 73 },
-  HVU: { name: 'Haven United', lg: 'APL', c: ['#ff7f00', '#000000'], str: 70 },
-  DKS: { name: 'Dijkstad SC', lg: 'APL', c: ['#e30613', '#ffffff'], str: 68 },
-  CDF: { name: 'CD Farilhões', lg: 'APL', c: ['#000000', '#ffffff'], str: 66 },
-  // special
-  ICN: { name: 'Icons', lg: 'LEG', c: ['#e8d6a0', '#2b2416'], str: 0, special: true },
-  HER: { name: 'Heroes', lg: null, c: ['#6b2ea6', '#ffd23f'], str: 0, special: true }
-};
+const NATIONS = Object.fromEntries(Object.entries(REAL_NATIONS).map(([k, v]) => [k, { name: v[0], flag: { t: v[1], c: v.slice(2) } }]));
+const LEAGUES = REAL_LEAGUES;
+const CLUBS = Object.fromEntries(REAL.order.map(k => [k, { name: REAL.clubs[k].name, lg: REAL.clubs[k].lg, c: REAL.clubs[k].c }]));
+CLUBS.ICN = { name: 'Icons', lg: 'LEG', c: ['#e8d6a0', '#2b2416'], special: true };
+CLUBS.HER = { name: 'Heroes', lg: null, c: ['#6b2ea6', '#ffd23f'], special: true };
 
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'CF', 'ST'];
 const ALT_POS = {
@@ -833,32 +914,29 @@ const POS_GROUP = { GK: 'GK', CB: 'DEF', LB: 'DEF', RB: 'DEF', LWB: 'DEF', RWB: 
 
 /* ---------- flag rendering (SVG, original vector simplifications) ---------- */
 function flagSVG(code, w = 24, h = 16) {
-  const n = NATIONS[code]; if (!n) return '';
-  const f = n.flag, c = f.c;
-  let inner = '';
+  const n = NATIONS[code];
   const W = 30, H = 20;
-  if (f.t === 'v3' || f.t === 'v2') {
-    const ws = f.w || c.map(() => 1), tot = ws.reduce((a, b) => a + b, 0); let x = 0;
-    c.forEach((col, i) => { const ww = W * ws[i] / tot; inner += `<rect x="${x}" y="0" width="${ww + 0.2}" height="${H}" fill="${col}"/>`; x += ww; });
-  } else if (f.t === 'h3' || f.t === 'h5') {
-    const ws = f.w || c.map(() => 1), tot = ws.reduce((a, b) => a + b, 0); let y = 0;
-    c.forEach((col, i) => { const hh = H * ws[i] / tot; inner += `<rect x="0" y="${y}" width="${W}" height="${hh + 0.2}" fill="${col}"/>`; y += hh; });
-    if (code === 'USA') inner += `<rect x="0" y="0" width="13" height="10" fill="#3c3b6e"/>`;
-    if (code === 'URU') inner += `<rect x="0" y="0" width="11" height="10" fill="#fff"/><circle cx="5.5" cy="5" r="3" fill="#fcd116"/>`;
-    if (code === 'ARG') inner += `<circle cx="15" cy="10" r="2.2" fill="#f6b40e"/>`;
-    if (code === 'CRO') inner += `<rect x="12" y="5" width="6" height="7" fill="#fff" stroke="#ff0000" stroke-width="0.6"/>`;
-  } else if (f.t === 'cross') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><rect x="13" y="0" width="4" height="${H}" fill="${c[1]}"/><rect x="0" y="8" width="${W}" height="4" fill="${c[1]}"/>`;
-  } else if (f.t === 'nordic') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><rect x="8" y="0" width="6" height="${H}" fill="${c[1]}"/><rect x="0" y="7" width="${W}" height="6" fill="${c[1]}"/><rect x="9.5" y="0" width="3" height="${H}" fill="${c[2]}"/><rect x="0" y="8.5" width="${W}" height="3" fill="${c[2]}"/>`;
-  } else if (f.t === 'diamond') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><polygon points="15,2 28,10 15,18 2,10" fill="${c[1]}"/><circle cx="15" cy="10" r="4.5" fill="${c[2]}"/>`;
-  } else if (f.t === 'circle') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><circle cx="15" cy="10" r="6" fill="${c[1]}"/>`;
-  } else if (f.t === 'solidstar') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><polygon points="15,4 16.8,9.2 22,9.2 17.8,12.4 19.4,17.5 15,14.3 10.6,17.5 12.2,12.4 8,9.2 13.2,9.2" fill="none" stroke="${c[1]}" stroke-width="1.2"/>`;
-  } else if (f.t === 'uae') {
-    inner = `<rect width="${W}" height="${H}" fill="${c[1]}"/><rect width="${W}" height="6.67" fill="${c[0]}"/><rect y="13.33" width="${W}" height="6.67" fill="${c[2]}"/><rect width="8" height="${H}" fill="${c[3]}"/>`;
+  const f = n ? n.flag : { t: 'solid', c: ['#888'] }, c = f.c;
+  const stripes = (cols, vertical, weights) => { const ws = weights || cols.map(() => 1), tot = ws.reduce((a, b) => a + b, 0); let o = 0; return cols.map((col, i) => { const sz = (vertical ? W : H) * ws[i] / tot; const r = vertical ? `<rect x="${o}" y="0" width="${sz + 0.2}" height="${H}" fill="${col}"/>` : `<rect x="0" y="${o}" width="${W}" height="${sz + 0.2}" fill="${col}"/>`; o += sz; return r; }).join(''); };
+  let inner = '';
+  switch (f.t) {
+    case 'v3': case 'v2': inner = stripes(c, true); break;
+    case 'v3c': inner = stripes(c, true, [1, 2, 1]) + '<polygon points="15,6 17,11 15,15 13,11" fill="#ff0000"/>'; break;
+    case 'v2p': inner = stripes(c, true, [2, 3]); break;
+    case 'h2': case 'h3': case 'h5': inner = stripes(c, false); break;
+    case 'h3w': inner = stripes(c, false, code === 'ESP' ? [1, 2, 1] : [2, 1, 1]); break;
+    case 'cross': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><rect x="13" y="0" width="4" height="${H}" fill="${c[1]}"/><rect x="0" y="8" width="${W}" height="4" fill="${c[1]}"/>`; break;
+    case 'swiss': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><rect x="13" y="4" width="4" height="12" fill="${c[1]}"/><rect x="9" y="8" width="12" height="4" fill="${c[1]}"/>`; break;
+    case 'saltire': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><path d="M0 0 L30 20 M30 0 L0 20" stroke="${c[1]}" stroke-width="4"/>`; break;
+    case 'nordic': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><rect x="8" y="0" width="6" height="${H}" fill="${c[1]}"/><rect x="0" y="7" width="${W}" height="6" fill="${c[1]}"/><rect x="9.5" y="0" width="3" height="${H}" fill="${c[2]}"/><rect x="0" y="8.5" width="${W}" height="3" fill="${c[2]}"/>`; break;
+    case 'diamond': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><polygon points="15,2 28,10 15,18 2,10" fill="${c[1]}"/><circle cx="15" cy="10" r="4.5" fill="${c[2]}"/>`; break;
+    case 'circle': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><circle cx="15" cy="10" r="6" fill="${c[1]}"/>`; break;
+    case 'crescent': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><circle cx="12" cy="10" r="5.5" fill="${c[1]}"/><circle cx="13.6" cy="10" r="4.4" fill="${c[0]}"/><circle cx="19" cy="10" r="1.6" fill="${c[1]}"/>`; break;
+    case 'star': inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/><polygon points="15,4 16.8,9.2 22,9.2 17.8,12.4 19.4,17.5 15,14.3 10.6,17.5 12.2,12.4 8,9.2 13.2,9.2" fill="none" stroke="${c[1]}" stroke-width="1.2"/>`; break;
+    case 'czech': inner = stripes([c[0], c[1]], false) + `<polygon points="0,0 14,10 0,20" fill="${c[2]}"/>`; break;
+    case 'usa': inner = stripes([c[0], c[1], c[0], c[1], c[0], c[1], c[0]], false) + `<rect width="13" height="11" fill="${c[2]}"/>`; break;
+    case 'uae': inner = `<rect width="${W}" height="${H}" fill="${c[1]}"/><rect width="${W}" height="6.67" fill="${c[0]}"/><rect y="13.33" width="${W}" height="6.67" fill="${c[2]}"/><rect width="8" height="${H}" fill="${c[3]}"/>`; break;
+    default: inner = `<rect width="${W}" height="${H}" fill="${c[0]}"/>`;
   }
   return `<svg class="flag" viewBox="0 0 ${W} ${H}" width="${w}" height="${h}" preserveAspectRatio="none">${inner}</svg>`;
 }
@@ -869,7 +947,9 @@ function crestSVG(clubCode, size = 22) {
   const [a, b] = cl.c;
   const hsh = hashStr(clubCode);
   const style = hsh % 4;
-  const init = cl.name.split(' ').filter(w => w.length > 2 && !['FC', 'CD', 'AC', 'AS', 'SV', 'US', 'UD', 'CF', 'SC', 'SL', 'RC', 'TSV'].includes(w))[0]?.[0] || cl.name[0];
+  const skip = ['FC', 'CD', 'AC', 'AS', 'SV', 'US', 'UD', 'CF', 'SC', 'SL', 'RC', 'TSV', 'AFC', 'SSC', 'RCD', 'CA', 'OGC', 'AJ', 'VfB', 'VfL', 'TSG', 'SS', 'RB', 'LOSC', 'Real', 'Club', 'Stade', 'Olympique', 'Borussia', 'Bayer', 'Eintracht', 'Deportivo', 'Sporting', '1.', 'FSV', '04', '05', '29', '1907', 'de', 'United', 'City'];
+  const words = cl.name.split(' ').filter(w => !skip.includes(w) && w.length > 1);
+  const init = (words[0] || cl.name)[0].toUpperCase();
   if (clubCode === 'ICN') return `<svg viewBox="0 0 40 40" width="${size}" height="${size}"><circle cx="20" cy="20" r="18" fill="#2b2416" stroke="#e8d6a0" stroke-width="2.5"/><text x="20" y="25.5" text-anchor="middle" font-size="14" font-weight="900" fill="#e8d6a0" font-family="Arial Black,Arial">I</text></svg>`;
   if (clubCode === 'HER') return `<svg viewBox="0 0 40 40" width="${size}" height="${size}"><polygon points="20,2 37,12 37,28 20,38 3,28 3,12" fill="#3a1666" stroke="#ffd23f" stroke-width="2.5"/><text x="20" y="25.5" text-anchor="middle" font-size="14" font-weight="900" fill="#ffd23f" font-family="Arial Black,Arial">H</text></svg>`;
   let shape;
@@ -914,7 +994,7 @@ const CARD_TYPES = {
 
 const DB = { players: [], byId: {}, byClub: {}, ready: false };
 
-function tierOf(ovr) { return ovr >= 75 ? 'gold' : ovr >= 65 ? 'silver' : 'bronze'; }
+function tierOf(ovr) { return ovr >= 76 ? 'gold' : ovr >= 71 ? 'silver' : 'bronze'; }
 function rarityKey(p) { // visual design key
   if (p.type !== 'base') return p.type;
   return tierOf(p.ovr) + (p.rare ? '-rare' : '');
@@ -965,23 +1045,19 @@ function buildDatabase() {
     return p;
   };
 
-  // ---- base squads: 24 per club
-  const template = ['GK', 'GK', 'GK', 'CB', 'CB', 'CB', 'CB', 'LB', 'LB', 'RB', 'RB', 'CDM', 'CDM', 'CM', 'CM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'ST', 'ST', 'CF'];
+  // ---- real squads (top 5 leagues 2025/26); duplicates across clubs keep the first entry
   let n = 0;
-  for (const code in CLUBS) {
-    const cl = CLUBS[code]; if (cl.special) continue;
-    const L = LEAGUES[cl.lg];
-    template.forEach((pos, i) => {
-      // first ~13 are the "starters", the rest are rotation/youth
-      const starter = i % 3 !== 2;
-      let ovr = Math.round(cl.str + (starter ? 0 : -7) + gauss() * 6 - (i >= 21 ? 1 : 0));
-      if (rng() < 0.05) ovr += ri(3, 7);           // breakout star
-      ovr = clamp(ovr, 47, 91);
-      const homeNat = rng() < 0.55 ? (L.alt && rng() < 0.45 ? L.alt : L.nat) : pk(natCodes);
-      const stats = genStats(pos, ovr);
+  const seenNames = new Set();
+  for (const code of REAL.order) {
+    const cl = REAL.clubs[code];
+    cl.roster.split('|').forEach(entry => {
+      const [name, pos, nat, ovrS] = entry.split(';');
+      if (!name || seenNames.has(name)) return;
+      seenNames.add(name);
+      const ovr = +ovrS;
       make({
-        id: 'p' + (n++), name: genName(homeNat), nat: homeNat, club: code, lg: cl.lg, pos, ovr, stats,
-        rare: rng() < (ovr >= 80 ? 0.8 : ovr >= 75 ? 0.45 : 0.3), face: genFace(), type: 'base', age: ri(17, 35)
+        id: 'p' + (n++), name, nat: NATIONS[nat] ? nat : 'ENG', club: code, lg: cl.lg, pos, ovr, stats: genStats(pos, ovr),
+        rare: rng() < (ovr >= 82 ? 0.85 : ovr >= 75 ? 0.5 : 0.3), face: genFace(), type: 'base', age: ri(18, 34)
       });
     });
   }
@@ -1003,17 +1079,14 @@ function buildDatabase() {
   pickSpecial(18, 74, [6, 9], 'promo', 'n');
   pickSpecial(14, 64, [5, 8], 'found', 'f');
 
-  // ---- Icons (fictional legends)
-  const iconPos = ['ST', 'ST', 'CAM', 'CM', 'CB', 'GK', 'LW', 'RW', 'CDM', 'LB', 'RB', 'CF', 'ST', 'CM', 'CB', 'RW', 'LM', 'CAM', 'GK', 'ST'];
-  iconPos.forEach((pos, i) => {
-    const nat = pk(natCodes), ovr = ri(86, 96);
-    make({ id: 'i' + i, name: genName(nat), nat, club: 'ICN', lg: 'LEG', pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 2, 1, 99)), rare: true, face: genFace(), type: 'icon', age: ri(33, 45) });
+  // ---- Icons & Heroes (retired legends)
+  REAL_ICONS.split('|').forEach((e, i) => {
+    const [name, pos, nat, o] = e.split(';'); const ovr = +o;
+    make({ id: 'i' + i, name, nat, club: 'ICN', lg: 'LEG', pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 2, 1, 99)), rare: true, face: genFace(), type: 'icon', age: ri(40, 60) });
   });
-  // ---- Heroes (fictional cult heroes, tied to a league)
-  const lgs = ['PCL', 'LSO', 'SAU', 'BKL', 'LLU', 'APL'];
-  ['ST', 'CAM', 'CB', 'LW', 'CM', 'RW', 'CDM', 'ST', 'GK', 'RB', 'CF', 'LM'].forEach((pos, i) => {
-    const lg = lgs[i % lgs.length], nat = pk(natCodes), ovr = ri(84, 91);
-    make({ id: 'h' + i, name: genName(nat), nat, club: 'HER', lg, pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 1, 1, 99)), rare: true, face: genFace(), type: 'hero', age: ri(30, 40) });
+  REAL_HEROES.split('|').forEach((e, i) => {
+    const [name, pos, nat, o, lg] = e.split(';'); const ovr = +o;
+    make({ id: 'h' + i, name, nat, club: 'HER', lg, pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 1, 1, 99)), rare: true, face: genFace(), type: 'hero', age: ri(38, 50) });
   });
   DB.ready = true;
 }
@@ -1023,9 +1096,9 @@ function P(id) { return DB.byId[id]; }
 /* Market value estimate (coins) — exponential in rating, scaled by type/position */
 function baseValue(p) {
   let v;
-  if (p.ovr < 65) v = 150 + (p.ovr - 45) * 15;
-  else if (p.ovr < 75) v = 300 + (p.ovr - 65) * 45 + (p.rare ? 150 : 0);
-  else v = Math.round(700 * Math.pow(1.38, p.ovr - 75)) + (p.rare ? 400 : 0);
+  if (p.ovr < 71) v = 150 + (p.ovr - 58) * 15;
+  else if (p.ovr < 76) v = 350 + (p.ovr - 71) * 60 + (p.rare ? 150 : 0);
+  else v = Math.round(750 * Math.pow(1.38, p.ovr - 76)) + (p.rare ? 400 : 0);
   const mult = { base: 1, totw: 2.2, found: 1.6, promo: 3, hero: 3.5, icon: 4.5 }[p.type] || 1;
   const posM = { ST: 1.2, LW: 1.15, RW: 1.15, CAM: 1.1, CB: 1.05, GK: 0.8, CF: 1.1 }[p.pos] || 1;
   return Math.max(150, Math.round(v * mult * posM / 50) * 50);
@@ -2245,11 +2318,11 @@ function grantStarter() {
   // starter squad: a balanced mix of bronze/silver/gold (untradeable)
   const need = { GK: 2, CB: 4, LB: 2, RB: 2, CDM: 2, CM: 3, CAM: 1, LM: 1, RM: 1, LW: 1, RW: 1, ST: 3 };
   const base = DB.players.filter(p => p.type === 'base');
-  const lg = R.pick(['PCL', 'LSO', 'SAU', 'BKL', 'LLU', 'APL']);
+  const lg = R.pick(['ENG1', 'ESP1', 'ITA1', 'GER1', 'FRA1']);
   for (const pos in need) {
     for (let i = 0; i < need[pos]; i++) {
-      const target = i === 0 ? R.int(68, 75) : R.int(58, 68);
-      const pool = base.filter(p => p.pos === pos && Math.abs(p.ovr - target) <= 2 && (i === 0 ? p.lg === lg : true) && !Club.ownsPid(p.id));
+      const target = i === 0 ? R.int(73, 77) : R.int(67, 73);
+      const pool = base.filter(p => p.pos === pos && Math.abs(p.ovr - target) <= 3 && (i === 0 ? p.lg === lg : true) && !Club.ownsPid(p.id));
       const p = pool.length ? R.pick(pool) : R.pick(base.filter(x => x.pos === pos));
       Club.add(p.id, true, 'starter');
     }
@@ -2292,7 +2365,7 @@ SCREENS.main = {
         <div class="cur"><span style="font-weight:700">${esc(pr.name)}</span><span class="lvl">LVL ${pr.level}</span><span><i class="pts"></i><b data-points>${fmtFull(Save.data.points)}</b></span></div></div>
       <div class="mm-body"><div class="mm-list">${MM_ITEMS.map((m, i) => `<button class="mm-item" data-nav data-k="${m.k}" ${i === 0 ? 'data-autofocus' : ''}>${m.label}<span class="sub">${m.sub}</span></button>`).join('')}</div>
       <div class="mm-feature"></div></div>
-      ${hintsHTML(`<span class="r">Prime Football 27 · original fictional players & clubs</span>`)}</div>`);
+      ${hintsHTML(`<span class="r">Prime Football 27 · top 5 leagues 2025/26</span>`)}</div>`);
     const feat = $('.mm-feature', el);
     const show = k => { feat.innerHTML = ''; feat.appendChild(mmFeature(k)); };
     $$('.mm-item', el).forEach(b => {
@@ -2317,8 +2390,8 @@ function mmFeature(k) {
     html = `<div class="ft-body"><div class="ft-title">Team of<br>the Week 1</div><div class="ft-sub">New Team of the Week is now available in packs for a limited time!</div>${btn('Enter Ultimate XI')}<div class="ft-dots"><i class="on"></i><i></i></div></div>
       <div class="ft-cards">${totw.map(p => cardHTML(p, { nav: false })).join('')}</div>`;
   } else if (k === 'kickoff') {
-    html = `<div class="ft-body"><div class="ft-title">Kick Off</div><div class="ft-sub">Pick any two of 48 clubs across six leagues and play a full 11v11 match.</div>${btn('Play Kick Off')}</div>
-      <div class="ft-art row" style="gap:30px">${crestSVG('NGC', 150)}<span style="font-family:var(--head);font-weight:900;font-size:40px">VS</span>${crestSVG('RAU', 150)}</div>`;
+    html = `<div class="ft-body"><div class="ft-title">Kick Off</div><div class="ft-sub">Pick any two of 96 clubs from Europe’s top five leagues and play a full 11v11 match.</div>${btn('Play Kick Off')}</div>
+      <div class="ft-art row" style="gap:30px">${crestSVG('MCI', 150)}<span style="font-family:var(--head);font-weight:900;font-size:40px">VS</span>${crestSVG('RMA', 150)}</div>`;
   } else if (k === 'career') {
     const c = Save.data.career;
     html = `<div class="ft-body"><div class="ft-title">Manager Career</div><div class="ft-sub">${c ? `Continue with ${CLUBS[c.club].name} — Matchday ${Math.min(c.round + 1, 14)} of 14.` : 'Take charge of a club and chase the league title over a 14-matchday season.'}</div>${btn(c ? 'Continue Career' : 'New Career')}</div>
@@ -2369,7 +2442,7 @@ SCREENS.kickoff = {
     body.innerHTML = `<div class="row" style="gap:40px;justify-content:center;align-items:stretch;flex:1">
       ${['home', 'away'].map((s, i) => `<div class="panel col" style="padding:24px;width:340px;align-items:center;gap:14px">
         <div class="h3">${s === 'home' ? 'Home (you)' : 'Away (CPU)'}</div><div class="crest-${s}" style="height:150px;display:grid;place-items:center"></div>
-        <select class="sel-${s}" data-nav style="width:100%">${clubOptions(params[s] || (i ? 'RAU' : 'NGC'))}</select>
+        <select class="sel-${s}" data-nav style="width:100%">${clubOptions(params[s] || (i ? 'RMA' : 'MCI'))}</select>
         <div class="ovr-${s}" style="font-weight:800"></div></div>`).join('<div style="align-self:center;font-family:var(--head);font-weight:900;font-size:44px">VS</div>')}
     </div>
     <div class="row" style="justify-content:center;gap:14px;margin-top:20px;flex-wrap:wrap">
@@ -2413,7 +2486,7 @@ SCREENS.career = {
     if (!c) {
       body.innerHTML = `<div class="panel col" style="padding:28px;max-width:560px;gap:14px"><div class="h2">Start a new career</div>
         <div class="dim">Choose a club. You'll play a double round-robin league against the 7 other clubs in its league (14 matchdays). Play or simulate each fixture. Finish top to win the title and earn Ultimate XI coins.</div>
-        <select class="cl" data-nav>${clubOptions('KBU')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Career</button></div>`;
+        <select class="cl" data-nav>${clubOptions('ARS')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Career</button></div>`;
       $('.go', el).onclick = () => {
         const club = $('.cl', el).value, lg = CLUBS[club].lg;
         const teams = Object.keys(CLUBS).filter(k => CLUBS[k].lg === lg);
@@ -2481,7 +2554,7 @@ SCREENS.clubs = {
   render(params) {
     const { el, body } = subShell('Clubs', 'Explore');
     el.classList.add('mm'); el.classList.remove('hub');
-    const lg = params.lg || 'PCL', club = params.club;
+    const lg = params.lg || 'ENG1', club = params.club;
     body.innerHTML = `<div class="row" style="gap:20px;flex:1;min-height:0;align-items:stretch">
       <div class="panel col" style="padding:14px;width:250px;gap:4px">${Object.entries(LEAGUES).filter(([k, L]) => !L.special).map(([k, L]) => `<button class="prow" data-nav data-lg="${k}" style="${k === lg ? 'border-color:var(--teal)' : ''}">${leagueSVG(k, 24)} ${L.name}</button>`).join('')}</div>
       <div class="panel col scroll" style="padding:14px;width:300px;gap:4px">${Object.entries(CLUBS).filter(([c, cl]) => cl.lg === lg).map(([c, cl]) => `<button class="prow" data-nav data-club="${c}" ${c === club ? 'data-autofocus' : ''} style="${c === club ? 'border-color:var(--teal)' : ''}">${crestSVG(c, 26)} <span class="grow">${cl.name}</span><b>${teamOvr(clubTeam(c))}</b></button>`).join('')}</div>
@@ -2505,7 +2578,7 @@ SCREENS.tourn = {
     el.classList.add('mm'); el.classList.remove('hub');
     if (!T) {
       body.innerHTML = `<div class="panel col" style="padding:28px;max-width:560px;gap:14px"><div class="h2">Enter the Prime Cup</div><div class="dim">8 clubs, single-elimination. Win the Quarter-Final, Semi-Final and Final. Winners earn 15,000 Ultimate XI coins.</div>
-        <select class="cl" data-nav>${clubOptions('EPA')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Tournament</button></div>`;
+        <select class="cl" data-nav>${clubOptions('PSG')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Tournament</button></div>`;
       $('.go', el).onclick = () => {
         const me = $('.cl', el).value;
         const others = R.shuffle(Object.keys(CLUBS).filter(k => !CLUBS[k].special && k !== me)).slice(0, 7);

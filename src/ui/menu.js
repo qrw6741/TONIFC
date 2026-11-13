@@ -58,11 +58,11 @@ function grantStarter() {
   // starter squad: a balanced mix of bronze/silver/gold (untradeable)
   const need = { GK: 2, CB: 4, LB: 2, RB: 2, CDM: 2, CM: 3, CAM: 1, LM: 1, RM: 1, LW: 1, RW: 1, ST: 3 };
   const base = DB.players.filter(p => p.type === 'base');
-  const lg = R.pick(['PCL', 'LSO', 'SAU', 'BKL', 'LLU', 'APL']);
+  const lg = R.pick(['ENG1', 'ESP1', 'ITA1', 'GER1', 'FRA1']);
   for (const pos in need) {
     for (let i = 0; i < need[pos]; i++) {
-      const target = i === 0 ? R.int(68, 75) : R.int(58, 68);
-      const pool = base.filter(p => p.pos === pos && Math.abs(p.ovr - target) <= 2 && (i === 0 ? p.lg === lg : true) && !Club.ownsPid(p.id));
+      const target = i === 0 ? R.int(73, 77) : R.int(67, 73);
+      const pool = base.filter(p => p.pos === pos && Math.abs(p.ovr - target) <= 3 && (i === 0 ? p.lg === lg : true) && !Club.ownsPid(p.id));
       const p = pool.length ? R.pick(pool) : R.pick(base.filter(x => x.pos === pos));
       Club.add(p.id, true, 'starter');
     }
@@ -105,7 +105,7 @@ SCREENS.main = {
         <div class="cur"><span style="font-weight:700">${esc(pr.name)}</span><span class="lvl">LVL ${pr.level}</span><span><i class="pts"></i><b data-points>${fmtFull(Save.data.points)}</b></span></div></div>
       <div class="mm-body"><div class="mm-list">${MM_ITEMS.map((m, i) => `<button class="mm-item" data-nav data-k="${m.k}" ${i === 0 ? 'data-autofocus' : ''}>${m.label}<span class="sub">${m.sub}</span></button>`).join('')}</div>
       <div class="mm-feature"></div></div>
-      ${hintsHTML(`<span class="r">Prime Football 27 · original fictional players & clubs</span>`)}</div>`);
+      ${hintsHTML(`<span class="r">Prime Football 27 · top 5 leagues 2025/26</span>`)}</div>`);
     const feat = $('.mm-feature', el);
     const show = k => { feat.innerHTML = ''; feat.appendChild(mmFeature(k)); };
     $$('.mm-item', el).forEach(b => {
@@ -130,8 +130,8 @@ function mmFeature(k) {
     html = `<div class="ft-body"><div class="ft-title">Team of<br>the Week 1</div><div class="ft-sub">New Team of the Week is now available in packs for a limited time!</div>${btn('Enter Ultimate XI')}<div class="ft-dots"><i class="on"></i><i></i></div></div>
       <div class="ft-cards">${totw.map(p => cardHTML(p, { nav: false })).join('')}</div>`;
   } else if (k === 'kickoff') {
-    html = `<div class="ft-body"><div class="ft-title">Kick Off</div><div class="ft-sub">Pick any two of 48 clubs across six leagues and play a full 11v11 match.</div>${btn('Play Kick Off')}</div>
-      <div class="ft-art row" style="gap:30px">${crestSVG('NGC', 150)}<span style="font-family:var(--head);font-weight:900;font-size:40px">VS</span>${crestSVG('RAU', 150)}</div>`;
+    html = `<div class="ft-body"><div class="ft-title">Kick Off</div><div class="ft-sub">Pick any two of 96 clubs from Europe’s top five leagues and play a full 11v11 match.</div>${btn('Play Kick Off')}</div>
+      <div class="ft-art row" style="gap:30px">${crestSVG('MCI', 150)}<span style="font-family:var(--head);font-weight:900;font-size:40px">VS</span>${crestSVG('RMA', 150)}</div>`;
   } else if (k === 'career') {
     const c = Save.data.career;
     html = `<div class="ft-body"><div class="ft-title">Manager Career</div><div class="ft-sub">${c ? `Continue with ${CLUBS[c.club].name} — Matchday ${Math.min(c.round + 1, 14)} of 14.` : 'Take charge of a club and chase the league title over a 14-matchday season.'}</div>${btn(c ? 'Continue Career' : 'New Career')}</div>
@@ -182,7 +182,7 @@ SCREENS.kickoff = {
     body.innerHTML = `<div class="row" style="gap:40px;justify-content:center;align-items:stretch;flex:1">
       ${['home', 'away'].map((s, i) => `<div class="panel col" style="padding:24px;width:340px;align-items:center;gap:14px">
         <div class="h3">${s === 'home' ? 'Home (you)' : 'Away (CPU)'}</div><div class="crest-${s}" style="height:150px;display:grid;place-items:center"></div>
-        <select class="sel-${s}" data-nav style="width:100%">${clubOptions(params[s] || (i ? 'RAU' : 'NGC'))}</select>
+        <select class="sel-${s}" data-nav style="width:100%">${clubOptions(params[s] || (i ? 'RMA' : 'MCI'))}</select>
         <div class="ovr-${s}" style="font-weight:800"></div></div>`).join('<div style="align-self:center;font-family:var(--head);font-weight:900;font-size:44px">VS</div>')}
     </div>
     <div class="row" style="justify-content:center;gap:14px;margin-top:20px;flex-wrap:wrap">
@@ -226,7 +226,7 @@ SCREENS.career = {
     if (!c) {
       body.innerHTML = `<div class="panel col" style="padding:28px;max-width:560px;gap:14px"><div class="h2">Start a new career</div>
         <div class="dim">Choose a club. You'll play a double round-robin league against the 7 other clubs in its league (14 matchdays). Play or simulate each fixture. Finish top to win the title and earn Ultimate XI coins.</div>
-        <select class="cl" data-nav>${clubOptions('KBU')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Career</button></div>`;
+        <select class="cl" data-nav>${clubOptions('ARS')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Career</button></div>`;
       $('.go', el).onclick = () => {
         const club = $('.cl', el).value, lg = CLUBS[club].lg;
         const teams = Object.keys(CLUBS).filter(k => CLUBS[k].lg === lg);
@@ -294,7 +294,7 @@ SCREENS.clubs = {
   render(params) {
     const { el, body } = subShell('Clubs', 'Explore');
     el.classList.add('mm'); el.classList.remove('hub');
-    const lg = params.lg || 'PCL', club = params.club;
+    const lg = params.lg || 'ENG1', club = params.club;
     body.innerHTML = `<div class="row" style="gap:20px;flex:1;min-height:0;align-items:stretch">
       <div class="panel col" style="padding:14px;width:250px;gap:4px">${Object.entries(LEAGUES).filter(([k, L]) => !L.special).map(([k, L]) => `<button class="prow" data-nav data-lg="${k}" style="${k === lg ? 'border-color:var(--teal)' : ''}">${leagueSVG(k, 24)} ${L.name}</button>`).join('')}</div>
       <div class="panel col scroll" style="padding:14px;width:300px;gap:4px">${Object.entries(CLUBS).filter(([c, cl]) => cl.lg === lg).map(([c, cl]) => `<button class="prow" data-nav data-club="${c}" ${c === club ? 'data-autofocus' : ''} style="${c === club ? 'border-color:var(--teal)' : ''}">${crestSVG(c, 26)} <span class="grow">${cl.name}</span><b>${teamOvr(clubTeam(c))}</b></button>`).join('')}</div>
@@ -318,7 +318,7 @@ SCREENS.tourn = {
     el.classList.add('mm'); el.classList.remove('hub');
     if (!T) {
       body.innerHTML = `<div class="panel col" style="padding:28px;max-width:560px;gap:14px"><div class="h2">Enter the Prime Cup</div><div class="dim">8 clubs, single-elimination. Win the Quarter-Final, Semi-Final and Final. Winners earn 15,000 Ultimate XI coins.</div>
-        <select class="cl" data-nav>${clubOptions('EPA')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Tournament</button></div>`;
+        <select class="cl" data-nav>${clubOptions('PSG')}</select><button class="btn primary go" data-nav><span class="key">A</span> Start Tournament</button></div>`;
       $('.go', el).onclick = () => {
         const me = $('.cl', el).value;
         const others = R.shuffle(Object.keys(CLUBS).filter(k => !CLUBS[k].special && k !== me)).slice(0, 7);

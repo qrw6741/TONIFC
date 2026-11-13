@@ -25,7 +25,7 @@ const CARD_TYPES = {
 
 const DB = { players: [], byId: {}, byClub: {}, ready: false };
 
-function tierOf(ovr) { return ovr >= 75 ? 'gold' : ovr >= 65 ? 'silver' : 'bronze'; }
+function tierOf(ovr) { return ovr >= 76 ? 'gold' : ovr >= 71 ? 'silver' : 'bronze'; }
 function rarityKey(p) { // visual design key
   if (p.type !== 'base') return p.type;
   return tierOf(p.ovr) + (p.rare ? '-rare' : '');
@@ -76,23 +76,19 @@ function buildDatabase() {
     return p;
   };
 
-  // ---- base squads: 24 per club
-  const template = ['GK', 'GK', 'GK', 'CB', 'CB', 'CB', 'CB', 'LB', 'LB', 'RB', 'RB', 'CDM', 'CDM', 'CM', 'CM', 'CM', 'CAM', 'LM', 'RM', 'LW', 'RW', 'ST', 'ST', 'CF'];
+  // ---- real squads (top 5 leagues 2025/26); duplicates across clubs keep the first entry
   let n = 0;
-  for (const code in CLUBS) {
-    const cl = CLUBS[code]; if (cl.special) continue;
-    const L = LEAGUES[cl.lg];
-    template.forEach((pos, i) => {
-      // first ~13 are the "starters", the rest are rotation/youth
-      const starter = i % 3 !== 2;
-      let ovr = Math.round(cl.str + (starter ? 0 : -7) + gauss() * 6 - (i >= 21 ? 1 : 0));
-      if (rng() < 0.05) ovr += ri(3, 7);           // breakout star
-      ovr = clamp(ovr, 47, 91);
-      const homeNat = rng() < 0.55 ? (L.alt && rng() < 0.45 ? L.alt : L.nat) : pk(natCodes);
-      const stats = genStats(pos, ovr);
+  const seenNames = new Set();
+  for (const code of REAL.order) {
+    const cl = REAL.clubs[code];
+    cl.roster.split('|').forEach(entry => {
+      const [name, pos, nat, ovrS] = entry.split(';');
+      if (!name || seenNames.has(name)) return;
+      seenNames.add(name);
+      const ovr = +ovrS;
       make({
-        id: 'p' + (n++), name: genName(homeNat), nat: homeNat, club: code, lg: cl.lg, pos, ovr, stats,
-        rare: rng() < (ovr >= 80 ? 0.8 : ovr >= 75 ? 0.45 : 0.3), face: genFace(), type: 'base', age: ri(17, 35)
+        id: 'p' + (n++), name, nat: NATIONS[nat] ? nat : 'ENG', club: code, lg: cl.lg, pos, ovr, stats: genStats(pos, ovr),
+        rare: rng() < (ovr >= 82 ? 0.85 : ovr >= 75 ? 0.5 : 0.3), face: genFace(), type: 'base', age: ri(18, 34)
       });
     });
   }
@@ -114,17 +110,14 @@ function buildDatabase() {
   pickSpecial(18, 74, [6, 9], 'promo', 'n');
   pickSpecial(14, 64, [5, 8], 'found', 'f');
 
-  // ---- Icons (fictional legends)
-  const iconPos = ['ST', 'ST', 'CAM', 'CM', 'CB', 'GK', 'LW', 'RW', 'CDM', 'LB', 'RB', 'CF', 'ST', 'CM', 'CB', 'RW', 'LM', 'CAM', 'GK', 'ST'];
-  iconPos.forEach((pos, i) => {
-    const nat = pk(natCodes), ovr = ri(86, 96);
-    make({ id: 'i' + i, name: genName(nat), nat, club: 'ICN', lg: 'LEG', pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 2, 1, 99)), rare: true, face: genFace(), type: 'icon', age: ri(33, 45) });
+  // ---- Icons & Heroes (retired legends)
+  REAL_ICONS.split('|').forEach((e, i) => {
+    const [name, pos, nat, o] = e.split(';'); const ovr = +o;
+    make({ id: 'i' + i, name, nat, club: 'ICN', lg: 'LEG', pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 2, 1, 99)), rare: true, face: genFace(), type: 'icon', age: ri(40, 60) });
   });
-  // ---- Heroes (fictional cult heroes, tied to a league)
-  const lgs = ['PCL', 'LSO', 'SAU', 'BKL', 'LLU', 'APL'];
-  ['ST', 'CAM', 'CB', 'LW', 'CM', 'RW', 'CDM', 'ST', 'GK', 'RB', 'CF', 'LM'].forEach((pos, i) => {
-    const lg = lgs[i % lgs.length], nat = pk(natCodes), ovr = ri(84, 91);
-    make({ id: 'h' + i, name: genName(nat), nat, club: 'HER', lg, pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 1, 1, 99)), rare: true, face: genFace(), type: 'hero', age: ri(30, 40) });
+  REAL_HEROES.split('|').forEach((e, i) => {
+    const [name, pos, nat, o, lg] = e.split(';'); const ovr = +o;
+    make({ id: 'h' + i, name, nat, club: 'HER', lg, pos, ovr, stats: genStats(pos, ovr).map(s => clamp(s + 1, 1, 99)), rare: true, face: genFace(), type: 'hero', age: ri(38, 50) });
   });
   DB.ready = true;
 }
@@ -134,9 +127,9 @@ function P(id) { return DB.byId[id]; }
 /* Market value estimate (coins) — exponential in rating, scaled by type/position */
 function baseValue(p) {
   let v;
-  if (p.ovr < 65) v = 150 + (p.ovr - 45) * 15;
-  else if (p.ovr < 75) v = 300 + (p.ovr - 65) * 45 + (p.rare ? 150 : 0);
-  else v = Math.round(700 * Math.pow(1.38, p.ovr - 75)) + (p.rare ? 400 : 0);
+  if (p.ovr < 71) v = 150 + (p.ovr - 58) * 15;
+  else if (p.ovr < 76) v = 350 + (p.ovr - 71) * 60 + (p.rare ? 150 : 0);
+  else v = Math.round(750 * Math.pow(1.38, p.ovr - 76)) + (p.rare ? 400 : 0);
   const mult = { base: 1, totw: 2.2, found: 1.6, promo: 3, hero: 3.5, icon: 4.5 }[p.type] || 1;
   const posM = { ST: 1.2, LW: 1.15, RW: 1.15, CAM: 1.1, CB: 1.05, GK: 0.8, CF: 1.1 }[p.pos] || 1;
   return Math.max(150, Math.round(v * mult * posM / 50) * 50);
