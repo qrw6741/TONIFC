@@ -3,6 +3,38 @@ class_name Gfx
 ## Everything is vector-drawn in code: flags, club badges (original colour-matched
 ## designs, not official crests), league marks, kits, pack art and player portraits.
 
+## Draw many coloured rectangles in ONE draw call (crowds etc.).
+## pts holds 4 corners per rect (TL, TR, BR, BL), cols one colour per corner.
+static var _idx_cache = {}
+static func flush_quads(ci: CanvasItem, pts: PackedVector2Array, cols: PackedColorArray) -> void:
+	var n: int = pts.size() / 4
+	if n == 0: return
+	var idx: PackedInt32Array = _idx_cache.get(n, PackedInt32Array())
+	if idx.is_empty():
+		idx.resize(n * 6)
+		for i in n:
+			var b = i * 4; var o = i * 6
+			idx[o] = b; idx[o + 1] = b + 1; idx[o + 2] = b + 2; idx[o + 3] = b; idx[o + 4] = b + 2; idx[o + 5] = b + 3
+		if _idx_cache.size() > 8: _idx_cache.clear()
+		_idx_cache[n] = idx
+	RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols)
+
+static func add_quad(pts: PackedVector2Array, cols: PackedColorArray, r: Rect2, c: Color) -> void:
+	pts.append(r.position); pts.append(Vector2(r.end.x, r.position.y)); pts.append(r.end); pts.append(Vector2(r.position.x, r.end.y))
+	cols.append(c); cols.append(c); cols.append(c); cols.append(c)
+
+## soft floodlight glow: one textured quad instead of many stacked translucent circles
+static var _glow: Texture2D = null
+static func glow(ci: CanvasItem, center: Vector2, radius: float, c: Color) -> void:
+	if _glow == null:
+		var g = Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.18, 0.5, 1.0])
+		g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0)])
+		var t = GradientTexture2D.new(); t.gradient = g; t.width = 128; t.height = 128
+		t.fill = GradientTexture2D.FILL_RADIAL; t.fill_from = Vector2(0.5, 0.5); t.fill_to = Vector2(1.0, 0.5)
+		_glow = t
+	ci.draw_texture_rect(_glow, Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2), false, c)
+
 static func col(c) -> Color:
 	return c if c is Color else Color(String(c))
 
@@ -199,15 +231,15 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 	var pk: Dictionary = Data.packs[id]
 	var cols: Array = {"bronze": ["#e2b48c", "#b07a4f", "#7d4f2c"], "silver": ["#f1f3f6", "#b9c1cb", "#8b95a3"], "gold": ["#f8e4a6", "#e0be62", "#b88f2e"],
 		"premium": ["#fff3c4", "#e8b631", "#8a6410"], "jumbo": ["#fff3c4", "#e8b631", "#4a3505"], "rare": ["#ffffff", "#f0c94e", "#c3901c"], "mega": ["#f4e7ff", "#9d6dff", "#3a1a7a"],
-		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
+		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"], "pass": ["#ff6a3d", "#8c0f24", "#1c0410"], "pick": ["#ffc76b", "#c2401f", "#2a0610"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
 	var pts = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 	grad_poly(ci, pts, r, Color(cols[0]), Color(cols[1]), Color(cols[2]))
 	# moving shine
 	var sx = r.position.x + fmod(t * 0.35, 1.6) * r.size.x * 1.6 - r.size.x * 0.4
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(clamp(sx, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx + r.size.x * 0.18, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx - r.size.x * 0.1, r.position.x, r.end.x), r.end.y), Vector2(clamp(sx - r.size.x * 0.28, r.position.x, r.end.x), r.end.y)]), Color(1, 1, 1, 0.25))
-	var dark: bool = ["ultimate", "totw", "promo", "mega", "found"].has(pk.art)
+	var dark: bool = ["ultimate", "totw", "promo", "mega", "found", "pass", "pick"].has(pk.art)
 	var tc = Color("#f3d88a") if (pk.art == "ultimate" or pk.art == "totw") else (Color.WHITE if dark else Color(0, 0, 0, 0.7))
-	var border = Color("#e8b631") if pk.art == "ultimate" else (Color("#d9b25c") if pk.art == "totw" else Color(1, 1, 1, 0.35))
+	var border = Color("#ffc76b") if pk.art == "pass" or pk.art == "pick" else Color("#e8b631") if pk.art == "ultimate" else (Color("#d9b25c") if pk.art == "totw" else Color(1, 1, 1, 0.35))
 	ci.draw_rect(r, border, false, 2.0)
 	var words: String = String(pk.name).replace(" Pack", "").to_upper()
 	var fs = int(r.size.x * 0.13)
@@ -215,7 +247,7 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 	var y = r.get_center().y - (lines.size() - 1) * fs * 0.55
 	for ln in lines:
 		text_c(ci, UI.font_head, r.get_center().x, y + fs * 0.35, ln, fs, tc); y += fs * 1.1
-	text_c(ci, UI.font_bold, r.get_center().x, r.end.y - r.size.y * 0.1, "PF27 · %d ITEMS" % int(pk.items), int(r.size.x * 0.075), tc)
+	text_c(ci, UI.font_bold, r.get_center().x, r.end.y - r.size.y * 0.1, ("PICK 1 OF %d" % int(pk.pick.n)) if pk.has("pick") else ("PF27 · %d ITEMS" % int(pk.items)), int(r.size.x * 0.075), tc)
 
 # ------------------------------------------------------------------ portrait
 static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = null) -> void:

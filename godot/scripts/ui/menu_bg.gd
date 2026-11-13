@@ -20,11 +20,16 @@ func _ready() -> void:
 func set_mode(m: String) -> void:
 	mode = m; visible = m != "off"
 
+var _since = 0.0
 func _process(delta: float) -> void:
 	if mode == "off": return
 	t += delta
 	if mode == "menu": _update(delta)
-	queue_redraw()
+	# backgrounds don't need 60+ fps: redraw at ~30 fps (menu) / ~15 fps (hub), or almost never in performance mode
+	var perf: bool = Save.data != null and Save.data.settings.get("perf_mode", false)
+	var hz: float = (30.0 if mode == "menu" else 15.0) if not perf else (10.0 if mode == "menu" else 0.5)
+	_since += delta
+	if _since >= 1.0 / hz: _since = 0.0; queue_redraw()
 
 func _update(dt: float) -> void:
 	var b = ball
@@ -72,12 +77,14 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, W, H), Color("#070a10"))
 	draw_rect(Rect2(0, 0, W, H * 0.5), Color("#0b111a"))
 	_quad([[-10, 72, 0], [115, 72, 0], [115, 72, 22], [-10, 72, 22]], Color("#0c1018"))
+	var qp = PackedVector2Array(); var qc = PackedColorArray()
 	for s in crowd:
 		var x: float = lerpf(-10.0, 115.0, s.u); var y: float = 1.0 + s.v * 20.0
 		var q = proj(x, 72.0 + s.v * 6.0, y)
 		var jump: float = max(0.0, sin(t * 3.0 + s.ph)) * 1.2 * q.z * 0.05
 		var c: Color = s.c; c.a = 0.35 + s.v * 0.25
-		draw_rect(Rect2(q.x, q.y - jump, max(1.0, q.z * 0.35), max(1.0, q.z * 0.5)), c)
+		Gfx.add_quad(qp, qc, Rect2(q.x, q.y - jump, max(1.0, q.z * 0.35), max(1.0, q.z * 0.5)), c)
+	Gfx.flush_quads(self, qp, qc)
 	var sh = fmod(t * 0.15, 1.0)
 	var a0 = proj(-2, 70); var a1 = proj(107, 70)
 	_quad([[-2, 70, 0], [107, 70, 0], [107, 70, 1.2], [-2, 70, 1.2]], Color("#0f2b3d"))
@@ -101,8 +108,7 @@ func _draw() -> void:
 	draw_circle(Vector2(bp.x, bp.y), max(1.5, bp.z * 0.22), Color.WHITE)
 	for L in [[-8, 74, 30], [113, 74, 30], [20, 76, 34], [85, 76, 34]]:
 		var q = proj(L[0], L[1], L[2])
-		for k in 6:
-			draw_circle(Vector2(q.x, q.y), 30.0 + k * 40.0, Color(1, 0.97, 0.85, 0.12 / (k + 1)))
+		Gfx.glow(self, Vector2(q.x, q.y), 230.0, Color(1, 0.97, 0.85, 0.3))
 		draw_circle(Vector2(q.x, q.y), 6, Color(1, 1, 0.95, 0.9))
 	for pt in parts:
 		pt.y -= pt.v * 0.3
@@ -142,10 +148,12 @@ func _draw_hub() -> void:
 			var a = (0.18 - i * 0.025) * (1.0 - k / 8.0)
 			draw_rect(Rect2(vx - w / 2 * (1.0 - k / 8.0), y, w * (1.0 - k / 8.0), 3), Color(0.78, 1, 0.96, a * 0.35))
 	for i in 9: draw_rect(Rect2(vx - 380 + i * 95, vy - 40, 70, 210), Color(1, 1, 1, 0.025))
+	var dp = PackedVector2Array(); var dc = PackedColorArray()
 	for y in range(0, int(H), 12):
 		for x in range(0, 70, 12):
 			if (x + y) % 24 == 0:
-				draw_circle(Vector2(x + 6, y + 6), 1.8, Color(0.25, 0.88, 0.77, 0.12)); draw_circle(Vector2(W - x - 6, y + 6), 1.8, Color(0.25, 0.88, 0.77, 0.12))
+				Gfx.add_quad(dp, dc, Rect2(x + 4.5, y + 4.5, 3, 3), Color(0.25, 0.88, 0.77, 0.12)); Gfx.add_quad(dp, dc, Rect2(W - x - 7.5, y + 4.5, 3, 3), Color(0.25, 0.88, 0.77, 0.12))
+	Gfx.flush_quads(self, dp, dc)
 	for pt in parts:
 		pt.y -= pt.v * 0.15
 		if pt.y < 0: pt.y = 1.0; pt.x = randf()

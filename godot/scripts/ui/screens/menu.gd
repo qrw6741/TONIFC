@@ -428,7 +428,14 @@ func s_settings(_p) -> Dictionary:
 	for hdr in ["Action", "Keyboard", "Xbox", "PS5 DualSense"]: g.add_child(UI.caps(hdr, 10))
 	for r in CONTROLS: g.add_child(UI.label(r[0], 13, UI.DIM)); g.add_child(UI.bold(r[1], 13)); g.add_child(UI.label(r[2], 13, UI.DIM)); g.add_child(UI.bold(r[3], 13, UI.TEAL if Pad.style == "ps" else UI.TEXT))
 	c.add_child(g); row.add_child(UI.panel(c))
-	var d = UI.vb(12, [UI.caps("Save data"), UI.wrapl(UI.label("Progress saves automatically. The save file lives at:\n" + ProjectSettings.globalize_path(Save.PATH), 13, UI.DIM), 300),
+	var gp = UI.vb(10, [UI.caps("Graphics & performance")])
+	gp.add_child(UI.field("Frame rate cap", UI.option([[30, "30 FPS (battery saver)"], [60, "60 FPS (recommended)"], [120, "120 FPS"], [0, "Unlimited (not recommended)"]], int(s.get("fps_cap", 60)), func(v): s.fps_cap = int(v); Save.dirty(); UI.apply_display())))
+	var vs = CheckBox.new(); vs.text = "V-Sync (prevents tearing & GPU overload)"; vs.button_pressed = s.get("vsync", true)
+	vs.toggled.connect(func(v): s.vsync = v; Save.dirty(); UI.apply_display()); gp.add_child(vs)
+	var pm = CheckBox.new(); pm.text = "Performance mode (lighter crowd & backgrounds)"; pm.button_pressed = s.get("perf_mode", false)
+	pm.toggled.connect(func(v): s.perf_mode = v; Save.dirty()); gp.add_child(pm)
+	gp.add_child(UI.field("Match speed", UI.option([["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]], s.get("game_speed", "normal"), func(v): s.game_speed = v; Save.dirty())))
+	var d = UI.vb(12, [gp, UI.caps("Save data"), UI.wrapl(UI.label("Progress saves automatically. The save file lives at:\n" + ProjectSettings.globalize_path(Save.PATH), 13, UI.DIM), 300),
 		UI.btn("Reset all progress", func():
 			if await UI.modal("Reset everything?", "This permanently deletes your club, players, coins and history.", [["Cancel", null, ""], ["Delete all progress", true, "Danger"]]):
 				Save.wipe(); UI.reset("title"), "Danger")])

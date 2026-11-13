@@ -13,7 +13,7 @@ const YELLOW := Color("#ffd23f")
 const RED := Color("#ff4d5e")
 const PANEL := Color(0.063, 0.086, 0.118, 0.85)
 
-const HUB_TABS := [["home", "Home"], ["objectives", "Objectives"], ["play", "Play"], ["club", "Club"], ["sbc", "SBC"], ["transfers", "Transfers"], ["store", "Store"]]
+const HUB_TABS := [["home", "Home"], ["objectives", "Objectives"], ["season", "Season Pass"], ["play", "Play"], ["club", "Club"], ["sbc", "SBC"], ["transfers", "Transfers"], ["store", "Store"]]
 
 var font_head: Font
 var font_bold: Font
@@ -37,7 +37,7 @@ var currency_labels = []
 var in_match = false
 
 func _ready() -> void:
-	_fonts(); _theme(); _input_map()
+	_fonts(); _theme(); _input_map(); apply_display()
 	layer = CanvasLayer.new(); add_child(layer)
 	root = Control.new(); root.set_anchors_preset(Control.PRESET_FULL_RECT); root.theme = theme; root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
@@ -47,7 +47,7 @@ func _ready() -> void:
 	overlay = Control.new(); overlay.set_anchors_preset(Control.PRESET_FULL_RECT); overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE; root.add_child(overlay)
 	toasts = VBoxContainer.new(); toasts.set_anchors_preset(Control.PRESET_TOP_RIGHT); toasts.position = Vector2(-430, 80); toasts.custom_minimum_size = Vector2(400, 0)
 	toasts.mouse_filter = Control.MOUSE_FILTER_IGNORE; toasts.add_theme_constant_override("separation", 8); root.add_child(toasts)
-	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new()]
+	modules = [preload("res://scripts/ui/screens/menu.gd").new(), preload("res://scripts/ui/screens/hub.gd").new(), preload("res://scripts/ui/screens/hub2.gd").new(), preload("res://scripts/ui/screens/season_ui.gd").new()]
 	Sys.currency_changed.connect(refresh_currency)
 	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
@@ -148,7 +148,14 @@ func back() -> void:
 	var p = stack.pop_back(); _show(p[0], p[1])
 func rerender() -> void: _show(cur_name, cur_params)
 
+func apply_display() -> void:
+	var s: Dictionary = Save.data.settings if Save.data else Save.default_settings()
+	Engine.max_fps = int(s.get("fps_cap", 60))
+	var vs = DisplayServer.VSYNC_ENABLED if s.get("vsync", true) else DisplayServer.VSYNC_DISABLED
+	if DisplayServer.window_get_vsync_mode() != vs: DisplayServer.window_set_vsync_mode(vs)
+
 func _show(name: String, params: Dictionary) -> void:
+	apply_display()
 	var mod = null
 	for m in modules: if m.has_method("s_" + name): mod = m; break
 	if mod == null: push_error("No screen " + name); return
@@ -378,6 +385,7 @@ func hub_shell(tab: String) -> Dictionary:
 			b.add_theme_color_override("font_color", Color.WHITE)
 			b.add_theme_stylebox_override("normal", _underline())
 		if t[0] == "objectives" and Sys.obj_claimable() > 0: b.text += " •"
+		if t[0] == "season" and Season.claim_count() > 0: b.text += " •"
 		top.add_child(b)
 	top.add_child(caps(Pad.glyph("RB") if Pad.style == "ps" else "E", 10))
 	top.add_child(spacer()); top.add_child(currency_bar())
@@ -397,6 +405,10 @@ func sub_shell(title: String, subtitle := "Ultimate XI", gold := false) -> Dicti
 
 # ------------------------------------------------------------------ toast & modal
 func toast(msg: String, kind := "info") -> void:
+	if Sys.quiet: return
+	# keep the stack short so pop-ups never cover the screen
+	while toasts.get_child_count() >= 4:
+		var old = toasts.get_child(0); toasts.remove_child(old); old.queue_free()
 	var col = GREEN if kind == "good" else (RED if kind == "bad" else Color("#3ea6ff"))
 	var p = PanelContainer.new()
 	var sb = _sb(Color(0.055, 0.08, 0.11, 0.96), Color(1, 1, 1, 0.09), 1, 10, Vector4(14, 10, 14, 10)); sb.border_width_left = 4; sb.border_color = col
@@ -404,7 +416,7 @@ func toast(msg: String, kind := "info") -> void:
 	var l = wrapl(label(msg, 14), 370); p.add_child(l)
 	toasts.add_child(p)
 	p.modulate.a = 0
-	var tw = create_tween(); tw.tween_property(p, "modulate:a", 1.0, 0.2); tw.tween_interval(2.8); tw.tween_property(p, "modulate:a", 0.0, 0.4); tw.tween_callback(p.queue_free)
+	var tw = p.create_tween(); tw.tween_property(p, "modulate:a", 1.0, 0.2); tw.tween_interval(2.8); tw.tween_property(p, "modulate:a", 0.0, 0.4); tw.tween_callback(p.queue_free)
 
 class ModalHandle extends RefCounted:
 	signal closed(v)

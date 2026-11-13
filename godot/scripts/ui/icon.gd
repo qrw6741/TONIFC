@@ -13,8 +13,11 @@ static func make(k: String, a, size: Vector2) -> Icon:
 	i.animate = (k == "pack")
 	return i
 
+var _since = 0.0
 func _process(delta: float) -> void:
-	if animate: t += delta; queue_redraw()
+	if not animate: return
+	t += delta; _since += delta
+	if _since >= 1.0 / 30.0 and is_visible_in_tree(): _since = 0.0; queue_redraw()
 
 func _draw() -> void:
 	var r = Rect2(Vector2.ZERO, size)

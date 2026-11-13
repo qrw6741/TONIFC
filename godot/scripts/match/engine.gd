@@ -299,8 +299,14 @@ func excitement() -> float:
 	return clamp(0.25 + ((25.0 - near) / 25.0 * 0.55 if near < 25 else 0.0) + (0.3 if ball.shot else 0.0), 0.2, 1.0)
 
 # ------------------------------------------------------------------ user control
+## buffered button presses: a pass pressed just before the ball arrives still fires
+var buf = {}
+func want(k: String) -> bool: return buf.has(k) and t - buf[k] < 0.4
+
 func user_control(dt: float) -> void:
 	if user_side == "" or ctrl == null: return
+	for k in ["pass", "through", "lob"]:
+		if edge.get(k, false): buf[k] = t
 	var team: Dictionary = teams[user_side]; var b = ball; var m: MP = ctrl
 	if edge.get("sw", false):
 		var best = nearest(team.players.filter(func(x): return x != m and not x.gk), b.x + b.vx * 0.3, b.y + b.vy * 0.3)
@@ -332,8 +338,9 @@ func user_control(dt: float) -> void:
 			else: aim = GY1 - 1.0 if m.y < PH / 2 else GY0 + 1.0
 			shoot(m, charge, aim, charge_kind == "finesse")
 			charge = 0.0; charge_kind = ""; return
-		if edge.get("pass", false) or edge.get("through", false) or edge.get("lob", false):
-			var kind = "through" if edge.get("through", false) else ("cross" if in_cross_zone(m) else "lob") if edge.get("lob", false) else "ground"
+		if want("pass") or want("through") or want("lob"):
+			var kind = "through" if want("through") else ("cross" if in_cross_zone(m) else "lob") if want("lob") else "ground"
+			buf.clear()
 			var tgt = pick_pass_target(m, ax, ay, kind)
 			if tgt: pass_to(m, tgt, kind)
 			else:
@@ -345,11 +352,12 @@ func user_control(dt: float) -> void:
 		var opp = b.owner if b.owner != null and b.owner.side != m.side else null
 		var d = d2(b.x, b.y, m.x, m.y)
 		var first_time: bool = b.owner == null and d < 1.6 and m.cool <= 0 and b.z > 0.35 and b.z < 2.7
-		if edge.get("pass", false) and opp: try_tackle(m, opp, false)
+		if edge.get("pass", false) and opp: try_tackle(m, opp, false); buf.erase("pass")
 		if edge.get("shoot", false) and not first_time and (opp != null or b.owner == null): try_slide(m, ax, ay)
-		if first_time and (edge.get("shoot", false) or edge.get("pass", false)):
+		if first_time and (edge.get("shoot", false) or want("pass")):
 			if edge.get("shoot", false) and abs(goal_x(team) - m.x) < 30: shoot(m, 0.6, null, false, "header" if b.z > 1.3 else "volley")
 			else:
+				buf.clear()
 				var tgt = pick_pass_target(m, ax, ay, "ground")
 				if tgt: pass_to(m, tgt, "ground")
 				else: kick(m, ax * 15.0, ay * 15.0, 2.0, "pass")

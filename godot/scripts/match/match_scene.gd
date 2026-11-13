@@ -92,6 +92,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_START and not sim.paused and not done:
 		get_viewport().set_input_as_handled(); _pause()
 
+const GAME_SPEED := {"slow": 1.0, "normal": 1.2, "fast": 1.4}
+
 func _read_input() -> void:
 	var k = func(code) -> bool: return Input.is_physical_key_pressed(code) or taps.get(code, false)
 	var dev = Pad.id()
@@ -107,7 +109,7 @@ func _read_input() -> void:
 	if jb.call(JOY_BUTTON_DPAD_UP): jy = -1
 	if jb.call(JOY_BUTTON_DPAD_DOWN): jy = 1
 	if Vector2(jx, jy).length() > 0.25: x = jx; y = jy
-	var v = Vector2(x, y)
+	var v = Vector2(x, -y)
 	if v.length() > 1: v = v.normalized()
 	var rs = Vector2(Input.get_joy_axis(dev, JOY_AXIS_RIGHT_X), Input.get_joy_axis(dev, JOY_AXIS_RIGHT_Y))
 	var rb: bool = jb.call(JOY_BUTTON_RIGHT_SHOULDER)
@@ -115,7 +117,8 @@ func _read_input() -> void:
 	#                       defending ○ standing tackle · □ slide tackle · L1 switch · R2 sprint
 	var attacking: bool = sim.user_side != "" and sim.ball.owner != null and sim.ball.owner.side == sim.user_side
 	var setpiece_mine: bool = sim.state == "setpiece" and sim.sp != null and sim.teams[sim.sp.side].user
-	var defend_pad: bool = not attacking and not setpiece_mine
+	var opp_has: bool = sim.user_side != "" and sim.ball.owner != null and sim.ball.owner.side != sim.user_side
+	var defend_pad: bool = opp_has and not setpiece_mine
 	var sprint_axis = Input.get_joy_axis(dev, JOY_AXIS_TRIGGER_RIGHT)
 	var cur = {"x": v.x, "y": v.y, "sprint": Input.is_physical_key_pressed(KEY_SHIFT) or sprint_axis > 0.4 or jb.call(JOY_BUTTON_RIGHT_STICK),
 		"pass": k.call(KEY_J) or (jb.call(JOY_BUTTON_B) if defend_pad else jb.call(JOY_BUTTON_A)), "through": k.call(KEY_I) or jb.call(JOY_BUTTON_Y),
@@ -140,7 +143,7 @@ func _process(delta: float) -> void:
 	if done: return
 	if not sim.paused:
 		_read_input()
-		acc += min(delta, 0.1)
+		acc += min(delta, 0.1) * GAME_SPEED.get(Save.data.settings.get("game_speed", "normal"), 1.2)
 		var step = 1.0 / 60.0
 		while acc >= step and not done:
 			sim.update(step); acc -= step
@@ -296,7 +299,7 @@ func _draw() -> void:
 	_draw_goal(0.0, false); _draw_goal(MatchSim.PW, false)
 	for L in [[-10.0, 80.0, 34.0], [MatchSim.PW + 10, 80.0, 34.0]]:
 		var q = V(L[0], L[1], L[2])
-		for k in 6: draw_circle(q, 20.0 + k * 34.0, Color(1, 1, 0.92, 0.1 / (k + 1)))
+		Gfx.glow(self, q, 190.0, Color(1, 1, 0.92, 0.26))
 	_draw_fx()
 	_draw_radar()
 
@@ -307,7 +310,10 @@ func _draw_stands() -> void:
 	_quad([[PW + 5, -20, 0], [PW + 5, PH + 6, 0], [PW + 30, PH + 6, 22], [PW + 30, -20, 22]], Color("#0d1118"))
 	var exc = 1.0 if sim.state == "goal" else sim.excitement()
 	var tifo: bool = stadium.get("tifo", "none") != "none" and sim.teams.home.user
-	for p in crowd:
+	var qp = PackedVector2Array(); var qc = PackedColorArray()
+	var step: int = 2 if Save.data.settings.get("perf_mode", false) else 1
+	for ci in range(0, crowd.size(), step):
+		var p: Dictionary = crowd[ci]
 		var q: Vector3; var col: Color = p.c
 		if p.k == 0:
 			var x: float = -30.0 + p.u * (PW + 60.0)
@@ -326,7 +332,8 @@ func _draw_stands() -> void:
 		var jump: float = max(0.0, sin(sim.t * (3.0 + exc * 5.0) + p.ph)) * exc * q.z * 0.12
 		var sz: float = max(1.2, q.z * 0.36)
 		col.a = 0.55 + p.v * 0.35
-		draw_rect(Rect2(q.x, q.y - jump, sz, sz * 1.25), col)
+		Gfx.add_quad(qp, qc, Rect2(q.x, q.y - jump, sz * step, sz * 1.25), col)
+	Gfx.flush_quads(self, qp, qc)
 	var boards = [[[-4, 71, 0], [PW + 4, 71, 0], [PW + 4, 71, 1], [-4, 71, 1]], [[-3, -2, 0], [-3, PH + 2, 0], [-3, PH + 2, 1], [-3, -2, 1]], [[PW + 3, -2, 0], [PW + 3, PH + 2, 0], [PW + 3, PH + 2, 1], [PW + 3, -2, 1]]]
 	for i in boards.size():
 		_quad(boards[i], Color("#0c2733"))

@@ -78,6 +78,12 @@ func _draw() -> void:
 	var trim = Gfx.shield(r, cs * 0.35); trim.append(trim[0])
 	draw_polyline(trim, st.trim, max(1.0, cs * 0.14), true)
 	var tc: Color = st.text
+	if p.type == "pass" and not mini:
+		# Ascension chevrons on both flanks
+		for k in 3:
+			var cy = h * (0.6 - k * 0.04); var a = 0.65 - k * 0.18
+			for sx in [w * 0.075, w * 0.925]:
+				draw_polyline(PackedVector2Array([Vector2(sx - cs * 0.45, cy + cs * 0.4), Vector2(sx, cy), Vector2(sx + cs * 0.45, cy + cs * 0.4)]), Color(1, 0.78, 0.42, a), max(1.0, cs * 0.16), true)
 	if p.type != "base" and not mini:
 		Gfx.text_c(self, font_b, w / 2, cs * 1.25, Data.card_types[p.type].name.to_upper(), int(cs * 0.6), Color(tc, 0.85))
 	if mini:

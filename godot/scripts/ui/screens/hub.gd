@@ -44,6 +44,8 @@ func s_home(_p) -> Dictionary:
 	for p in promo.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
 	var pt = UI.tile([UI.bold("Nightfall Promo", 24), UI.bold("Latest promotional cards — in packs now", 13, UI.TEAL), CenterContainer.new()], func(): UI.replace("store", {"tab": "promo"}))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
+	var slv: int = Season.level(); var scl: int = Season.claim_count()
+	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Earn XP to unlock Ascension cards", 13, UI.GREEN if scl else UI.TEAL)]), UI.spacer(), UI.card(Data.ascension_finale[0], 3.6, true) if not Data.ascension_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
 	var un: int = Save.data.unopened.size()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold(("%d unopened" % un) if un else "Store", 22), UI.bold("Open your packs" if un else "Packs from 400 coins", 13, UI.TEAL)]), UI.spacer(), UI.icon("pack", Save.data.unopened[0] if un else "premium", Vector2(52, 74))])], func(): UI.replace("store", {"tab": "mine" if un else "packs"})))
 	right.add_child(UI.panel(UI.vb(4, [UI.caps("Balance"), UI.hb(18, [UI.head("● " + Sys.fmt(Save.data.coins), 22, UI.GOLD2), UI.head("◆ " + Sys.fmt(Save.data.points), 22, UI.TEAL)]), UI.label("Prime Points are free in-game credits — no real money.", 12, UI.DIM)])))
@@ -354,6 +356,9 @@ func s_store(p) -> Dictionary:
 			if Data.packs[id].get("promo", false) == (tab == "promo"): flow.add_child(tile.call(id))
 		content.add_child(flow)
 	elif tab == "mine":
+		if Save.data.get("pick_cur") != null:
+			var pinfo = UI.vb(2, [UI.bold("Player Pick in progress", 15), UI.label("Finish choosing your player from %s." % Data.packs[Save.data.pick_cur.pack].name, 13, UI.DIM)]); UI.grow(pinfo, false, true)
+			content.add_child(UI.panel(UI.hb(14, [pinfo, UI.btn("Continue pick", func(): UI.go("pick"), "Primary")])))
 		if not Save.data.pending.is_empty():
 			var info = UI.vb(2, [UI.bold("%d unassigned items" % Save.data.pending.size(), 15), UI.label("From your last pack — send them to your club or sell them.", 13, UI.DIM)]); UI.grow(info, false, true)
 			content.add_child(UI.panel(UI.hb(14, [info, UI.btn("View items", func(): UI.go("packresult"), "Primary")])))
@@ -392,6 +397,8 @@ func buy_pack(id: String) -> void:
 
 ## cinematic pack opening: pack → light beams → walkout (nation, position, club, rating) → card
 func open_pack(id: String, tradeable: bool) -> void:
+	if Data.packs[id].has("pick"):
+		UI.modules[3].start_pick(id); return
 	if not Save.data.pending.is_empty():
 		for x in Save.data.pending: if x.done == "": Sys.club_add(x.pid, x.untr, "pack")
 		Save.data.pending = []

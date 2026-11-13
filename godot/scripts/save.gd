@@ -8,7 +8,8 @@ var _dirty = false
 var _t = 0.0
 
 func default_settings() -> Dictionary:
-	return {"music": 0.5, "sfx": 0.8, "crowd": 0.7, "difficulty": "professional", "half_len": 3, "camera": "broadcast", "show_links": true, "fullscreen": false, "vibration": true}
+	return {"music": 0.5, "sfx": 0.8, "crowd": 0.7, "difficulty": "professional", "half_len": 3, "camera": "broadcast", "show_links": true, "fullscreen": false, "vibration": true,
+		"game_speed": "normal", "fps_cap": 60, "vsync": true, "perf_mode": false}
 
 func new_save(name: String) -> Dictionary:
 	var now = Time.get_unix_time_from_system()
@@ -33,7 +34,8 @@ func new_save(name: String) -> Dictionary:
 			"champs": {"tickets": 0, "active": null, "history": []},
 			"draft": {"active": null, "history": []}
 		},
-		"career": null, "tourn": null, "daily_pts": "",
+		"career": null, "tourn": null, "daily_pts": "", "pick_cur": null,
+		"season": {"id": "s1", "xp": 0, "premium": false, "free": {}, "prem": {}, "bonus": 0},
 		"matches": [],
 		"stats": {"played": 0, "wins": 0, "draws": 0, "losses": 0, "gf": 0, "ga": 0, "packs": 0, "sbcs": 0, "sold": 0, "bought": 0, "assists": 0},
 		"settings": default_settings()

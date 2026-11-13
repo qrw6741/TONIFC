@@ -41,12 +41,32 @@ func run() -> void:
 				await w(1.0); await shot("g22_items_" + pk)
 				print("CUR ", UI.cur_name)
 				UI.modules[1].s_packresult  # noop
+		if extra == "--season":
+			Season.add_xp(Season.XP_PER * 23 + 300, "test")
+			UI.replace("season"); await shot("g30_season")
+			UI.replace("home"); await shot("g31_home_season")
+			UI.replace("season"); await w(0.3)
+			UI.modules[3]._unlock_dialog(); await w(0.5); await shot("g32_unlock")
+			UI.close_top(true); await w(0.6)
+			print("PREMIUM ", Season.premium(), " claimable ", Season.claim_count())
+			print("CLAIMED ", Season.claim_all(), " unopened ", Save.data.unopened)
+			UI.replace("season", {"focus": 20}); await shot("g33_season_claimed")
+			for pkid in ["pp82x5", "pp83x2", "pp85x1"]:
+				var items = Sys.generate_pack(pkid)
+				print("PACK ", pkid, " ", items.map(func(x): return "%d %s" % [x.ovr, x.name]))
+			UI.modules[1].open_pack("pick86", false); await w(1.6); await shot("g34_pick")
+			print("PICK ", Save.data.pick_cur)
+			UI.modules[1].open_pack("pickasc", false); await w(1.6); await shot("g35_pick_asc")
+			var asc = Data.P("asc_p443"); print("ASC ", asc.ovr, " ", asc.stats, " sm ", asc.sm)
+			UI.inspect(asc); await shot("g36_asc_card"); UI.close_top(null)
+			print("MARKET has pass: ", Sys.market_search({}).any(func(l): return Data.P(l.pid).type == "pass"))
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)
 			for c in UI.root.get_children(): print("ROOTCHILD ", c.name, " ", c.size, " ", c.get_class())
 			await w(2.0); await shot("g10_match")
 			await w(4.0); await shot("g11_match")
+			print("FPS ", Engine.get_frames_per_second(), " max ", Engine.max_fps)
 	for extra in OS.get_cmdline_user_args():
 		if extra == "--simtest":
 			for g in 4:

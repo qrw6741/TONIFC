@@ -50,6 +50,46 @@ func _ready() -> void:
 		by_id[p.id] = p
 		if not by_club.has(p.club): by_club[p.club] = []
 		by_club[p.club].append(p)
+	_add_season_content()
+
+# ---------------- Season Pass exclusive content ----------------
+## Ascension — Season Pass-only rarity. [base player id, boost, finale-pick?]
+const ASCENSION := [
+	["p14", 4, false], ["p229", 3, false], ["p812", 4, false], ["p247", 4, false],   # free track
+	["p130", 3, false], ["p2", 4, false], ["p1515", 4, false], ["p437", 4, false], ["p421", 5, false],   # premium track
+	["p420", 4, true], ["p443", 5, true], ["p256", 4, true]]   # level 50 Ascension Player Pick
+var ascension_finale = []
+
+func asc_id(base_id: String) -> String: return "asc_" + base_id
+
+func _add_season_content() -> void:
+	card_types["pass"] = {"name": "Ascension", "order": 5}
+	for a in ASCENSION:
+		var b: Dictionary = by_id.get(a[0], {})
+		if b.is_empty(): continue
+		var boost: int = a[1]
+		var p: Dictionary = b.duplicate(true)
+		p.id = asc_id(a[0]); p.base = a[0]; p.type = "pass"; p.rare = true
+		p.ovr = min(97, int(b.ovr) + boost)
+		var st = []
+		for i in 6:
+			var v: int = int(b.stats[i])
+			st.append(min(99, v + boost + (2 if v >= 80 else 0)))
+		p.stats = st
+		p.sm = min(5, int(b.sm) + 1); p.wf = min(5, int(b.wf) + 1)
+		players.append(p); by_id[p.id] = p
+		if a[2]: ascension_finale.append(p)
+	for t in [["ovr82", "82+ Player"], ["ovr83", "83+ Player"], ["ovr84", "84+ Player"], ["ovr85", "85+ Player"], ["ovr86", "86+ Player"], ["ovr88", "88+ Player"], ["asc_finale", "Ascension"]]:
+		tier_label[t[0]] = t[1]
+	var rp = func(name: String, items: int, tier: String, desc: String, art := "pass") -> Dictionary:
+		return {"name": name, "items": items, "coins": 0, "points": 0, "art": art, "guar": [[tier, items]], "w": {tier: 1}, "desc": desc, "reward": true}
+	packs["pp82x5"] = rp.call("82+ x5 Players Pack", 5, "ovr82", "5 players rated 82 or higher. Season Pass reward.")
+	packs["pp83x2"] = rp.call("83+ x2 Players Pack", 2, "ovr83", "2 players rated 83 or higher. Season Pass reward.")
+	packs["pp85x1"] = rp.call("85+ Player Pack", 1, "ovr85", "1 player rated 85 or higher. Season Pass reward.")
+	for pk in [["pick84", "84+ Player Pick", "ovr84", "Choose 1 of 3 players rated 84 or higher."], ["pick86", "86+ Player Pick", "ovr86", "Choose 1 of 3 players rated 86 or higher."],
+			["pick88", "88+ Player Pick", "ovr88", "Choose 1 of 3 players rated 88 or higher."], ["pickasc", "Ascension Player Pick", "asc_finale", "Choose 1 of 3 Ascension superstars: Mbappé, Yamal or Haaland."]]:
+		var d = rp.call(pk[1], 1, pk[2], pk[3], "pick"); d.pick = {"n": 3, "tier": pk[2]}
+		packs[pk[0]] = d
 
 func P(id: String) -> Dictionary:
 	return by_id.get(id, {})
@@ -84,7 +124,7 @@ func base_value(p: Dictionary) -> int:
 	if p.ovr < 71: v = 150 + (p.ovr - 58) * 15
 	elif p.ovr < 76: v = 350 + (p.ovr - 71) * 60 + (150 if p.rare else 0)
 	else: v = round(750 * pow(1.38, p.ovr - 76)) + (400 if p.rare else 0)
-	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5}.get(p.type, 1.0)
+	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0}.get(p.type, 1.0)
 	var pos_m: float = {"ST": 1.2, "LW": 1.15, "RW": 1.15, "CAM": 1.1, "CB": 1.05, "GK": 0.8, "CF": 1.1}.get(p.pos, 1.0)
 	return max(150, int(round(v * mult * pos_m / 50.0)) * 50)
 
@@ -108,10 +148,12 @@ func rarity_style(key: String) -> Dictionary:
 		"promo": return {"top": Color("#3a1268"), "mid": Color("#120a2e"), "bot": Color("#08142e"), "text": Color("#ffe6f6"), "trim": Color("#ff4fa3"), "glow": Color("#ff4fa3"), "shards": true, "shard_col": Color(1, 0.31, 0.64, 0.25)}
 		"found": return {"top": Color("#1d5d5a"), "mid": Color("#0c2c32"), "bot": Color("#081d22"), "text": Color("#dffff8"), "trim": Color("#6ff3dc"), "glow": Color("#3fe0c5"), "shards": true, "shard_col": Color(0.47, 1, 0.9, 0.22)}
 		"hero": return {"top": Color("#6b2ea6"), "mid": Color("#3a1666"), "bot": Color("#24093f"), "text": Color("#fff2c2"), "trim": Color("#ffd23f"), "glow": Color("#ffd23f"), "shards": true, "shard_col": Color(1, 0.82, 0.25, 0.2)}
+		"pass": return {"top": Color("#ff6a3d"), "mid": Color("#8c0f24"), "bot": Color("#1c0410"), "text": Color("#fff1e0"), "trim": Color("#ffc76b"), "glow": Color("#ff5a36"), "shards": true, "shard_col": Color(1, 0.78, 0.42, 0.25)}
 		"icon": return {"top": Color("#fffaf0"), "mid": Color("#eadcb8"), "bot": Color("#c6aa6a"), "text": Color("#3b2c0c"), "trim": Color("#b8913a"), "glow": Color("#fff3c4"), "shards": true, "shard_col": Color(1, 1, 1, 0.4)}
 	return rarity_style("gold")
 
 func ovr_color(p: Dictionary) -> Color:
+	if p.type == "pass": return Color("#ff6a3d")
 	if p.type != "base": return Color("#b04fd6")
 	match tier_of(p.ovr):
 		"gold": return Color("#e0be62")

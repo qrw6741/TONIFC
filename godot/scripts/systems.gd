@@ -9,6 +9,7 @@ signal market_changed
 
 const MARKET_TAX := 0.05
 var _market_t = 0.0
+var quiet = false   # suppress toasts during bulk actions
 
 func now() -> float: return Time.get_unix_time_from_system()
 func D(): return Save.data
@@ -236,7 +237,7 @@ func build_ai_squad(strength: float, club := "", formation := "") -> Dictionary:
 	var slots: Array = Data.formations[formation].map(func(f): return f[0])
 	var pool: Array
 	if club != "": pool = Data.by_club[club].filter(func(p): return p.type == "base")
-	else: pool = Data.players.filter(func(p): return p.type == "base" or (strength >= 84 and randf() < 0.3))
+	else: pool = Data.players.filter(func(p): return p.type == "base" or (p.type != "pass" and strength >= 84 and randf() < 0.3))
 	var used = {}
 	var out = []
 	for pos in slots:
@@ -329,7 +330,12 @@ func tier_pool(tier: String) -> Array:
 		"legend": pool = Data.players.filter(func(p): return p.type == "hero" or p.type == "icon")
 		"totw", "promo", "hero", "icon", "found": pool = Data.players.filter(func(p): return p.type == tier)
 		"gold": pool = Data.players.filter(func(p): return p.type == "base" and Data.tier_of(p.ovr) == "gold")
-		_: pool = Data.players.filter(func(p): return p.type == "base" and Data.rarity_key(p) == tier)
+		"asc_finale": pool = Data.ascension_finale.duplicate()
+		_:
+			if tier.begins_with("ovr"):
+				var mn: int = int(tier.substr(3))
+				pool = Data.players.filter(func(p): return p.type == "base" and p.ovr >= mn)
+			else: pool = Data.players.filter(func(p): return p.type == "base" and Data.rarity_key(p) == tier)
 	_tier_pools[tier] = pool
 	return pool
 func roll_tier(tier: String) -> Dictionary:
@@ -339,7 +345,9 @@ func roll_tier(tier: String) -> Dictionary:
 		return pick(pool.filter(func(p): return p.type == t))
 	var mn = 99
 	for p in pool: mn = min(mn, p.ovr)
-	var k = 3.2 if tier.begins_with("gold") else 6.0
+	if tier == "asc_finale": return pick(pool)
+	# steep curve: low ratings are common, top-rated players are genuinely rare
+	var k = 2.0 if tier.begins_with("gold") else (1.8 if tier.begins_with("ovr") else 6.0)
 	return weighted(pool.map(func(p): return [exp(-(p.ovr - mn) / k), p]))
 func pack_odds(id: String) -> Array:
 	var pk: Dictionary = Data.packs[id]
@@ -385,7 +393,7 @@ func make_listing(p: Dictionary) -> Dictionary:
 	var has_bid = chance(0.25)
 	return {"id": uid(), "pid": p.id, "start": start, "bin": bin, "bid": start if has_bid else 0, "bidder": "ai" if has_bid else "", "ends": now() + dur * randf_range(0.2, 1.0)}
 func market_search(f: Dictionary) -> Array:
-	var pool: Array = Data.players.filter(func(p): return p.type != "found")
+	var pool: Array = Data.players.filter(func(p): return p.type != "found" and p.type != "pass")
 	var q: String = f.get("name", "").to_lower()
 	if q != "": pool = pool.filter(func(p): return p.name.to_lower().contains(q))
 	if f.get("pos", "") != "": pool = pool.filter(func(p): return p.pos == f.pos)
@@ -540,6 +548,7 @@ func obj_claim(o: Dictionary) -> bool:
 	if not obj_done(o) or obj_claimed(o): return false
 	D().objectives.claimed[obj_key(o)] = true
 	grant(o.reward, "Objective: " + o.title)
+	Season.add_xp({"daily": 150, "weekly": 400, "season": 600}.get(o.cat, 300), "Objective")
 	return true
 
 func reward_text(r: Dictionary) -> String:
@@ -618,6 +627,7 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 	D().sbc.done[sbc.id] = sbc_count(sbc.id) + 1
 	D().stats.sbcs += 1
 	grant(sbc.reward, "SBC: " + sbc.name)
+	Season.add_xp(300, "SBC")
 	track("sbc"); history('Completed SBC "%s"' % sbc.name)
 	Save.dirty(); return true
 
@@ -662,7 +672,7 @@ func draft_reward(w: int) -> Dictionary:
 	return [{"coins": 1000, "pack": "gold"}, {"coins": 3000, "pack": "premium"}, {"coins": 8000, "pack": "draftreward", "points": 50}, {"coins": 15000, "pack": "jumbo", "points": 100}, {"coins": 30000, "pack": "mega", "points": 200}][w]
 const DRAFT_ROUNDS := ["Round of 16", "Quarter-Final", "Semi-Final", "Final"]
 func draft_choices(pos: String, exclude: Dictionary, captain := false) -> Array:
-	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id))
+	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and p.type != "pass")
 	if captain: return shuffled(pool).slice(0, 5)
 	var out = []; var seen = exclude.duplicate()
 	for i in 200:
@@ -709,6 +719,7 @@ func record_ut_match(res: Dictionary) -> String:
 	if assists > 0: track("assist", assists); st.assists += assists
 	if mid: track("goal_mid")
 	add_xp(300 if r == "W" else (180 if r == "D" else 120))
+	Season.add_xp(450 if r == "W" else (300 if r == "D" else 200), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))
 	return r
 func log_match(res: Dictionary, mode: String, r: String) -> void:
 	D().matches.push_front({"t": now(), "mode": mode, "home": res.home.name, "away": res.away.name, "hg": res.hg, "ag": res.ag, "res": r})
