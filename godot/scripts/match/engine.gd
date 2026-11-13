@@ -68,7 +68,8 @@ var finished = false
 func _init(c: Dictionary) -> void:
 	cfg = c
 	ai = Data.difficulties[c.get("difficulty", "professional")].ai
-	if c.has("ai"): ai = clamp(float(c.ai), 0.2, 1.3)   # dynamic difficulty (Rivals divisions, win streaks, Champions)
+	if c.has("ai"): ai = clamp(float(c.ai), 0.2, 1.3)
+	elite = c.get("elite", false)   # dynamic difficulty (Rivals divisions, win streaks, Champions)
 	half_secs = float(c.get("half_len", 3)) * 60.0
 	rules = c.get("rules", "classic")
 	user_side = c.get("user_side", "")
@@ -319,6 +320,7 @@ var pkey = ""
 var aim_tgt = null           # who the charged pass is aimed at (drawn as a line)
 var pending_shot = null      # timed finishing window
 var replay_len = 0.0
+var elite = false   # FUT Champions / Division Rivals: overpowered AI keepers & defenders
 func want(k: String) -> bool: return buf.has(k) and t - buf[k] < 0.4
 
 func pass_kind(m: MP, key: String) -> String:
@@ -535,6 +537,7 @@ func try_tackle(m: MP, opp: MP, is_ai: bool) -> bool:
 		m.vx += (opp.x - m.x) / d * 2; m.vy += (opp.y - m.y) / d * 2; return false
 	stats.tackles[si(m.side)] += 1; Sfx.play("tackle")
 	var p: float = clamp(0.3 + (m.defn - opp.dri) / 100.0 + ((m.team.ai - 0.6) * 0.25 if is_ai else 0.12) + (0.14 if m.jockey else 0.0) - (d - 1.0) * 0.15, 0.08, 0.85)
+	if is_ai and elite: p = clamp(p + 0.28, 0.2, 0.95)
 	if t - opp.recv_t < 0.5: p *= 0.5
 	if opp.invuln > 0: p *= 0.25
 	if opp == ctrl and opp.team.user and inp.get("close", false) and ball.owner == opp: p *= 0.7   # shielding
@@ -605,7 +608,7 @@ func team_ai(dt: float) -> void:
 					var close = d < 3.2
 					tx = b.x + gv.x * (0.9 if close else 1.6); ty = b.y + gv.y * (0.9 if close else 1.6); sprint = d > 6
 					if d < 1.7 and b.owner != null:
-						var agg: float = 0.7 if team.user else 0.35 + team.ai * 0.9
+						var agg: float = 0.7 if team.user else (0.35 + team.ai * 0.9) * (1.6 if elite else 1.0)
 						if randf() < agg * dt: try_tackle(m, b.owner, true)
 						elif not team.user and randf() < dt * 0.04 * team.ai and abs(b.owner.x - og) > 25: try_slide(m, (b.x - m.x) / max(d, 0.1), (b.y - m.y) / max(d, 0.1))
 			elif m == chaser2:
@@ -815,11 +818,13 @@ func handle_contacts(dt: float) -> void:
 		if b.get("reserve") != null and t < b.reserve.until and m != b.reserve.m and d2(m.x, m.y, b.x, b.y) > 0.65: continue
 		var d = d2(m.x, m.y, b.x, b.y)
 		var reach: float = 1.4 if m.gk else 0.95 + m.dri / 500.0
+		if elite and not m.team.user: reach += 0.55 if m.gk else (0.45 if Data.pos_group.get(m.slot_pos, "") == "DEF" else 0.2)
 		if b.z < 1.0 and d < reach:
 			var spd = Vector2(b.vx, b.vy).length()
 			var c: float = 1.0 if spd < 13 else clamp(1.0 - (spd - 13.0) / 22.0 + m.dri / 250.0, 0.15, 1.0)
 			var same: bool = b.last != null and m.side == b.last.side
-			if randf() < c * (1.0 if same else 0.7) * min(1.0, dt * 60.0) and d < bd: bd = d; best = m
+			var cm: float = (1.0 if same else 0.7) * (1.35 if elite and not m.team.user else 1.0)
+			if randf() < c * cm * min(1.0, dt * 60.0) and d < bd: bd = d; best = m
 		elif b.z >= 1.0 and b.z < 2.7 and d < 1.15 and not m.gk and not (m.team.user and m == ctrl and (inp.get("shoot", false) or inp.get("pass", false))):
 			ai_header(m); return
 	if best != null: give_ball(best)
@@ -854,9 +859,11 @@ func gk_save_check() -> void:
 	var gky: float = gk.y + gk.dive.vy * min(tt, gk.dive.t) if committed else gk.y
 	var reach = Vector2(abs(cy - gky), max(0.0, cz - 1.6)).length()
 	var gkr: float = gk.gkr * (1.0 if def_t.user else 0.95 + ai * 0.1)
+	if elite and not def_t.user: gkr = max(gkr, 92.0) * 1.12
 	var speed = Vector2(b.vx, b.vy).length()
 	var p: float = gkr / 100.0 * 1.15 - reach * 0.17 - (speed - 18.0) * 0.012 + max(0.12, tt) * 0.35
 	if reach < 0.8: p += 0.25
+	if elite and not def_t.user: p += 0.18 - (0.1 if reach > 2.6 else 0.0)
 	if sh.get("chip", false) and abs(gk.x - gl) > 2.5: p *= 0.35
 	p = clamp(p, 0.04, 0.95)
 	var save = randf() < p

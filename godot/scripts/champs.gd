@@ -21,8 +21,8 @@ const RANK_PTS := [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 46, 52, 56, 60]
 ## rank rewards: Champions Tokens + coins only
 const REWARDS := [
 	{"tokens": 15, "coins": 6000}, {"tokens": 25, "coins": 9000}, {"tokens": 35, "coins": 12000}, {"tokens": 45, "coins": 16000}, {"tokens": 60, "coins": 20000},
-	{"tokens": 80, "coins": 26000}, {"tokens": 100, "coins": 32000}, {"tokens": 120, "coins": 40000}, {"tokens": 140, "coins": 48000}, {"tokens": 170, "coins": 58000},
-	{"tokens": 200, "coins": 70000}, {"tokens": 240, "coins": 85000}, {"tokens": 280, "coins": 100000}, {"tokens": 330, "coins": 120000}, {"tokens": 400, "coins": 150000}]
+	{"tokens": 80, "coins": 26000, "qp": 300}, {"tokens": 100, "coins": 32000, "qp": 300}, {"tokens": 120, "coins": 40000, "qp": 400}, {"tokens": 140, "coins": 48000, "qp": 500}, {"tokens": 170, "coins": 58000, "qp": 500},
+	{"tokens": 200, "coins": 70000, "qp": 1000}, {"tokens": 240, "coins": 85000, "qp": 1000}, {"tokens": 280, "coins": 100000, "qp": 1000}, {"tokens": 330, "coins": 120000, "qp": 1000}, {"tokens": 450, "coins": 250000, "qp": 1000}]
 
 const STORE := [
 	{"id": "coins", "name": "5,000 Coins", "cost": 10, "limit": 0, "reward": {"coins": 5000}},
@@ -104,7 +104,8 @@ func claim() -> Dictionary:
 
 func grant(rw: Dictionary, src: String) -> void:
 	if rw.get("tokens", 0): c_add_tokens(int(rw.tokens))
-	var r2 = rw.duplicate(); r2.erase("tokens")
+	if rw.get("qp", 0): st().qp = min(QP_NEED, int(st().qp) + int(rw.qp))
+	var r2 = rw.duplicate(); r2.erase("tokens"); r2.erase("qp")
 	if r2.has("packs"):
 		for p in r2.packs: Save.data.unopened.append(p)
 		Sys.toast.emit("%d packs added to My Packs" % r2.packs.size(), "good"); r2.erase("packs")
@@ -115,6 +116,7 @@ func tokens() -> int: return int(st().tokens)
 func reward_text(rw: Dictionary) -> String:
 	var parts = []
 	if rw.get("tokens", 0): parts.append("%d x Champions Token" % rw.tokens)
+	if rw.get("qp", 0): parts.append("%s Champions Qualification Points" % Sys.fmt(rw.qp))
 	if rw.get("coins", 0): parts.append("%s Coins" % Sys.fmt(rw.coins))
 	if rw.has("pack"): parts.append(Data.packs[rw.pack].name)
 	for p in rw.get("packs", []): parts.append(Data.packs[p].name)

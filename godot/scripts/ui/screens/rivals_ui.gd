@@ -168,7 +168,7 @@ func play_match() -> void:
 	var name: String = Sys.pick(["Ace", "Pro", "King", "Volt", "Nova", "Zed", "Kai", "Rex"]) + Sys.pick(["_FC", "Gaming", "99", "Utd", "XI", "_27"])
 	var opp = Sys.ai_team(name, round(Sys.rivals_strength(d)))
 	Sys.league3_check(ut)
-	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(d), "ai": Sys.rivals_ai(d), "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals · " + Rivals.div_name(d)}, func(res):
+	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(d), "ai": Sys.rivals_ai(d), "elite": true, "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals · " + Rivals.div_name(d)}, func(res):
 		var r = Sys.record_ut_match(res); var out = Rivals.record(r)
 		Sys.log_match(res, "Rivals", r)
 		UI.show_results(res, "Division Rivals", "+%s coins%s" % [Sys.fmt(out.coins), (" · " + out.msg) if out.msg != "" else ""], func(): UI.replace("rivals")))

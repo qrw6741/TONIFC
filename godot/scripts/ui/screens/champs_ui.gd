@@ -199,7 +199,7 @@ func s_champions(_p) -> Dictionary:
 		"j%d" % JOY_BUTTON_Y: func(): UI.go("champsstore"), "k%d" % KEY_T: func(): UI.go("champsstore")})
 	var t = Timer.new(); t.wait_time = 1.0; t.autostart = true; page.add_child(t)
 	t.timeout.connect(func(): cd_txt.call(); upd_play.call())
-	if not fin.is_empty(): _show_claim.call_deferred(fin)
+	if not fin.is_empty(): UI.go.call_deferred("champsreward", {"res": fin})
 	return {"node": page, "bg": "off"}
 
 func _emblem_circle() -> Control:
@@ -225,11 +225,123 @@ func _preview_all(pts: int) -> void:
 
 func _show_claim(res: Dictionary) -> void:
 	if res.is_empty(): return
-	Sfx.play("bigreveal")
-	var txt = "You finished at %s." % Champs.rank_name(res.rank)
-	if not res.reward.is_empty(): txt += "\n\nRewards: " + Champs.reward_text(res.reward)
-	await UI.modal("FUT Champions complete", txt, [["Continue", true, "Primary"]])
-	UI.replace("champions")
+	UI.go("champsreward", {"res": res})
+
+# ------------------------------------------------------------------ rewards reveal (end of a Champions run)
+class Trophy extends Control:
+	func _draw() -> void:
+		var c = size / 2; var r = min(size.x, size.y) * 0.46
+		draw_circle(c + Vector2(0, r * 0.06), r * 1.02, Color(0, 0, 0, 0.35))
+		for i in 8: draw_circle(c, r * (1.0 - i * 0.015), Color("#f8d77a").lerp(Color("#9a6a12"), i / 7.0))
+		draw_circle(c, r * 0.84, Color("#6e0f18"))
+		for k in 7:
+			var a = -PI / 2 + (k - 3) * 0.32
+			Champs_star(self, c + Vector2(cos(a), sin(a)) * r * 0.68, r * 0.07)
+		var cup = PackedVector2Array([c + Vector2(-r * 0.32, -r * 0.34), c + Vector2(r * 0.32, -r * 0.34), c + Vector2(r * 0.22, r * 0.02), c + Vector2(r * 0.06, r * 0.12), c + Vector2(-r * 0.06, r * 0.12), c + Vector2(-r * 0.22, r * 0.02)])
+		draw_colored_polygon(cup, Color("#f0c94e"))
+		for s in [-1, 1]: draw_arc(c + Vector2(s * r * 0.3, -r * 0.2), r * 0.11, PI / 2 * (1 - s), PI / 2 * (1 - s) + PI, 12, Color("#f0c94e"), r * 0.05)
+		draw_rect(Rect2(c + Vector2(-r * 0.05, r * 0.1), Vector2(r * 0.1, r * 0.16)), Color("#e0b23e"))
+		draw_rect(Rect2(c + Vector2(-r * 0.2, r * 0.26), Vector2(r * 0.4, r * 0.1)), Color("#f0c94e"))
+		for s in [-1, 1]:
+			for k in 5:
+				var a = PI / 2 + s * (0.7 + k * 0.3)
+				draw_circle(c + Vector2(cos(a), sin(a)) * r * 0.7, r * 0.045, Color("#e8c46a"))
+	static func Champs_star(ci: CanvasItem, p: Vector2, r: float) -> void:
+		var st = PackedVector2Array()
+		for i in 10:
+			var a = -PI / 2 + i * TAU / 10.0; var rr = r if i % 2 == 0 else r * 0.45
+			st.append(p + Vector2(cos(a), sin(a)) * rr)
+		ci.draw_colored_polygon(st, Color("#f8d77a"))
+
+class CoinPile extends Control:
+	var t = 0.0
+	func _process(d: float) -> void: t += d; queue_redraw()
+	func _draw() -> void:
+		var W = size.x; var H = size.y
+		var cw = W * 0.2; var ch = cw * 0.32
+		var stacks = [[0.18, 7], [0.38, 10], [0.62, 9], [0.82, 6], [0.28, 4], [0.72, 4]]
+		for st in stacks:
+			var x = W * st[0]; var base = H * (0.86 if st[1] > 5 else 0.95)
+			for k in st[1]:
+				var y = base - k * ch * 0.55
+				Gfx.ellipse(self, Vector2(x, y + ch * 0.25), cw * 0.5, ch * 0.5, Color("#9a6a12"), 18)
+				Gfx.ellipse(self, Vector2(x, y), cw * 0.5, ch * 0.5, Color("#f5d36a").lerp(Color("#c99a2a"), float(k % 3) / 3.0), 18)
+		var fc = Vector2(W * 0.5, H * 0.66); var fr = W * 0.17
+		draw_circle(fc, fr, Color("#b8861d")); draw_circle(fc, fr * 0.86, Color("#1c1a14")); draw_arc(fc, fr * 0.93, 0, TAU, 40, Color("#f8d77a"), fr * 0.1)
+		Gfx.text_c(self, UI.font_head, fc.x, fc.y + fr * 0.25, "PF", int(fr * 0.7), Color("#f3d88a"))
+		for k in 5:
+			var a = t * 2.0 + k * 1.3; var sp = Vector2(W * (0.2 + 0.15 * k), H * (0.2 + 0.1 * (k % 3)))
+			var s = (sin(a) + 1.0) * 0.5 * W * 0.025
+			draw_line(sp - Vector2(s, 0), sp + Vector2(s, 0), Color(1, 1, 0.9, 0.9), 2.0); draw_line(sp - Vector2(0, s), sp + Vector2(0, s), Color(1, 1, 0.9, 0.9), 2.0)
+
+class Sparks extends Control:
+	var parts = []
+	func burst(at: Vector2, n := 40, col := Color("#ffd36b")) -> void:
+		for i in n:
+			var a = randf() * TAU; var v = randf_range(120, 420)
+			parts.append({"p": at, "v": Vector2(cos(a), sin(a)) * v, "life": randf_range(0.6, 1.3), "c": col, "s": randf_range(2, 5)})
+	func _process(d: float) -> void:
+		for p in parts: p.p += p.v * d; p.v *= 0.96; p.v.y += 260 * d; p.life -= d
+		parts = parts.filter(func(p): return p.life > 0); queue_redraw()
+	func _draw() -> void:
+		for p in parts: draw_circle(p.p, p.s, Color(p.c, clamp(p.life, 0.0, 1.0)))
+
+func s_champsreward(p) -> Dictionary:
+	var res: Dictionary = p.get("res", {"rank": -1, "reward": {}})
+	var rw: Dictionary = res.get("reward", {})
+	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bgc = ChampsBG.new(); bgc.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(bgc)
+	var dim = ColorRect.new(); dim.color = Color(0, 0, 0, 0.55); dim.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(dim)
+	var sparks = Sparks.new(); sparks.set_anchors_preset(Control.PRESET_FULL_RECT); sparks.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for kv in [["left", 52], ["right", 52], ["top", 20], ["bottom", 16]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
+	page.add_child(mg); page.add_child(sparks)
+	var v = UI.vb(10); mg.add_child(v)
+	v.add_child(UI.hb(14, [UI.icon("badge", Save.data.profile.badge, Vector2(44, 48)), UI.label("Play", 18, UI.DIM), UI.bold("Rivals", 22), UI._sepline(), UI.label("Rivals", 16, UI.DIM), UI.bold("Champions", 16), UI.spacer(), UI.currency_bar()]))
+	var title = UI.head("CHAMPIONS", 64); title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var sub = UI.label("Congratulations - here are your Champions Competition Rewards!", 20); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var rk = UI.bold("You finished at %s" % Champs.rank_name(int(res.get("rank", -1))), 17, GOLD); rk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title); v.add_child(sub); v.add_child(rk)
+	v.add_child(UI.vspacer())
+	var row = UI.hb(70); row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var items = []
+	if rw.get("tokens", 0): items.append([Token.make(230), int(rw.tokens), "Champions\nToken"])
+	if rw.get("qp", 0): var tr = Trophy.new(); tr.custom_minimum_size = Vector2(160, 160); items.append([tr, int(rw.qp), "Champions Qualification\nPoints"])
+	if rw.get("coins", 0): var cp = CoinPile.new(); cp.custom_minimum_size = Vector2(190, 160); items.append([cp, int(rw.coins), "Coins"])
+	if items.is_empty(): row.add_child(UI.label("No rank reached this time — win a match to earn rewards.", 18, UI.DIM))
+	var cols = []
+	for it in items:
+		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(250, 250); hold.add_child(it[0])
+		var num = UI.head("0", 46); num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var nm = UI.label(it[2], 24); nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var col = UI.vb(4, [hold, num, nm]); col.modulate.a = 0.0
+		row.add_child(col); cols.append([col, num, it[1], hold])
+	v.add_child(row)
+	v.add_child(UI.vspacer())
+	var g = func(ps: String, xb: String, kb: String) -> String: return ps if Pad.style == "ps" else (xb if Pad.style == "xbox" else kb)
+	var adv = UI.btn("%s  Advance" % g.call("✕", "A", "Enter"), func(): UI.reset("champions"), "Primary", true); adv.custom_minimum_size.x = 200
+	v.add_child(UI.hb(22, [adv, UI._key_hint(g.call("○", "B", "Esc"), "Back")]))
+	# staggered reveal: pop in, count up, sparkle
+	var start = func():
+		Sfx.play("riser")
+		title.pivot_offset = title.size / 2; title.scale = Vector2(1.6, 1.6); title.modulate.a = 0
+		var tt = title.create_tween().set_parallel(); tt.tween_property(title, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT); tt.tween_property(title, "modulate:a", 1.0, 0.4)
+		for i in cols.size():
+			var c = cols[i]; var col: Control = c[0]; var num: Label = c[1]; var amount: int = c[2]; var hold: Control = c[3]
+			var tw = col.create_tween()
+			tw.tween_interval(0.6 + i * 0.75)
+			tw.tween_callback(func():
+				col.pivot_offset = col.size / 2; col.scale = Vector2(0.3, 0.3); Sfx.play("reveal")
+				sparks.burst(hold.get_global_rect().get_center() - sparks.get_global_rect().position, 46))
+			tw.tween_property(col, "modulate:a", 1.0, 0.15)
+			tw.parallel().tween_property(col, "scale", Vector2(1.12, 1.12), 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(col, "scale", Vector2.ONE, 0.15)
+			tw.tween_method(func(x: float): num.text = Sys.fmt(int(x)), 0.0, float(amount), 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw.tween_callback(func(): Sfx.play("coin"))
+		var fin = page.create_tween(); fin.tween_interval(0.8 + cols.size() * 0.75 + 0.6)
+		fin.tween_callback(func(): Sfx.play("bigreveal"); for k in 3: sparks.burst(Vector2(sparks.size.x * (0.25 + k * 0.25), sparks.size.y * 0.35), 60, [Color("#ffd36b"), Color("#ff4f5e"), Color.WHITE][k]))
+	start.call_deferred()
+	return {"node": page, "bg": "off", "back": func(): UI.reset("champions")}
 
 func _play_pressed() -> void:
 	var r = Champs.run()
@@ -252,7 +364,7 @@ func _play_match() -> void:
 	var nm = "%s%s" % [Sys.pick(["Elite", "Prime", "Apex", "Legend", "Volt", "Nova"]), Sys.pick(["_FC", "Gaming", "XI", "99", "Utd"])]
 	var opp = Sys.ai_team(nm, min(93, 85 + int(r.w) * 0.45 + Sys.experience() * 20))
 	Sys.league3_check(ut)
-	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary", "ai": min(1.3, 0.92 + int(r.w) * 0.022 + Sys.experience()), "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "FUT Champions · Match %d/%d" % [int(r.played) + 1, Champs.MATCHES], "knockout": true}, func(res):
+	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "ultimate", "ai": min(1.3, 1.05 + int(r.w) * 0.02 + Sys.experience()), "elite": true, "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "FUT Champions · Match %d/%d" % [int(r.played) + 1, Champs.MATCHES], "knockout": true}, func(res):
 		var r0 = Sys.record_ut_match(res)
 		var won: bool = r0 == "W" or (r0 == "D" and res.get("winner", "") == "home")
 		var out = Champs.record(won, "%d-%d" % [res.hg, res.ag], nm)

@@ -250,6 +250,21 @@ func run() -> void:
 			var res = Champs.claim(); print("CLAIM ", res.reward, " CD after run ", int(Champs.cooldown_left()), " can start ", Champs.start())
 			UI.go("champions"); await w(0.6); await shot("g143_champs_cd")
 			UI.go("champsstore"); await w(0.4); await shot("g144_token_store")
+		if extra == "--champsreward":
+			Champs.st().next_at = 0; Champs.st().qp = 1000; Champs.start()
+			for k in 15: Champs.record(true, "2-0", "x")
+			var res = Champs.claim(); print("REWARD ", res)
+			UI.go("champsreward", {"res": res}); await w(1.2); await shot("g150_reward_anim")
+			await w(3.2); await shot("g151_reward_final")
+			print("QP after ", Champs.st().qp, " tokens ", Champs.tokens())
+			for el in [false, true]:
+				var gs = [0, 0]; var sv = 0; var sh = 0; var tk = 0
+				for g in 3:
+					var sim := MatchSim.new({"home": Sys.club_team("RMA"), "away": Sys.club_team("MCI"), "user_side": "", "difficulty": "professional", "ai": 0.9, "elite": el, "half_len": 3, "mode": "test"})
+					var n := 0
+					while not sim.finished and n < 60 * 500: sim.update(1.0 / 60.0); n += 1
+					gs[0] += sim.score.home; gs[1] += sim.score.away; sh += sim.stats.shots[0] + sim.stats.shots[1]; tk += sim.stats.tackles[0] + sim.stats.tackles[1]
+				print("ELITE ", el, " goals ", gs, " shots ", sh, " tackles ", tk)
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)
