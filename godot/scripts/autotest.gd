@@ -230,6 +230,26 @@ func run() -> void:
 			UI.go("gemsbc", {"id": "potm_p230", "cat": "POTM", "sel": fill}); await w(0.4); await shot("g132_potm_build")
 			print("POTM submit ", GemSBC.submit(ps, fill), " owns ", Sys.owns_pid("potm_p230"), " card ", Data.P("potm_p230").ovr)
 			UI.inspect(Data.P("potm_p230")); await w(0.4); await shot("g133_potm_card"); UI.close_top(null)
+		if extra == "--store":
+			Save.data.unopened = []; Save.data.pending = []
+			UI.replace("store", {"tab": "browse", "cat": "promo"}); await w(0.6); await shot("g140_store_promo")
+			UI.replace("store", {"tab": "browse", "cat": "classic"}); await w(0.4)
+			for k in 3: UI._send_nav(Vector2i(1, 0)); await w(0.15)
+			await shot("g141_store_classic")
+			UI.replace("store", {"tab": "browse", "cat": "preview"}); await w(0.5); await shot("g142_preview")
+			var pv = UI.modules[11].preview(); print("PREVIEW ", pv.items.map(func(x): return "%d %s" % [Data.P(x).ovr, Data.P(x).name]), " left ", int(UI.modules[11].preview_left()))
+			UI.modules[1].open_pack("preview", true, pv.items.map(func(x): return Data.P(x))); pv.bought = true
+			await w(1.0)
+			var ov2 = UI.overlay.get_child(UI.overlay.get_child_count() - 1) if UI.overlay.get_child_count() > 0 else null
+			if ov2 and ov2.has_method("done"): ov2.done()
+			await w(0.8)
+			print("PENDING matches preview ", Save.data.pending.map(func(x): return x.pid) == pv.items)
+			# champs: cooldown after run, coin/token rewards
+			Champs.st().qp = 1000; Champs.start(); for k in 3: Champs.record(true, "1-0", "x")
+			print("CD during run ", int(Champs.cooldown_left()))
+			var res = Champs.claim(); print("CLAIM ", res.reward, " CD after run ", int(Champs.cooldown_left()), " can start ", Champs.start())
+			UI.go("champions"); await w(0.6); await shot("g143_champs_cd")
+			UI.go("champsstore"); await w(0.4); await shot("g144_token_store")
 		if extra == "--match":
 			UI.run_match({"home": Sys.club_team("MCI"), "away": Sys.club_team("RMA"), "user_side": "", "difficulty": "professional", "half_len": 3, "sim": false, "mode": "kickoff", "title": "Kick Off"}, func(res): print("RESULT ", res.hg, "-", res.ag))
 			await w(1.0)

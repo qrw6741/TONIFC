@@ -52,6 +52,41 @@ class RankShield extends Button:
 		var o = sh.duplicate(); o.append(sh[0]); draw_polyline(o, edge, 2.4, true)
 		Gfx.text_c(self, UI.font_head, r.get_center().x, r.get_center().y + 9, numeral, 24, Color.WHITE if state != "done" else Color("#2a1d02"))
 
+## the Champions Token: gold-rimmed medallion, crimson field, laurel arcs, crest with a "C" and a star
+class Token extends Control:
+	static func paint(ci: CanvasItem, c: Vector2, r: float, t := 0.0) -> void:
+		ci.draw_circle(c + Vector2(0, r * 0.08), r * 1.02, Color(0, 0, 0, 0.35))
+		for i in 10: ci.draw_circle(c, r * (1.0 - i * 0.012), Color("#f8d77a").lerp(Color("#9a6a12"), float(i) / 9.0))
+		var teeth = PackedVector2Array()
+		for i in 48:
+			var a = TAU * i / 48.0; var rr = r * (0.9 if i % 2 == 0 else 0.86)
+			teeth.append(c + Vector2(cos(a), sin(a)) * rr)
+		ci.draw_colored_polygon(teeth, Color("#c3901c"))
+		ci.draw_circle(c, r * 0.8, Color("#5a0d14"))
+		for i in 18: ci.draw_circle(c, r * (0.8 - i * 0.02), Color("#8e1622").lerp(Color("#3a0509"), float(i) / 17.0))
+		for s in [-1, 1]:
+			for k in 7:
+				var a = PI / 2 + s * (0.55 + k * 0.28)
+				var p = c + Vector2(cos(a), sin(a)) * r * 0.66
+				var leaf = PackedVector2Array([p + Vector2(0, -r * 0.05), p + Vector2(s * r * 0.05, 0), p + Vector2(0, r * 0.05), p + Vector2(-s * r * 0.05, 0)])
+				ci.draw_colored_polygon(leaf, Color("#e8c46a"))
+		var sh = Gfx.shield(Rect2(c - Vector2(r * 0.34, r * 0.4), Vector2(r * 0.68, r * 0.8)))
+		ci.draw_colored_polygon(sh, Color("#f0c94e"))
+		var o = sh.duplicate(); o.append(sh[0]); ci.draw_polyline(o, Color("#fff1c4"), max(1.5, r * 0.03), true)
+		Gfx.text_c(ci, UI.font_head, c.x, c.y + r * 0.2, "C", int(r * 0.55), Color("#5a0d14"))
+		var st = PackedVector2Array()
+		for i in 10:
+			var a = -PI / 2 + i * TAU / 10.0; var rr = r * (0.13 if i % 2 == 0 else 0.055)
+			st.append(c + Vector2(0, -r * 0.6) + Vector2(cos(a), sin(a)) * rr)
+		ci.draw_colored_polygon(st, Color("#fff1c4"))
+		var sx = c.x - r + fmod(t * 0.6, 2.4) * r
+		ci.draw_arc(c, r * 0.95, -2.4, -1.6, 12, Color(1, 1, 1, 0.35), max(1.0, r * 0.05))
+	var t = 0.0
+	func _process(d: float) -> void: t += d; queue_redraw()
+	func _draw() -> void: Token.paint(self, size / 2, min(size.x, size.y) * 0.48, t)
+	static func make(px: float) -> Token:
+		var k = Token.new(); k.custom_minimum_size = Vector2(px, px); k.mouse_filter = Control.MOUSE_FILTER_IGNORE; return k
+
 class Emblem extends Control:
 	var big = true
 	func _draw() -> void:
@@ -131,23 +166,22 @@ func s_champions(_p) -> Dictionary:
 		var glyph = Pad.glyph("A") if Pad.style != "" else "Ⓐ"
 		play.disabled = false
 		if r == null:
-			if Champs.qualified() and Champs.div_ok(): play.text = glyph + "  Play FUT Champions"
+			if Champs.cooldown_left() > 0: play.text = "Next run in %s" % Sys.fmt_time(Champs.cooldown_left()); play.disabled = true
+			elif Champs.qualified() and Champs.div_ok(): play.text = glyph + "  Play FUT Champions"
 			else: play.text = "Qualify in Division Rivals"; play.disabled = false
 		elif r.done: play.text = glyph + "  Claim Rewards"
-		elif Champs.cooldown_left() > 0:
-			play.text = "Next match in %s" % Sys.fmt_time(Champs.cooldown_left()); play.disabled = true
 		else: play.text = glyph + "  Play FUT Champions"
 	upd_play.call()
 	req.add_child(play)
-	var row2 = UI.hb(10, [UI.btn("Token Store  ·  %d" % Champs.tokens(), func(): UI.go("champsstore"), "Small")])
+	var row2 = UI.hb(10, [Token.make(34), UI.btn("Token Store  ·  %d" % Champs.tokens(), func(): UI.go("champsstore"), "Small")])
 	if run != null and not run.done:
 		row2.add_child(UI.btn("Finish run now", func():
-			if await UI.modal("Finish FUT Champions now?", "You'll get the rewards for %s and can't play the remaining %d matches this week." % [Champs.rank_name(Champs.rank_for(int(run.pts))), Champs.remaining()], [["Keep playing", null, ""], ["Finish & claim", true, "Danger"]]):
+			if await UI.modal("Finish FUT Champions now?", "You'll get the rewards for %s and can't play the remaining %d matches. A new run can start after a 5-minute cooldown." % [Champs.rank_name(Champs.rank_for(int(run.pts))), Champs.remaining()], [["Keep playing", null, ""], ["Finish & claim", true, "Danger"]]):
 				_show_claim(Champs.claim()), "Small"))
 	req.add_child(row2)
 	req.custom_minimum_size.x = 400
 	var rr = UI.panel(UI.vb(12, [UI.bold("Rank Rewards", 20), UI.label("Earn points to unlock better rewards", 15, UI.DIM),
-		UI.hb(18, [_emblem_circle(), UI.vb(4, [rank_name, rank_pts, rank_rw])])]))
+		UI.hb(18, [Token.make(130), UI.vb(4, [rank_name, rank_pts, rank_rw])])]))
 	rr.custom_minimum_size = Vector2(400, 250)
 	var perf_n = func(n, lab: String) -> Control:
 		var b = UI.vb(0, [UI.label(lab, 17), UI.head(str(n), 32, CYAN)])
@@ -200,6 +234,7 @@ func _show_claim(res: Dictionary) -> void:
 func _play_pressed() -> void:
 	var r = Champs.run()
 	if r == null:
+		if Champs.cooldown_left() > 0: UI.toast("Next FUT Champions run available in " + Sys.fmt_time(Champs.cooldown_left()), "bad"); return
 		if not Champs.qualified():
 			UI.toast("Earn %s more Champions Qual. Points in Division Rivals (win +200 · draw +100 · loss +50)" % Sys.fmt(Champs.QP_NEED - int(Champs.st().qp)), "bad")
 			UI.go("rivals"); return
@@ -208,7 +243,6 @@ func _play_pressed() -> void:
 		Champs.start()
 		_play_match(); return
 	if r.done: _show_claim(Champs.claim()); return
-	if Champs.cooldown_left() > 0: UI.toast("Next Champions match available in " + Sys.fmt_time(Champs.cooldown_left()), "bad"); return
 	_play_match()
 
 func _play_match() -> void:
@@ -225,12 +259,12 @@ func _play_match() -> void:
 		Sys.add("coins", 1200 if won else 400, "FUT Champions match")
 		Sys.log_match(res, "Champions", "W" if won else "L")
 		var rk = Champs.rank_name(out.rank)
-		UI.show_results(res, "FUT Champions", "+%d pts · %s · +%s coins · next match in 5:00" % [out.pts, rk, Sys.fmt(1200 if won else 400)], func(): UI.replace("champions")))
+		UI.show_results(res, "FUT Champions", "+%d pts · %s · +%s coins%s" % [out.pts, rk, Sys.fmt(1200 if won else 400), " · run complete — claim your rewards" if Champs.run().done else ""], func(): UI.replace("champions")))
 
 # ------------------------------------------------------------------ token store
 func s_champsstore(_p) -> Dictionary:
 	var f = UI.sub_shell("Champions Token Store", "FUT Champions")
-	f.body.add_child(UI.hb(14, [UI.head("TOKEN STORE", 38), UI.spacer(), UI.panel(UI.vb(0, [UI.caps("Champions Tokens", 10), UI.head("◉ " + Sys.fmt(Champs.tokens()), 26, GOLD)]), "Glass")]))
+	f.body.add_child(UI.hb(14, [Token.make(84), UI.head("TOKEN STORE", 38), UI.spacer(), UI.panel(UI.hb(10, [Token.make(46), UI.vb(0, [UI.caps("Champions Tokens", 10), UI.head(Sys.fmt(Champs.tokens()), 26, GOLD)])]), "Glass")]))
 	f.body.add_child(UI.label("Earn Champions Tokens from your FUT Champions rank rewards every week.", 13, UI.DIM))
 	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
 	var first = true
@@ -241,7 +275,7 @@ func s_champsstore(_p) -> Dictionary:
 		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(170, 124); hold.add_child(vis)
 		var left = "" if int(it.limit) == 0 else "  ·  %d left" % (int(it.limit) - Champs.bought(it.id))
 		var ok: bool = Champs.can_buy(it)
-		var t = UI.tile([hold, UI.bold(it.name, 15), UI.bold("◉ %s%s" % [Sys.fmt(it.cost), left], 14, GOLD if ok else UI.DIM)],
+		var t = UI.tile([hold, UI.bold(it.name, 15), UI.hb(6, [Token.make(22), UI.bold("%s%s" % [Sys.fmt(it.cost), left], 14, GOLD if ok else UI.DIM)])],
 			func():
 				if int(it.limit) > 0 and Champs.bought(it.id) >= int(it.limit): UI.toast("Sold out", "bad"); return
 				if Champs.tokens() < int(it.cost): UI.toast("Not enough Champions Tokens", "bad"); Sfx.play("error"); return

@@ -4,7 +4,7 @@ extends Node
 ##   and be in Rivals Division 10 or better.
 ## • Event: a weekly 15-match run. Win = 4 pts, loss = 1 pt. 15 ranks: Contender V–I, Elite V–I, Champion V–I.
 ## • Rewards for the HIGHEST rank reached (Champions Tokens, coins, packs, picks) when the run ends.
-## • 5-minute cooldown after every Champions match.
+## • 5-minute cooldown after every Champions RUN before you can start the next one.
 ## • Champions Tokens are spent in the Champions Token Store.
 
 signal changed
@@ -18,14 +18,11 @@ const MIN_DIV := 10
 const TIERS := ["Contender", "Elite", "Champion"]
 const NUM := ["V", "IV", "III", "II", "I"]
 const RANK_PTS := [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 46, 52, 56, 60]
+## rank rewards: Champions Tokens + coins only
 const REWARDS := [
-	{"tokens": 15, "coins": 2000}, {"tokens": 25, "coins": 3000}, {"tokens": 35, "coins": 4000, "pack": "premium"},
-	{"tokens": 45, "coins": 5000, "pack": "premium"}, {"tokens": 60, "coins": 7000, "pack": "rare"},
-	{"tokens": 80, "coins": 9000, "pack": "rare"}, {"tokens": 100, "coins": 11000, "pack": "mega"}, {"tokens": 120, "coins": 13000, "pack": "mega"},
-	{"tokens": 140, "coins": 15000, "pack": "pp83x2"}, {"tokens": 170, "coins": 18000, "packs": ["pp83x2", "rare"]},
-	{"tokens": 200, "coins": 22000, "pack": "pick84"}, {"tokens": 240, "coins": 26000, "packs": ["pick84", "mega"]},
-	{"tokens": 280, "coins": 30000, "pack": "pick86"}, {"tokens": 330, "coins": 35000, "packs": ["pick86", "mega"]},
-	{"tokens": 400, "coins": 45000, "packs": ["pickhero", "pp83x2"]}]
+	{"tokens": 15, "coins": 6000}, {"tokens": 25, "coins": 9000}, {"tokens": 35, "coins": 12000}, {"tokens": 45, "coins": 16000}, {"tokens": 60, "coins": 20000},
+	{"tokens": 80, "coins": 26000}, {"tokens": 100, "coins": 32000}, {"tokens": 120, "coins": 40000}, {"tokens": 140, "coins": 48000}, {"tokens": 170, "coins": 58000},
+	{"tokens": 200, "coins": 70000}, {"tokens": 240, "coins": 85000}, {"tokens": 280, "coins": 100000}, {"tokens": 330, "coins": 120000}, {"tokens": 400, "coins": 150000}]
 
 const STORE := [
 	{"id": "coins", "name": "5,000 Coins", "cost": 10, "limit": 0, "reward": {"coins": 5000}},
@@ -72,7 +69,7 @@ func add_qp(result: String) -> int:
 ## start a run (uses the qualification points)
 func start() -> bool:
 	var c = st()
-	if c.run != null or not qualified() or not div_ok(): return false
+	if c.run != null or not qualified() or not div_ok() or cooldown_left() > 0: return false
 	c.qp = 0
 	c.run = {"week": Sys.week_key(), "played": 0, "w": 0, "l": 0, "pts": 0, "results": [], "done": false}
 	Sys.history("Qualified and entered FUT Champions")
@@ -84,7 +81,6 @@ func record(won: bool, score: String, opp: String) -> Dictionary:
 	if won: r.w += 1; r.pts += WIN_PTS; Sys.track("champs_win")
 	else: r.l += 1; r.pts += LOSS_PTS
 	r.results.append({"won": won, "score": score, "opp": opp})
-	st().next_at = Sys.now() + COOLDOWN
 	var rk = rank_for(int(r.pts))
 	if r.played >= MATCHES: r.done = true
 	Save.dirty(); changed.emit()
@@ -101,6 +97,7 @@ func claim() -> Dictionary:
 	if not rw.is_empty(): grant(rw, "FUT Champions " + rank_name(rk))
 	c.history.push_front({"t": Sys.now(), "w": r.w, "l": r.l, "pts": r.pts, "rank": rk})
 	c.run = null
+	c.next_at = Sys.now() + COOLDOWN
 	Sys.history("FUT Champions finished: %d-%d · %s" % [r.w, r.l, rank_name(rk)])
 	Save.dirty(); changed.emit()
 	return {"rank": rk, "reward": rw}

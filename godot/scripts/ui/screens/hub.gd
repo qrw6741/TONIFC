@@ -337,61 +337,6 @@ class SquadEditor extends RefCounted:
 		elif focus_i >= 11: bench_grid.get_child(focus_i - 11).grab_focus()
 
 # ------------------------------------------------------------------ STORE
-func s_store(p) -> Dictionary:
-	var f = UI.hub_shell("store")
-	var tab: String = p.get("tab", "mine" if (not Save.data.unopened.is_empty() or not Save.data.pending.is_empty()) else "packs")
-	f.body.add_child(UI.hb(10, [page_title("Store"), UI.spacer(), UI.seg([["packs", "Packs"], ["promo", "Special Promos"], ["mine", "My Packs (%d)" % Save.data.unopened.size()], ["odds", "Pack Odds"]], tab, func(v): UI.replace("store", {"tab": v}))]))
-	var content = UI.vb(14)
-	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
-	var tile = func(id: String, owned := false, idx := -1) -> Control:
-		var pk: Dictionary = Data.packs[id]
-		var price = []
-		if pk.coins: price.append("● " + Sys.fmt(pk.coins))
-		if pk.points: price.append("◆ " + Sys.fmt(pk.points))
-		var art = UI.icon("pack", id, Vector2(100, 140)); art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		var t = UI.tile([art, UI.bold(pk.name, 16), UI.wrapl(UI.label(pk.desc, 12, UI.DIM), 180), UI.bold("Open now" if owned else "   ".join(price), 14, UI.GREEN if owned else UI.GOLD2)],
-			func():
-				if owned:
-					Save.data.unopened.remove_at(idx); Save.dirty(); open_pack(id, false)
-				else: buy_pack(id), Vector2(220, 300))
-		return t
-	if tab == "packs" or tab == "promo":
-		if tab == "packs":
-			var today = Sys.day_key()
-			var claimed: bool = Save.data.daily_pts == today
-			var b = UI.btn("Claimed today" if claimed else "Claim 100", func(): Save.data.daily_pts = today; Sys.add("points", 100, "Daily Prime Points"); UI.rerender(), "" if claimed else "Primary")
-			b.disabled = claimed
-			var info = UI.vb(2, [UI.bold("Daily Prime Points", 15), UI.label("Claim 100 free Prime Points every day. Prime Points are fictional credits — there are no real-money purchases in this game.", 13, UI.DIM)]); UI.grow(info, false, true)
-			content.add_child(UI.panel(UI.hb(14, [info, b])))
-		for id in Data.pack_order:
-			if Data.packs[id].get("promo", false) == (tab == "promo"): flow.add_child(tile.call(id))
-		content.add_child(flow)
-	elif tab == "mine":
-		if Save.data.get("pick_cur") != null:
-			var pinfo = UI.vb(2, [UI.bold("Player Pick in progress", 15), UI.label("Finish choosing your player from %s." % Data.packs[Save.data.pick_cur.pack].name, 13, UI.DIM)]); UI.grow(pinfo, false, true)
-			content.add_child(UI.panel(UI.hb(14, [pinfo, UI.btn("Continue pick", func(): UI.go("pick"), "Primary")])))
-		if not Save.data.pending.is_empty():
-			var info = UI.vb(2, [UI.bold("%d unassigned items" % Save.data.pending.size(), 15), UI.label("From your last pack — keep, send to the Transfer List or quick sell.", 13, UI.DIM)]); UI.grow(info, false, true)
-			content.add_child(UI.panel(UI.hb(14, [info, UI.btn("View items", func(): UI.go("packresult"), "Primary")])))
-		if Save.data.unopened.is_empty(): content.add_child(UI.label("No unopened packs. Earn them from objectives, SBCs and competitions, or buy them in the Store.", 15, UI.DIM))
-		for i in Save.data.unopened.size(): flow.add_child(tile.call(Save.data.unopened[i], true, i))
-		content.add_child(flow)
-	else:
-		content.add_child(UI.wrapl(UI.label("Every pack's contents are generated from these configurable odds (data/gamedata.json → packs). Guaranteed slots are filled first; remaining slots roll the per-slot odds.", 13, UI.DIM), 1100))
-		var g = HFlowContainer.new(); g.add_theme_constant_override("h_separation", 14); g.add_theme_constant_override("v_separation", 14)
-		for id in Data.pack_order:
-			var pk: Dictionary = Data.packs[id]
-			var t = GridContainer.new(); t.columns = 3; t.add_theme_constant_override("h_separation", 18)
-			for hdr in ["Item", "Per slot", "≥1 in pack"]: t.add_child(UI.caps(hdr, 10))
-			for o in Sys.pack_odds(id):
-				t.add_child(UI.label(Data.tier_label[o.tier], 13)); t.add_child(UI.label("%.2f%%" % (o.per * 100) if o.per < 0.01 else "%.1f%%" % (o.per * 100), 13)); t.add_child(UI.label("%.2f%%" % (o.least * 100) if o.least < 0.01 else "%.1f%%" % (o.least * 100), 13))
-			var gtxt = ", ".join(pk.guar.map(func(x): return "%d× %s" % [int(x[1]), Data.tier_label[x[0]]]))
-			var pn = UI.panel(UI.vb(6, [UI.bold(pk.name, 15), UI.wrapl(UI.label("%d items · Guaranteed: %s" % [int(pk.items), gtxt], 12, UI.DIM), 300), t])); pn.custom_minimum_size.x = 340
-			g.add_child(pn)
-		content.add_child(g)
-	f.body.add_child(UI.scroll(content))
-	return _hub(f, "store")
-
 func buy_pack(id: String) -> void:
 	var pk: Dictionary = Data.packs[id]
 	var btns = []
@@ -403,15 +348,17 @@ func buy_pack(id: String) -> void:
 	var cur = await UI.modal("Buy %s?" % pk.name, body, btns)
 	if cur == null: return
 	if not Save.data.pending.is_empty(): UI.toast("Assign your previous pack items first", "bad"); UI.go("packresult"); return
+	if UI.modules[11].promo_left(id) == 0: UI.toast("You've bought the maximum of this pack this week", "bad"); return
 	if not Sys.spend(cur, pk.coins if cur == "coins" else pk.points, "Bought " + pk.name, "store"): return
+	UI.modules[11].promo_bought(id)
 	open_pack(id, true)
 
 ## cinematic pack opening: pack → light beams → walkout (nation, position, club, rating) → card
-func open_pack(id: String, tradeable: bool) -> void:
+func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	if Data.packs[id].has("pick"):
 		UI.modules[3].start_pick(id); return
 	if not Save.data.pending.is_empty(): Sys.apply_pending()
-	var items = Sys.generate_pack(id)
+	var items = preset if not preset.is_empty() else Sys.generate_pack(id)
 	var untr: bool = (not tradeable) or Data.packs[id].get("reward", false)
 	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": untr, "dest": "keep"})
 	for p in items: Gallery.record(p.id, "pack", true)
