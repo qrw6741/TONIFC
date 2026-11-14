@@ -58,16 +58,17 @@ func _set_tile(id: String, focus: bool) -> Control:
 	var nslots = Gallery.set_slots(id)
 	var bar_v: float; var bar_m: float; var sub: String
 	if not sc.full:
-		bar_v = sc.items.size(); bar_m = nslots; sub = "%d / %d players collected" % [sc.items.size(), nslots]
+		bar_v = sc.items.size(); bar_m = nslots; sub = "%d / %d slots filled" % [sc.items.size(), nslots]
 	elif sc.next > 0:
 		bar_v = sc.total; bar_m = sc.next; sub = "%s / %s gems to %s" % [Sys.fmt(sc.total), Sys.fmt(sc.next), Gallery.GRADES[sc.grade + 1]]
 	else:
 		bar_v = 1; bar_m = 1; sub = "Top grade reached"
 	var claim: bool = Gallery.claimable(id)
+	var gain: int = Gallery.upgrade_gain(id)
 	var kids = [UI.hb(10, [em, UI.vb(0, [UI.caps("League set" if is_lg else "Club set", 10), UI.bold(Gallery.set_title(id), 18)]), UI.spacer(), gl]),
 		UI.label(gem_text(sc.total) + " gems" + (("  ·  +%d%% bonus" % sc.pct) if sc.pct else ""), 14, GEM),
 		UI.bar(bar_v, bar_m), UI.label(sub, 12, UI.DIM),
-		UI.caps("GRADE TO CLAIM ◈ TOKENS" if claim else "%d slots · %d players in album" % [nslots, Gallery.album(id).size()], 10, UI.GREEN if claim else UI.DIM)]
+		UI.caps("GRADE TO CLAIM ◈ TOKENS" if claim else (("▲ UPGRADE AVAILABLE · +%s GEMS" % Sys.fmt(gain)) if gain > 0 else "%d slots · %d players in album" % [nslots, Gallery.album(id).size()]), 10, UI.GREEN if claim else (Color("#ffc76b") if gain > 0 else UI.DIM))]
 	var t = UI.tile(kids, func(): UI.go("galleryset", {"id": id}), Vector2(300, 196), focus)
 	if claim:
 		var glow = StyleBoxFlat.new(); glow.bg_color = Color(0.18, 0.85, 0.5, 0.1); glow.border_color = UI.GREEN; glow.set_border_width_all(2); glow.set_corner_radius_all(10)
@@ -77,11 +78,11 @@ func _set_tile(id: String, focus: bool) -> Control:
 func _help() -> void:
 	var txt = """Every player item you get from packs, rewards, picks or the market is recorded in your Gallery forever — even after you sell or quick sell it.
 
-Each item is worth GEMS based on its rating and rarity (special cards are worth much more). Every set automatically uses your best recorded items: 15 for a league set, 11 for a club set.
+Each item is worth GEMS based on its rating and rarity (special cards are worth much more). Sets don't fill themselves: open a set and place your recorded items into its slots (15 for a league set, 11 for a club set), or press Upgrade to drop in your best ones. New cards you get only count once you upgrade the set.
 
 Set score = gems + bonus tags (Special items, First Owner, Golden, Same Nation). Fill every slot for grade D, then climb C → B → A → S. Each new grade pays Gallery Tokens and coins once.
 
-Your total score across all sets raises your Gallery Level — milestone rewards every 5 levels, up to an Icon Player Pick at Level 25. Spend tokens in the Token Store."""
+Your total score across all sets raises your Gallery Level — milestone rewards every 5 levels, up to an Icon Player Pick at Level 25. Spend tokens in the Token Store — including 5 exclusive, untradeable Gallery cards."""
 	await UI.modal("How the Gallery works", UI.wrapl(UI.label(txt, 14), 620), [["Got it", true, "Primary"]])
 
 # ------------------------------------------------------------------ SET DETAIL
@@ -96,6 +97,12 @@ func s_galleryset(p) -> Dictionary:
 		if r.tokens: Sfx.play("bigreveal"); UI.toast("Grade %s! +%s Gallery Tokens · +%s coins" % [Gallery.GRADES[r.grade], Sys.fmt(r.tokens), Sys.fmt(r.coins)], "good")
 		UI.replace("galleryset", {"id": id}), "Primary", claim)
 	gbtn.disabled = not claim
+	var gain: int = Gallery.upgrade_gain(id)
+	var ubtn = UI.btn("▲ Upgrade set  +%s gems" % Sys.fmt(gain) if gain > 0 else "Set is up to date", func():
+		var d = Gallery.upgrade(id)
+		if d > 0: Sfx.play("reveal"); UI.toast("Set upgraded · +%s gems" % Sys.fmt(d), "good")
+		UI.replace("galleryset", {"id": id}), "Primary" if gain > 0 and not claim else "", gain > 0 and not claim)
+	ubtn.disabled = gain <= 0
 	# grade ladder
 	var ladder = UI.hb(8)
 	var mx = Gallery.max_score(id)
@@ -108,18 +115,21 @@ func s_galleryset(p) -> Dictionary:
 	var tagbox = UI.vb(3, [UI.caps("Bonus tags", 10)])
 	for t in sc.tags: tagbox.add_child(UI.label(("✓ +%d%%  " % t[1] if t[2] else "·  ") + t[0], 12, UI.GREEN if t[2] else UI.DIM))
 	var scorebox = UI.vb(2, [UI.caps("Set score", 10), UI.head(gem_text(sc.total), 30, GEM), UI.label("%s base + %d%% bonus" % [Sys.fmt(sc.base), sc.pct], 12, UI.DIM)])
-	f.body.add_child(UI.hb(18, [UI.head(g, 64, GRADE_COL[g]), scorebox, ladder, tagbox, UI.spacer(), gbtn]))
-	# slots (best recorded items)
+	f.body.add_child(UI.hb(18, [UI.head(g, 64, GRADE_COL[g]), scorebox, ladder, tagbox, UI.spacer(), UI.vb(8, [ubtn, gbtn])]))
+	# slots: only the items you place count
 	var slots = UI.hb(8)
+	var pids: Array = Gallery.placed_ids(id)
 	for i in Gallery.set_slots(id):
-		if i < sc.items.size():
-			var pl: Dictionary = sc.items[i]
-			var c = UI.card(pl, 5.0, false, func(): UI.inspect(pl))
+		var pid: String = pids[i]
+		if pid != "" and not Data.P(pid).is_empty():
+			var pl: Dictionary = Data.P(pid)
+			var c = UI.card(pl, 5.0, false, func(): _slot_pick(id, i))
 			slots.add_child(UI.vb(2, [c, _gem_lab(pl)]))
 		else:
-			var e = PlayerCard.make({}, 5.0); e.empty_pos = "?"; e.focus_mode = Control.FOCUS_NONE
-			slots.add_child(UI.vb(2, [e, UI.label("empty", 11, UI.DIM)]))
-	f.body.add_child(UI.vb(4, [UI.caps("Your best %d recorded items — used automatically" % Gallery.set_slots(id), 10), UI.scroll(slots, true)]))
+			var e = PlayerCard.make({}, 5.0); e.empty_pos = "+"
+			e.pressed.connect(func(): Sfx.play("select"); _slot_pick(id, i))
+			slots.add_child(UI.vb(2, [e, UI.label("place item", 11, UI.DIM)]))
+	f.body.add_child(UI.vb(4, [UI.caps("Set slots — press a slot to place or swap an item (new cards only count after you upgrade)", 10), UI.scroll(slots, true)]))
 	f.body.get_child(-1).get_child(1).custom_minimum_size.y = 112
 	# album
 	var alb: Array = Gallery.album(id)
@@ -136,6 +146,31 @@ func s_galleryset(p) -> Dictionary:
 	f.body.add_child(UI.scroll(grid))
 	return {"node": f.node, "bg": "hub", "back": func(): UI.replace("gallery", {"lg": Data.clubs[id.substr(2)].lg if id.begins_with("C:") else id.substr(2)})}
 
+## choose which recorded item goes in a slot
+func _slot_pick(id: String, slot: int) -> void:
+	var cur: String = Gallery.placed_ids(id)[slot]
+	var el: Array = Gallery.eligible(id)
+	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 8); flow.add_theme_constant_override("v_separation", 10)
+	flow.custom_minimum_size.x = 820
+	var placed = {}
+	for x in Gallery.placed_ids(id): if x != "": placed[Data.P(x).get("base", x)] = true
+	var first = true
+	for pl in el:
+		var inset: bool = placed.has(pl.get("base", pl.id))
+		var c = UI.card(pl, 6.2, true, func(): UI.close_top(pl.id))
+		if first: c.set_meta("autofocus", true); first = false
+		if inset: c.modulate = Color(0.6, 0.6, 0.65)
+		flow.add_child(UI.vb(1, [c, UI.bold(("✦ %s" % Sys.fmt(Gallery.gems(pl))) + ("  ✓" if inset else ""), 11, Color("#ff6fd8"))]))
+	if el.is_empty(): flow.add_child(UI.label("You haven't recorded any players for this set yet.", 14, UI.DIM))
+	var sc = UI.scroll(flow); sc.custom_minimum_size = Vector2(840, 420)
+	var btns = [["Cancel", null, ""]]
+	if cur != "": btns.push_front(["Clear slot", "clear", ""])
+	var r = await UI.modal("Place an item · slot %d" % (slot + 1), sc, btns, true)
+	if r == null: return
+	Gallery.place(id, slot, "" if r == "clear" else str(r))
+	Sfx.play("select")
+	UI.replace("galleryset", {"id": id})
+
 func _gem_lab(pl: Dictionary) -> Control:
 	var l = UI.bold(("✦ " + Sys.fmt(Gallery.gems(pl))) + ("  1st" if Gallery.first_owner(pl.id) else ""), 11, GEM)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -147,14 +182,20 @@ func s_gallerystore(_p) -> Dictionary:
 	_header(f, "Token Store")
 	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
 	var first = true
-	for it in Gallery.STORE:
+	flow.add_child(UI.vb(2, [UI.head("GALLERY CARDS", 22, GEM), UI.wrapl(UI.label("Exclusive rarity · untradeable · one of each · never in packs or on the market", 12, UI.DIM), 200)]))
+	for it in Gallery.store_items():
 		var r: Dictionary = it.reward
-		var vis: Control = UI.icon("pack", r.pack, Vector2(90, 126)) if r.has("pack") else UI.head("●", 60, UI.GOLD2)
+		var vis: Control
+		if r.has("player"): vis = UI.card(Data.P(r.player), 7.4); vis.mouse_filter = Control.MOUSE_FILTER_IGNORE; vis.focus_mode = Control.FOCUS_NONE
+		elif r.has("pack"): vis = UI.icon("pack", r.pack, Vector2(90, 126))
+		else: vis = UI.head("●", 60, UI.GOLD2)
 		if vis is Icon: vis.animate = false
-		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(180, 130); hold.add_child(vis)
+		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(180, 130 if not r.has("player") else 132); hold.add_child(vis)
 		var left = "" if int(it.limit) == 0 else "  ·  %d left" % (int(it.limit) - Gallery.bought(it.id))
 		var ok: bool = Gallery.can_buy(it)
-		var t = UI.tile([hold, UI.bold(it.name, 16), UI.label(Data.packs[r.pack].desc if r.has("pack") else "Coins for your club.", 12, UI.DIM), UI.bold("◈ %s%s" % [Sys.fmt(it.cost), left], 14, TOKEN if ok else UI.DIM)],
+		var dsc = Data.packs[r.pack].desc if r.has("pack") else ("Gallery card · %s · untradeable" % Data.P(r.player).pos if r.has("player") else "Coins for your club.")
+		if r.has("player") and Gallery.bought(it.id) >= 1: dsc = "✓ In your club"
+		var t = UI.tile([hold, UI.bold(it.name, 16), UI.label(dsc, 12, UI.DIM), UI.bold("◈ %s%s" % [Sys.fmt(it.cost), left], 14, TOKEN if ok else UI.DIM)],
 			func():
 				if int(it.limit) > 0 and Gallery.bought(it.id) >= int(it.limit): UI.toast("Sold out", "bad"); return
 				if Gallery.tokens() < int(it.cost): UI.toast("Not enough Gallery Tokens — grade more sets", "bad"); Sfx.play("error"); return
@@ -164,6 +205,6 @@ func s_gallerystore(_p) -> Dictionary:
 		(t.get_child(0).get_child(0).get_child(2) as Label).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if not ok: t.modulate = Color(1, 1, 1, 0.7)
 		flow.add_child(t); first = false
-	f.body.add_child(UI.label("Earn Gallery Tokens by grading sets. Packs and picks go to My Packs in the Store.", 13, UI.DIM))
+	f.body.add_child(UI.label("Earn Gallery Tokens by upgrading and grading sets. Gallery cards go straight to your club; packs and picks go to My Packs.", 13, UI.DIM))
 	f.body.add_child(UI.scroll(flow))
 	return {"node": f.node, "bg": "hub", "back": func(): UI.replace("gallery")}

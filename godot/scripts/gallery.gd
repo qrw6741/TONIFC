@@ -2,7 +2,7 @@ extends Node
 ## FUT Gallery (FC 27-style collection book).
 ## Every player item that passes through your club is RECORDED (never consumed).
 ## Each item is worth Gems (by rating & rarity). Sets — one per top-5 league and one per
-## top-6 club of each league — auto-use your best recorded items. Score = Gems + bonus tags,
+## top-6 club of each league — only count the items YOU place in them (Upgrade). Score = Gems + bonus tags,
 ## graded D / C / B / A / S. Each new grade pays Gallery Tokens + coins once.
 ## Total set score builds your Gallery Level (25 levels, milestone every 5).
 
@@ -17,7 +17,7 @@ const CLUB_TOKENS := [10, 20, 35, 60, 100]
 const LEAGUE_TOKENS := [25, 50, 90, 150, 250]
 const LEVEL_PTS := 800000
 const MAX_LEVEL := 25
-const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "rising": 2.5, "icon": 4.0}
+const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "rising": 2.5, "icon": 4.0, "gallery": 3.5}
 
 var top_clubs = {}      # league -> [club codes] (top 6 by squad strength)
 var _max_cache = {}
@@ -33,6 +33,23 @@ func _ready() -> void:
 	Data.packs["pickhero"] = rp.call("Hero Player Pick", "hero", "Choose 1 of 3 Hero players.")
 	Data.packs["pickicon"] = rp.call("Icon Player Pick", "icon", "Choose 1 of 3 Icons.")
 	Data.tier_label["hero"] = "Hero"; Data.tier_label["icon"] = "Icon"
+	_make_gallery_cards()
+
+## Gallery-exclusive rarity: 5 untradeable cards bought only with Gallery Tokens
+const GALLERY_CARDS := [["p226", 87, 900], ["p834", 87, 1000], ["p485", 87, 1000], ["p1524", 87, 1100], ["p1233", 88, 1300]]
+func _make_gallery_cards() -> void:
+	Data.card_types["gallery"] = {"name": "Gallery", "order": 5}
+	for g in GALLERY_CARDS:
+		var b: Dictionary = Data.by_id.get(g[0], {})
+		if b.is_empty(): continue
+		var p: Dictionary = b.duplicate(true)
+		var boost: int = max(1, int(g[1]) - int(b.ovr))
+		p.id = "gal_" + b.id; p.base = b.id; p.type = "gallery"; p.rare = true; p.ovr = int(g[1])
+		var stt = []
+		for i in 6: stt.append(min(99, int(b.stats[i]) + boost + (1 if int(b.stats[i]) >= 80 else 0)))
+		p.stats = stt; p.sm = min(5, int(b.sm) + 1)
+		Data.players.append(p); Data.by_id[p.id] = p
+func gallery_cards() -> Array: return GALLERY_CARDS.map(func(g): return Data.P("gal_" + g[0])).filter(func(p): return not p.is_empty())
 
 func _club_strength(c: String) -> float:
 	var r: Array = Data.by_club[c].filter(func(p): return p.type == "base").map(func(p): return p.ovr)
@@ -62,8 +79,13 @@ func st() -> Dictionary:
 	var d = Save.data
 	if d == null: return {}
 	if typeof(d.get("gallery")) != TYPE_DICTIONARY:
-		d.gallery = {"seen": {}, "grades": {}, "tokens": 0, "level_claimed": 0, "bought": {}}
+		d.gallery = {"seen": {}, "grades": {}, "tokens": 0, "level_claimed": 0, "bought": {}, "placed": {}}
 		for it in d.club: record(it.pid, it.get("src", "pack"), true)
+	if not d.gallery.has("placed"):
+		# older saves: sets that were already graded keep their items; everything else starts empty
+		d.gallery.placed = {}
+		for id in set_ids():
+			if int(d.gallery.grades.get(id, -1)) >= 0: d.gallery.placed[id] = best_items(id).map(func(p): return p.id)
 	return d.gallery
 
 func tokens() -> int: return int(st().tokens)
@@ -105,6 +127,44 @@ func album(id: String) -> Array:
 	pool.sort_custom(func(a, b): return gems(a) > gems(b))
 	return pool
 
+## items you've placed in this set (in slot order, "" = empty slot)
+func placed_ids(id: String) -> Array:
+	var a: Array = st().placed.get(id, []).duplicate()
+	while a.size() < set_slots(id): a.append("")
+	return a.slice(0, set_slots(id))
+func placed_items(id: String) -> Array:
+	return placed_ids(id).filter(func(x): return x != "" and not Data.P(x).is_empty()).map(func(x): return Data.P(x))
+func place(id: String, slot: int, pid: String) -> void:
+	var a = placed_ids(id)
+	var key: String = Data.P(pid).get("base", pid) if pid != "" else ""
+	for i in a.size():   # one version of each real player per set
+		if a[i] != "" and i != slot and Data.P(a[i]).get("base", a[i]) == key: a[i] = ""
+	a[slot] = pid
+	st().placed[id] = a; Save.dirty(); changed.emit()
+## items you could place in this set (recorded, fits, best version per player)
+func eligible(id: String) -> Array:
+	var by_base = {}
+	for pid in st().seen:
+		var p = Data.P(pid)
+		if p.is_empty() or not _fits(id, p): continue
+		var key: String = p.get("base", p.id)
+		if not by_base.has(key) or gems(p) > gems(by_base[key]): by_base[key] = p
+	var arr: Array = by_base.values()
+	arr.sort_custom(func(a, b): return gems(a) > gems(b))
+	return arr
+## Upgrade: put your best recorded items into the set (you choose when)
+func upgrade(id: String) -> int:
+	var before: int = score(id).total
+	st().placed[id] = best_items(id).map(func(p): return p.id)
+	Save.dirty(); changed.emit()
+	return score(id).total - before
+func upgrade_gain(id: String) -> int:
+	var b = 0
+	for p in best_items(id): b += gems(p)
+	var c = 0
+	for p in placed_items(id): c += gems(p)
+	return max(0, b - c)
+
 ## best recorded items for this set (one per real player)
 func best_items(id: String) -> Array:
 	var by_base = {}
@@ -145,7 +205,7 @@ func tags(items: Array) -> Array:
 	return out
 
 func score(id: String) -> Dictionary:
-	var items = best_items(id)
+	var items = placed_items(id)
 	var base = 0
 	for p in items: base += gems(p)
 	var tg = tags(items)
@@ -221,6 +281,15 @@ const STORE := [
 	{"id": "pick86", "name": "86+ Player Pick", "cost": 800, "limit": 2, "reward": {"pack": "pick86"}},
 	{"id": "hero", "name": "Hero Player Pick", "cost": 1400, "limit": 1, "reward": {"pack": "pickhero"}},
 	{"id": "icon", "name": "Icon Player Pick", "cost": 2500, "limit": 1, "reward": {"pack": "pickicon"}}]
+
+## store rows: the 5 Gallery cards first, then packs & picks
+func store_items() -> Array:
+	var out = []
+	for g in GALLERY_CARDS:
+		var p = Data.P("gal_" + g[0])
+		if p.is_empty(): continue
+		out.append({"id": "gal_" + g[0], "name": "%d %s" % [p.ovr, Data.short_name(p.name)], "cost": int(g[2]), "limit": 1, "reward": {"player": p.id}, "card": true})
+	return out + STORE
 
 func bought(item_id: String) -> int: return int(st().bought.get(item_id, 0))
 func can_buy(it: Dictionary) -> bool: return tokens() >= int(it.cost) and (int(it.limit) == 0 or bought(it.id) < int(it.limit))

@@ -238,7 +238,7 @@ func build_ai_squad(strength: float, club := "", formation := "") -> Dictionary:
 	var slots: Array = Data.formations[formation].map(func(f): return f[0])
 	var pool: Array
 	if club != "": pool = Data.by_club[club].filter(func(p): return p.type == "base")
-	else: pool = Data.players.filter(func(p): return p.type == "base" or (not p.type in ["pass", "potm"] and strength >= 84 and randf() < 0.3))
+	else: pool = Data.players.filter(func(p): return p.type == "base" or (not p.type in ["pass", "potm", "gallery"] and strength >= 84 and randf() < 0.3))
 	var used = {}
 	var out = []
 	for pos in slots:
@@ -403,7 +403,7 @@ func M() -> Dictionary:
 	for k in ["pool", "watch", "tl"]: if not m.has(k): m[k] = []
 	return m
 func _market_player_pool() -> Array:
-	return Data.players.filter(func(p): return not p.type in ["found", "pass", "potm"] and not str(p.id).begins_with("ev"))
+	return Data.players.filter(func(p): return not p.type in ["found", "pass", "potm", "gallery"] and not str(p.id).begins_with("ev"))
 var _mpp = []
 func _random_listing_player() -> Dictionary:
 	if _mpp.is_empty(): _mpp = _market_player_pool()
@@ -818,7 +818,7 @@ func draft_reward(w: int) -> Dictionary:
 	return [{"coins": 1000, "pack": "gold"}, {"coins": 3000, "pack": "premium"}, {"coins": 8000, "pack": "draftreward", "points": 50}, {"coins": 15000, "pack": "jumbo", "points": 100}, {"coins": 30000, "pack": "mega", "points": 200}][w]
 const DRAFT_ROUNDS := ["Round of 16", "Quarter-Final", "Semi-Final", "Final"]
 func draft_choices(pos: String, exclude: Dictionary, captain := false) -> Array:
-	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and not p.type in ["pass", "potm"])
+	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and not p.type in ["pass", "potm", "gallery"])
 	if captain: return shuffled(pool).slice(0, 5)
 	var out = []; var seen = exclude.duplicate()
 	for i in 200:

@@ -120,7 +120,7 @@ func s_play(_p) -> Dictionary:
 	var center = func(nodes: Array) -> Control: var c = CenterContainer.new(); c.size_flags_vertical = Control.SIZE_EXPAND_FILL; c.add_child(UI.vb(4, nodes)); return c
 	var rvs = Rivals.st()
 	var rivals = UI.tile([UI.bold("Division Rivals", 30), UI.wrapl(UI.bold("Climb ranks I–XII in each division to reach Elite. Rewards every 15 minutes.", 13, UI.TEAL), 380),
-		center.call([UI.head("ELITE" if rv.div == 1 else str(rv.div), 64, Color("#ff7a1a")), UI.bold(Rivals.div_name(int(rv.div)), 16), UI.bar(int(rvs.step), Rivals.STEPS), UI.label("Rank %d/12 · rewards in %s%s" % [int(rvs.step), Sys.fmt_time(Rivals.cycle_left()), (" · %d to claim" % rvs.unclaimed.size()) if not rvs.unclaimed.is_empty() else ""], 13, UI.DIM)])], func(): UI.go("rivals"), Vector2(0, 0), true)
+		center.call([UI.head("ELITE" if rv.div == 1 else str(rv.div), 64, Rivals.div_color(int(rv.div))), UI.bold(Rivals.div_name(int(rv.div)), 16), UI.bar(int(rvs.step), Rivals.STEPS), UI.label("Rank %d/12 · rewards in %s%s" % [int(rvs.step), Sys.fmt_time(Rivals.cycle_left()), (" · %d to claim" % rvs.unclaimed.size()) if not rvs.unclaimed.is_empty() else ""], 13, UI.DIM)])], func(): UI.go("rivals"), Vector2(0, 0), true)
 	var champs: Dictionary = m.champs
 	var tiles = [
 		rivals,

@@ -84,6 +84,15 @@ func _draw() -> void:
 		for sp in [[0.1, 0.56, 0.5], [0.9, 0.5, 0.42], [0.86, 0.62, 0.3], [0.14, 0.66, 0.32]]:
 			var sc = Vector2(w * sp[0], h * sp[1]); var sr: float = cs * sp[2]
 			draw_colored_polygon(PackedVector2Array([sc + Vector2(0, -sr), sc + Vector2(sr * 0.28, -sr * 0.28), sc + Vector2(sr, 0), sc + Vector2(sr * 0.28, sr * 0.28), sc + Vector2(0, sr), sc + Vector2(-sr * 0.28, sr * 0.28), sc + Vector2(-sr, 0), sc + Vector2(-sr * 0.28, -sr * 0.28)]), Color(0.75, 0.98, 1, 0.75))
+	if p.type == "gallery":
+		# museum frame: inner gilt-pink frame, corner gems and a light wash from the top
+		var inner = Gfx.shield(r, cs * 0.95); inner.append(inner[0])
+		draw_polyline(inner, Color(1, 0.44, 0.85, 0.55), max(1.0, cs * 0.1), true)
+		draw_colored_polygon(PackedVector2Array([Vector2(w * 0.3, 0), Vector2(w * 0.7, 0), Vector2(w * 0.95, h * 0.55), Vector2(w * 0.05, h * 0.55)]), Color(1, 0.6, 0.95, 0.06))
+		for gp in [Vector2(w * 0.1, h * 0.14), Vector2(w * 0.9, h * 0.14), Vector2(w * 0.5, h * 0.93)]:
+			var gr: float = cs * (0.42 if mini else 0.5)
+			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
+			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
 	if p.type == "pass" and not mini:
 		# Ascension chevrons on both flanks
 		for k in 3:

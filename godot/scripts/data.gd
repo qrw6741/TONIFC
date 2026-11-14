@@ -140,7 +140,7 @@ func base_value(p: Dictionary) -> int:
 	if p.ovr < 71: v = 150 + (p.ovr - 58) * 15
 	elif p.ovr < 76: v = 350 + (p.ovr - 71) * 60 + (150 if p.rare else 0)
 	else: v = round(750 * pow(1.38, p.ovr - 76)) + (400 if p.rare else 0)
-	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0, "rising": 2.8, "potm": 3.2}.get(p.type, 1.0)
+	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0, "rising": 2.8, "potm": 3.2, "gallery": 4.0}.get(p.type, 1.0)
 	var pos_m: float = {"ST": 1.2, "LW": 1.15, "RW": 1.15, "CAM": 1.1, "CB": 1.05, "GK": 0.8, "CF": 1.1}.get(p.pos, 1.0)
 	return max(150, int(round(v * mult * pos_m / 50.0)) * 50)
 
@@ -167,6 +167,7 @@ func rarity_style(key: String) -> Dictionary:
 		"potm": return {"top": Color("#ffe08a"), "mid": Color("#5b1fb0"), "bot": Color("#140733"), "text": Color("#fff8e6"), "trim": Color("#ffd36b"), "glow": Color("#b36bff"), "shards": true, "shard_col": Color(1, 0.85, 0.42, 0.22)}
 		"rising": return {"top": Color("#8af4ff"), "mid": Color("#2140c9"), "bot": Color("#0a0d3a"), "text": Color("#f2fbff"), "trim": Color("#a8f7ff"), "glow": Color("#4fd1ff"), "shards": true, "shard_col": Color(0.66, 0.97, 1, 0.22)}
 		"pass": return {"top": Color("#ff6a3d"), "mid": Color("#8c0f24"), "bot": Color("#1c0410"), "text": Color("#fff1e0"), "trim": Color("#ffc76b"), "glow": Color("#ff5a36"), "shards": true, "shard_col": Color(1, 0.78, 0.42, 0.25)}
+		"gallery": return {"top": Color("#1a1430"), "mid": Color("#0a0814"), "bot": Color("#2a0f3a"), "text": Color("#ffe9fb"), "trim": Color("#ff6fd8"), "glow": Color("#ff6fd8"), "shards": false}
 		"icon": return {"top": Color("#fffaf0"), "mid": Color("#eadcb8"), "bot": Color("#c6aa6a"), "text": Color("#3b2c0c"), "trim": Color("#b8913a"), "glow": Color("#fff3c4"), "shards": true, "shard_col": Color(1, 1, 1, 0.4)}
 	return rarity_style("gold")
 
@@ -174,6 +175,7 @@ func ovr_color(p: Dictionary) -> Color:
 	if p.type == "pass": return Color("#ff6a3d")
 	if p.type == "rising": return Color("#4fd1ff")
 	if p.type == "potm": return Color("#b36bff")
+	if p.type == "gallery": return Color("#ff6fd8")
 	if p.type != "base": return Color("#b04fd6")
 	match tier_of(p.ovr):
 		"gold": return Color("#e0be62")

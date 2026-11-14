@@ -7,6 +7,7 @@ const BLUE := Color("#2fb6ff")
 const GREENC := Color("#3fe0a0")
 
 class RivalsBG extends Control:
+	var col = Color(1, 0.48, 0.1)
 	func _draw() -> void:
 		var W = size.x; var H = size.y
 		draw_rect(Rect2(0, 0, W, H), Color("#0b0d12"))
@@ -15,11 +16,13 @@ class RivalsBG extends Control:
 		for k in 3:
 			var a = 0.22 - k * 0.06
 			var s = 1.0 + k * 0.35
-			draw_polyline(PackedVector2Array([Vector2(cx - 180 * s, cy + 160 * s), Vector2(cx - 40 * s, cy - 140 * s), Vector2(cx + 120 * s, cy - 140 * s), Vector2(cx + 150 * s, cy - 60 * s), Vector2(cx + 20 * s, cy + 20 * s), Vector2(cx + 170 * s, cy + 160 * s)]), Color(1, 0.48, 0.1, a), 6.0 - k * 1.5, true)
-		draw_polyline(PackedVector2Array([Vector2(W * 0.82, 0), Vector2(W * 0.96, H * 0.45), Vector2(W, H * 0.4)]), Color(1, 0.48, 0.1, 0.12), 8.0, true)
+			draw_polyline(PackedVector2Array([Vector2(cx - 180 * s, cy + 160 * s), Vector2(cx - 40 * s, cy - 140 * s), Vector2(cx + 120 * s, cy - 140 * s), Vector2(cx + 150 * s, cy - 60 * s), Vector2(cx + 20 * s, cy + 20 * s), Vector2(cx + 170 * s, cy + 160 * s)]), Color(col, a), 6.0 - k * 1.5, true)
+		draw_polyline(PackedVector2Array([Vector2(W * 0.82, 0), Vector2(W * 0.96, H * 0.45), Vector2(W, H * 0.4)]), Color(col, 0.12), 8.0, true)
+		draw_rect(Rect2(0, 0, W, H * 0.5), Color(col, 0.035))
 
 class StepShield extends Button:
 	var label_txt = ""; var state = "locked"; var cp = false; var cp_done = false; var reward_dot = false
+	var col = Color("#d0641a")
 	func _ready() -> void:
 		flat = true; focus_mode = Control.FOCUS_ALL; custom_minimum_size = Vector2(44, 52)
 		for s in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]: add_theme_stylebox_override(s, StyleBoxEmpty.new())
@@ -28,10 +31,10 @@ class StepShield extends Button:
 	func _draw() -> void:
 		var r = Rect2(Vector2(5, 6), size - Vector2(10, 12))
 		var sh = Gfx.shield(r)
-		if has_focus(): draw_colored_polygon(Gfx.shield(r.grow(4)), Color(0.18, 0.71, 1.0, 0.6))
-		var fill = Color("#1c1f26") if state == "locked" else (Color("#d0641a") if state == "done" else Color("#2a2f3a"))
-		var edge = Color("#6f7682") if state == "locked" else (Color("#ffb070") if state == "done" else Color.WHITE)
-		if state == "current": fill = Color("#3a2414"); edge = Color("#ff9a3c")
+		if has_focus(): draw_colored_polygon(Gfx.shield(r.grow(4)), Color(1, 1, 1, 0.55))
+		var fill = Color("#1c1f26") if state == "locked" else (col.darkened(0.15) if state == "done" else Color("#2a2f3a"))
+		var edge = Color("#6f7682") if state == "locked" else (col.lightened(0.35) if state == "done" else Color.WHITE)
+		if state == "current": fill = col.darkened(0.72); edge = col.lightened(0.15)
 		draw_colored_polygon(sh, fill)
 		var o = sh.duplicate(); o.append(sh[0]); draw_polyline(o, edge, 2.0, true)
 		Gfx.text_c(self, UI.font_bold, r.get_center().x, r.get_center().y + 5, label_txt, 13, Color.WHITE)
@@ -43,15 +46,19 @@ class StepShield extends Button:
 			var c2 = Vector2(r.end.x - 2, r.position.y + 3); draw_circle(c2, 6, Color("#ffb21a"))
 
 class DivBadge extends Control:
-	var txt = ""; var current = true
+	var txt = ""; var current = true; var col = Color("#ff7a1a")
 	func _draw() -> void:
 		var r = Rect2(Vector2(4, 4), size - Vector2(8, 8))
 		var pts = PackedVector2Array()
 		for i in 8:
 			var a = -PI / 2 + i * TAU / 8.0 + PI / 8.0
 			pts.append(r.get_center() + Vector2(cos(a), sin(a)) * r.size.x * 0.5)
-		draw_colored_polygon(pts, Color("#3a1d10") if current else Color("#2b2e35"))
-		var o = pts.duplicate(); o.append(pts[0]); draw_polyline(o, ORANGE if current else Color("#8a8f99"), 3.0, true)
+		if current:
+			var g = pts.duplicate()
+			for i in g.size(): g[i] = r.get_center() + (g[i] - r.get_center()) * 1.12
+			draw_colored_polygon(g, Color(col, 0.22))
+		draw_colored_polygon(pts, col.darkened(0.7) if current else col.darkened(0.82))
+		var o = pts.duplicate(); o.append(pts[0]); draw_polyline(o, col if current else col.darkened(0.25), 3.0, true)
 		Gfx.text_c(self, UI.font_head, r.get_center().x, r.get_center().y + r.size.y * 0.18, txt, int(r.size.y * 0.5), Color.WHITE)
 
 func _mmss(sec: float) -> String:
@@ -61,27 +68,28 @@ func s_rivals(p) -> Dictionary:
 	Rivals.tick()
 	var R = Rivals.st(); var d: int = Rivals.div(); var step: int = int(R.step)
 	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bgc = RivalsBG.new(); bgc.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(bgc)
+	var DC: Color = Rivals.div_color(d)
+	var bgc = RivalsBG.new(); bgc.col = DC; bgc.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(bgc)
 	var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for kv in [["left", 52], ["right", 52], ["top", 20], ["bottom", 14]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
 	page.add_child(mg)
 	var v = UI.vb(12); mg.add_child(v)
 	v.add_child(UI.hb(14, [UI.icon("badge", Save.data.profile.badge, Vector2(44, 48)), UI.label("Play", 20, UI.DIM), UI.bold("Rivals", 22), UI._sepline(), UI.btn("Champions", func(): UI.go("champions"), "Small"), UI.spacer(), UI.currency_bar()]))
-	var cd = UI.bold("", 17, ORANGE)
+	var cd = UI.bold("", 17, DC)
 	var upd_cd = func(): cd.text = "⏱ " + _mmss(Rivals.cycle_left())
 	upd_cd.call()
 	var qp = UI.bold("★ %s/%s" % [Sys.fmt(Champs.st().qp), Sys.fmt(Champs.QP_NEED)], 17, Color("#e8c46a"))
-	v.add_child(UI.vb(4, [UI.head("DIVISION RIVALS", 42), UI.hb(14, [UI.label("Next rewards in", 16), cd, UI.label("Champions Qual. Points", 16, UI.DIM), qp]),
+	v.add_child(UI.vb(4, [UI.hb(14, [UI.head("DIVISION RIVALS", 42), UI.head("· " + Rivals.div_name(d).to_upper(), 42, DC)]), UI.hb(14, [UI.label("Next rewards in", 16), cd, UI.label("Champions Qual. Points", 16, UI.DIM), qp]),
 		UI.label("Play Rivals matches to earn points and unlock rewards every 15 minutes. The higher your division, the better the rewards. Points also qualify you for Champions.", 15, UI.DIM)]))
 	# ---- ladder: current division badge · I..XII · next division
 	var lad = HBoxContainer.new(); lad.add_theme_constant_override("separation", 0); lad.alignment = BoxContainer.ALIGNMENT_CENTER
-	var cur_b = DivBadge.new(); cur_b.txt = "E" if d == 1 else str(d); cur_b.custom_minimum_size = Vector2(78, 78); lad.add_child(cur_b)
+	var cur_b = DivBadge.new(); cur_b.txt = "E" if d == 1 else str(d); cur_b.col = DC; cur_b.custom_minimum_size = Vector2(78, 78); lad.add_child(cur_b)
 	var marker = HBoxContainer.new(); marker.add_theme_constant_override("separation", 0); marker.alignment = BoxContainer.ALIGNMENT_CENTER
 	var m0 = Control.new(); m0.custom_minimum_size.x = 78; marker.add_child(m0)
 	for i in Rivals.STEPS:
 		var con = ColorRect.new(); con.custom_minimum_size = Vector2(28, 4); con.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		con.color = BLUE if i < step else Color(0.18, 0.71, 1.0, 0.35); lad.add_child(con)
-		var sh = StepShield.new(); sh.label_txt = Rivals.ROMAN[i]
+		con.color = DC if i < step else Color(DC, 0.3); lad.add_child(con)
+		var sh = StepShield.new(); sh.label_txt = Rivals.ROMAN[i]; sh.col = DC
 		sh.state = "done" if i < step else ("current" if i == step else "locked")
 		sh.cp = Rivals.CHECKPOINTS.has(i + 1); sh.cp_done = int(R.cp) >= i + 1
 		sh.reward_dot = i == Rivals.STEPS - 1
@@ -91,8 +99,8 @@ func s_rivals(p) -> Dictionary:
 		var mk = Label.new(); mk.custom_minimum_size.x = 44; mk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		mk.text = "▼" if i == max(0, min(step, Rivals.STEPS) - 1) else ""; mk.add_theme_color_override("font_color", GREENC); mk.add_theme_font_size_override("font_size", 20)
 		marker.add_child(mk)
-	var con2 = ColorRect.new(); con2.custom_minimum_size = Vector2(28, 4); con2.size_flags_vertical = Control.SIZE_SHRINK_CENTER; con2.color = Color(0.18, 0.71, 1.0, 0.35); lad.add_child(con2)
-	var nxt = DivBadge.new(); nxt.txt = ("E" if d - 1 == 1 else str(d - 1)) if d > 1 else "★"; nxt.current = false; nxt.custom_minimum_size = Vector2(66, 66); lad.add_child(nxt)
+	var con2 = ColorRect.new(); con2.custom_minimum_size = Vector2(28, 4); con2.size_flags_vertical = Control.SIZE_SHRINK_CENTER; con2.color = Color(DC, 0.3); lad.add_child(con2)
+	var nxt = DivBadge.new(); nxt.txt = ("E" if d - 1 == 1 else str(d - 1)) if d > 1 else "★"; nxt.current = false; nxt.col = Rivals.div_color(max(1, d - 1)); nxt.custom_minimum_size = Vector2(66, 66); lad.add_child(nxt)
 	var m_end = Control.new(); m_end.custom_minimum_size.x = 28 + 66; marker.add_child(m_end)
 	v.add_child(UI.vb(0, [marker, lad]))
 	var sub = "%s · %s%s%s" % [Rivals.div_name(d), ("Rank %s of XII · next: %s" % [Rivals.ROMAN[step - 1], Rivals.ROMAN[step] if step < 12 else "promotion"]) if step > 0 else "Rank 0 · win to reach I", "  ·  Safe division (no relegation)" if Rivals.safe(d) else "", "  ·  Win streak %d (wins give +2 ranks)" % R.streak if int(R.streak) >= 3 else ("  ·  Win streak %d" % R.streak if int(R.streak) > 0 else "")]
@@ -157,7 +165,7 @@ func _preview(d: int) -> void:
 	var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 20); g.add_theme_constant_override("v_separation", 8)
 	for hdr in ["Division", "Level 1 (1 pt)", "Level 2 (3 pts)", "Level 3 (6 pts)"]: g.add_child(UI.caps(hdr, 10))
 	for dd in range(1, 11):
-		g.add_child(UI.bold(Rivals.div_name(dd), 14, ORANGE if dd == d else UI.TEXT))
+		g.add_child(UI.bold(("▶ " if dd == d else "") + Rivals.div_name(dd), 14, Rivals.div_color(dd)))
 		for l in [1, 2, 3]: g.add_child(UI.label(Rivals.reward_text(Rivals.reward(dd, l)).replace("\n", " · "), 12, UI.TEXT if dd == d else UI.DIM))
 	await UI.modal("Rivals Rewards", UI.vb(10, [UI.label("Rewards are given every 15 minutes for the points you earn in that window (win 3 · draw 1). Checkpoints at IV and VIII protect your rank; reach XII to be promoted.", 14, UI.DIM), g]), [["Close", null, "Primary"]], true)
 

@@ -30,6 +30,9 @@ func cycle_id() -> int: return int(floor(Sys.now() / CYCLE))
 func cycle_left() -> float: return (cycle_id() + 1) * CYCLE - Sys.now()
 func div() -> int: return int(st().div)
 func div_name(d: int) -> String: return "Elite" if d == 1 else "Division %d" % d
+## every division has its own colour: bronze → copper → silver → green → teal → blue → purple → pink → red → Elite gold
+const DIV_COLORS := {10: "#b07a4a", 9: "#d8743a", 8: "#b8c2cc", 7: "#3fcf6a", 6: "#20c9b8", 5: "#2f8dff", 4: "#8f5bff", 3: "#e04fc8", 2: "#ff3d4f", 1: "#ffc93c"}
+func div_color(d: int) -> Color: return Color(DIV_COLORS.get(clamp(d, 1, 10), "#ff7a1a"))
 func safe(d: int) -> bool: return SAFE_DIVS.has(d)
 
 func level_for(pts: int) -> int:

@@ -30,8 +30,8 @@ func s_home(_p) -> Dictionary:
 	for kv in [["Division Rivals", "%s · rank %d/12" % [Rivals.div_name(int(rv.div)), int(rv.get("step", 0))]], ["Squad Battles", "%s pts" % Sys.fmt(sb.points if sb.week == Sys.week_key() else 0)], ["Champions", ("%d pts · %d/%d" % [int(Champs.run().pts), int(Champs.run().played), Champs.MATCHES]) if Champs.run() != null else ("Qualified" if Champs.qualified() else "%d/1,000 QP" % int(Champs.st().qp))]]:
 		g.add_child(UI.label(kv[0], 13, UI.DIM)); g.add_child(UI.label(kv[1], 13))
 	left.add_child(UI.tile([UI.caps("Competitions"), g], func(): UI.replace("play"), Vector2(0, 120)))
-	var gcl = Gallery.set_ids().filter(func(id): return Gallery.claimable(id)).size()
-	left.add_child(UI.tile([UI.hb(8, [UI.bold("Gallery ✦", 18, Color("#ff6fd8")), UI.spacer(), UI.bold("Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], 13, Color("#9fe8ff"))]), UI.label(("%d sets ready to grade" % gcl) if gcl else "Collect players from the top 6 clubs of each league", 12, UI.GREEN if gcl else UI.DIM)], func(): UI.go("gallery")))
+	var gcl = Gallery.set_ids().filter(func(id): return Gallery.claimable(id) or Gallery.upgrade_gain(id) > 0).size()
+	left.add_child(UI.tile([UI.hb(8, [UI.bold("Gallery ✦", 18, Color("#ff6fd8")), UI.spacer(), UI.bold("Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], 13, Color("#9fe8ff"))]), UI.label(("%d sets to upgrade or grade" % gcl) if gcl else "Collect players from the top 6 clubs of each league", 12, UI.GREEN if gcl else UI.DIM)], func(): UI.go("gallery")))
 	row.add_child(left)
 	# squad tile
 	var mp = UI.icon("minipitch", {"formation": sq.formation, "players": info.players}, Vector2(300, 330)); mp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; mp.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -218,25 +218,60 @@ func list_dialog(u: String) -> bool:
 	return false
 
 # ------------------------------------------------------------------ SQUAD BUILDER
+## FC-style squad screen: club/chemistry panel (left), angled pitch (centre), hovered player's stats (right),
+## SUB + RES strip along the bottom. □ / X / F on a hovered card opens the player's details.
 func s_squad(_p) -> Dictionary:
 	var sq = Sys.active_squad()
-	var f = UI.sub_shell(sq.name, "Squad Builder")
-	var holder = UI.hb(22); UI.grow(holder)
+	var f = UI.sub_shell("Squad", "Ultimate XI")
+	var holder = UI.vb(10); UI.grow(holder)
 	f.body.add_child(holder)
 	var S = SquadEditor.new(sq, holder)
 	holder.set_meta("editor", S)   # keep the editor alive with the screen
 	S.draw(-1)
+	UI.keyhook(f.node, {"j2": func(): S.details(), "k%d" % KEY_F: func(): S.details(),
+		"j3": func(): S.search(), "k%d" % KEY_T: func(): S.search(),
+		"j6": func(): S.team_mgmt(), "k%d" % KEY_M: func(): S.team_mgmt()})
 	return {"node": f.node, "bg": "hub"}
+
+class Stars extends Control:
+	var v = 4.0
+	func _init() -> void: custom_minimum_size = Vector2(92, 16)
+	func _draw() -> void:
+		for i in 5:
+			var c = Vector2(8 + i * 18, 8)
+			var pts = PackedVector2Array()
+			for k in 10:
+				var a = -PI / 2 + k * PI / 5; var r = 7.5 if k % 2 == 0 else 3.2
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+			draw_colored_polygon(pts, Color(1, 1, 1, 0.22))
+			var fill = clamp(v - i, 0.0, 1.0)
+			if fill > 0:
+				var clip = pts.duplicate()
+				if fill < 1.0:
+					var res = Geometry2D.intersect_polygons(pts, PackedVector2Array([c + Vector2(-9, -9), c + Vector2(-9 + 18 * fill, -9), c + Vector2(-9 + 18 * fill, 9), c + Vector2(-9, 9)]))
+					clip = res[0] if not res.is_empty() else PackedVector2Array()
+				if clip.size() >= 3: draw_colored_polygon(clip, Color("#e8c25a"))
+
+class ChemPips extends Control:
+	var n = 0
+	func _init() -> void: custom_minimum_size = Vector2(40, 14); size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	func _draw() -> void:
+		for i in 3:
+			var c = Vector2(6 + i * 13, 7)
+			var pts = PackedVector2Array([c + Vector2(0, -6), c + Vector2(5, 0), c + Vector2(0, 6), c + Vector2(-5, 0)])
+			draw_colored_polygon(pts, Color("#3fb6e0") if i < n else Color(1, 1, 1, 0.18))
 
 class SquadEditor extends RefCounted:
 	var sq: Dictionary
-	var holder: HBoxContainer
+	var holder: VBoxContainer
 	var sel = -1
 	var moving = -1
 	var pitch: PitchView
-	var bench_grid: GridContainer
+	var bench_row: HBoxContainer
 	var selbox: VBoxContainer
-	func _init(s: Dictionary, h: HBoxContainer) -> void: sq = s; holder = h
+	var detail: VBoxContainer
+	var hov = {"u": "", "i": -1}
+	func _init(s: Dictionary, h: VBoxContainer) -> void: sq = s; holder = h
 	func get_u(i: int) -> String: return sq.slots[i] if i < 11 else sq.subs[i - 11]
 	func set_u(i: int, u: String) -> void:
 		if i < 11: sq.slots[i] = u
@@ -244,6 +279,11 @@ class SquadEditor extends RefCounted:
 	func swap(a: int, b: int) -> void:
 		var ua = get_u(a); var ub = get_u(b)
 		set_u(a, ub); set_u(b, ua); Save.dirty(); Sfx.play("select")
+	func in_squad_pid(pid: String) -> int:
+		for k in 18:
+			var u = get_u(k)
+			if u != "" and Sys.item(u).get("pid", "") == pid: return k
+		return -1
 	func pick(i: int) -> void:
 		var pos: String = Data.formations[sq.formation][i][0] if i < 11 else ""
 		var cur = {}
@@ -265,11 +305,187 @@ class SquadEditor extends RefCounted:
 		sel = -1 if sel == i else i
 		if sel >= 0 and get_u(i) == "": pick(i); return
 		draw(i)
+	func reserve_pressed(u: String) -> void:
+		var target = sel if sel >= 0 else moving
+		if target < 0:
+			UI.toast("Select a squad slot first, then pick a reserve to bring in"); return
+		var pid: String = Sys.item(u).pid
+		var dup = in_squad_pid(pid)
+		if dup >= 0 and dup != target: UI.toast("That player is already in your squad", "bad"); return
+		var old = get_u(target)
+		set_u(target, u)
+		if target < 11 and sq.captain == old: sq.captain = u
+		Save.dirty(); Sfx.play("select"); sel = -1; moving = -1; draw(target)
+	func details() -> void:
+		if hov.u == "": UI.toast("Hover a player to see their details"); return
+		Sfx.play("select")
+		await UI.inspect(Sys.item_player(hov.u), [], Sys.item(hov.u))
+	func search() -> void:
+		if hov.i >= 0: pick(hov.i)
+	func team_mgmt() -> void:
+		var st = {"form": sq.formation, "sq": int(Save.data.active_squad)}
+		var body = UI.vb(12, [
+			UI.field("Squad", UI.option(range(Save.data.squads.size()).map(func(k): return [k, Save.data.squads[k].name]), st.sq, func(v): st.sq = v)),
+			UI.field("Formation", UI.option(Data.formation_names.map(func(x): return [x, x]), sq.formation, func(v): st.form = v)),
+			UI.wrapl(UI.label("Chemistry: each player earns 0–3 from teammates sharing his club, nation and league. Out-of-position players get 0.", 13, UI.DIM), 420)])
+		var r = await UI.modal("Team Management", body, [["Done", "done", "Primary"], ["Auto-build best XI", "auto", ""], ["Rename", "rename", ""], ["New squad", "new", ""]])
+		if st.sq != int(Save.data.active_squad):
+			Save.data.active_squad = st.sq; Save.dirty(); UI.replace("squad"); return
+		if st.form != sq.formation: sq.formation = st.form; Save.dirty()
+		match r:
+			"auto": Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good")
+			"rename": await UI.modules[1].rename_squad(sq)
+			"new":
+				Sys.squad_create("Squad %d" % (Save.data.squads.size() + 1)); Save.data.active_squad = Save.data.squads.size() - 1; UI.replace("squad"); return
+		draw(-1)
+	func hover(u: String, i: int) -> void:
+		hov.u = u; hov.i = i
+		if not is_instance_valid(detail): return
+		for c in detail.get_children(): detail.remove_child(c); c.queue_free()
+		var pl: Dictionary = Sys.item_player(u) if u != "" else {}
+		if pl.is_empty():
+			var pos: String = (Data.formations[sq.formation][i][0] if i >= 0 and i < 11 else "SUB") if i >= 0 else ""
+			detail.add_child(UI.bold("Empty slot", 22)); detail.add_child(UI.label(pos, 15, UI.DIM))
+			detail.add_child(UI.wrapl(UI.label("Press %s to add a player." % Pad.glyph("A"), 13, UI.DIM), 200))
+			return
+		detail.add_child(UI.wrapl(UI.bold(Data.short_name(pl.name), 26), 210))
+		detail.add_child(UI.label("%s · %s" % [Data.rarity_name(pl), pl.pos], 14, UI.DIM))
+		detail.add_child(Control.new())
+		var lab: Array = Data.GK_LABELS if pl.pos == "GK" else Data.STAT_LABELS
+		var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 18); g.add_theme_constant_override("v_separation", 8)
+		g.add_child(UI.bold(str(pl.ovr), 19)); g.add_child(UI.label("OVR", 16, UI.DIM))
+		for k in 6:
+			var v: int = int(pl.stats[k])
+			g.add_child(UI.bold(str(v), 17, UI.GREEN if v >= 85 else (UI.TEXT if v >= 70 else Color("#ffb070"))))
+			g.add_child(UI.label(lab[k], 15, UI.DIM))
+		detail.add_child(g)
+		detail.add_child(Control.new())
+		detail.add_child(UI.label("%s  Details" % Pad.glyph("X") if Pad.style != "" else "[F]  Details", 13, UI.TEAL))
+	func _hook(c: Control, u_fn: Callable, i: int) -> void:
+		c.focus_entered.connect(func(): hover(u_fn.call(), i))
+		c.mouse_entered.connect(func(): hover(u_fn.call(), i))
+	func draw(focus_i: int) -> void:
+		for c in holder.get_children(): c.queue_free()
+		var info = Sys.squad_info(sq)
+		var cap_idx: int = sq.slots.find(sq.captain) if sq.captain != "" else -1
+		# ---------- left: club card, chemistry, actions
+		var side = UI.vb(10); side.custom_minimum_size.x = 290
+		var stars: float = 5.0 if info.rating >= 85 else (4.5 if info.rating >= 82 else (4.0 if info.rating >= 79 else (3.5 if info.rating >= 76 else (3.0 if info.rating >= 72 else 2.5))))
+		var stw = Stars.new(); stw.v = stars
+		side.add_child(UI.hb(12, [UI.icon("badge", Sys.D().profile.badge, Vector2(56, 62)), UI.vb(3, [UI.bold(sq.name, 22), stw, UI.hb(6, [UI.label("Rating", 15, UI.DIM), UI.bold(str(info.rating), 17)])])]))
+		var tm = UI.btn("Team Management  (%s)" % (Pad.glyph("START") if Pad.style != "" else "M"), func(): team_mgmt(), "Small")
+		side.add_child(tm)
+		var chem_col = UI.GREEN if info.chem.total >= 24 else (UI.YELLOW if info.chem.total >= 12 else UI.RED)
+		side.add_child(UI.hb(8, [UI.label("Total Chemistry", 15, UI.DIM), UI.spacer(), UI.bold("%d / 33" % info.chem.total, 17, chem_col)]))
+		selbox = UI.vb(8)
+		if sel >= 0 or moving >= 0:
+			var si = sel if sel >= 0 else moving
+			var u = get_u(si); var pl: Dictionary = Sys.item_player(u) if u != "" else {}
+			var pos: String = Data.formations[sq.formation][si][0] if si < 11 else "SUB"
+			selbox.add_child(UI.caps(("Swapping: " if moving >= 0 else "Selected: ") + pos, 11, UI.TEAL))
+			selbox.add_child(UI.bold(("%s (%d)" % [pl.name, pl.ovr]) if not pl.is_empty() else "Empty slot", 14))
+			var acts = HFlowContainer.new(); acts.add_theme_constant_override("h_separation", 6); acts.add_theme_constant_override("v_separation", 6)
+			if moving >= 0:
+				acts.add_child(UI.wrapl(UI.label("Pick a pitch, bench or reserve card to swap in.", 12, UI.DIM), 240))
+				acts.add_child(UI.btn("Cancel", func(): moving = -1; draw(si), "Small", true))
+			else:
+				acts.add_child(UI.btn("Replace" if not pl.is_empty() else "Add player", func(): act("replace"), "Small", true))
+				if not pl.is_empty():
+					acts.add_child(UI.btn("Swap", func(): act("move"), "Small"))
+					acts.add_child(UI.btn("Details", func(): act("view"), "Small"))
+					if sel < 11: acts.add_child(UI.btn("Captain", func(): act("cap"), "Small"))
+					acts.add_child(UI.btn("Remove", func(): act("remove"), "Small"))
+				acts.add_child(UI.btn("Cancel", func(): act("cancel"), "Small"))
+			selbox.add_child(acts)
+			side.add_child(UI.panel(selbox, "Glass"))
+		# chemistry sources (league / nation / club counts with 3-step pips like FC)
+		var xi = info.players.filter(func(p): return not p.is_empty())
+		var cnt = {"lg": {}, "nat": {}, "club": {}}
+		for pl in xi:
+			if pl.type != "icon": cnt.lg[pl.lg] = cnt.lg.get(pl.lg, 0) + (2 if pl.type == "hero" else 1)
+			cnt.nat[pl.nat] = cnt.nat.get(pl.nat, 0) + (2 if pl.type == "icon" else 1)
+			if pl.club != "ICN" and pl.club != "HER": cnt.club[pl.club] = cnt.club.get(pl.club, 0) + 1
+		var thr = {"lg": [3, 5, 8], "nat": [2, 5, 8], "club": [2, 5, 7]}
+		var rows = []
+		for kind in ["lg", "nat", "club"]:
+			for k in cnt[kind]: rows.append([kind, k, int(cnt[kind][k])])
+		rows.sort_custom(func(a, b): return a[2] > b[2])
+		var list = UI.vb(6)
+		for r in rows:
+			var ic: Control
+			var nm = ""
+			if r[0] == "lg": ic = UI.icon("league", r[1], Vector2(22, 22)); nm = Data.leagues.get(r[1], {}).get("short", r[1])
+			elif r[0] == "nat": ic = UI.icon("flag", r[1], Vector2(24, 16)); nm = Data.nations.get(r[1], {}).get("name", r[1])
+			else: ic = UI.icon("crest", r[1], Vector2(22, 22)); nm = Data.clubs.get(r[1], {}).get("name", r[1])
+			var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(28, 22); hold.add_child(ic)
+			var pips = ChemPips.new(); var t: Array = thr[r[0]]
+			pips.n = (1 if r[2] >= t[0] else 0) + (1 if r[2] >= t[1] else 0) + (1 if r[2] >= t[2] else 0)
+			var nml = UI.label("%s" % nm, 13); nml.clip_text = true; nml.size_flags_horizontal = Control.SIZE_EXPAND_FILL; nml.custom_minimum_size.x = 120
+			list.add_child(UI.hb(8, [hold, nml, UI.label("%d" % r[2], 13, UI.DIM), pips]))
+		var lsc = UI.scroll(list); UI.grow(lsc)
+		var cp = UI.panel(UI.vb(6, [UI.caps("Chemistry", 11), lsc]), "Glass"); UI.grow(cp)
+		side.add_child(cp)
+		# ---------- centre: the pitch
+		pitch = PitchView.new(); pitch.persp = true; pitch.card_cs = 8.4
+		pitch.setup(sq.formation, info.players, info.chem, cap_idx, sel if sel < 11 else -1)
+		pitch.custom_minimum_size = Vector2(520, 480)
+		pitch.slot_pressed.connect(click)
+		pitch.slot_drop.connect(func(a, b): swap(a, b); sel = -1; draw(b))
+		for i in pitch.cards.size():
+			_hook(pitch.cards[i], func(): return get_u(i), i)
+		# ---------- right: hovered player
+		detail = UI.vb(6); detail.custom_minimum_size.x = 210
+		var top = UI.hb(18, [side, pitch, detail]); UI.grow(top)
+		holder.add_child(top)
+		# ---------- bottom: SUB + RES strip
+		bench_row = UI.hb(8)
+		var tagl = func(t: String) -> Control:
+			var l = UI.caps(t, 12, UI.DIM); l.custom_minimum_size = Vector2(34, 0); l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; return l
+		bench_row.add_child(tagl.call("SUB"))
+		var bench_cards = []
+		for k in 7:
+			var u: String = sq.subs[k]
+			var c = PlayerCard.make(Sys.item_player(u) if u != "" else {}, 7.2, true); c.empty_pos = "SUB"
+			c.drag_id = 11 + k; c.drop_cb = func(a, b): swap(a, b); sel = -1; draw(b)
+			c.pressed.connect(func(): Sfx.play("select"); click(11 + k))
+			if sel == 11 + k or moving == 11 + k: c.modulate = Color(1.3, 1.3, 1.3)
+			_hook(c, func(): return get_u(11 + k), 11 + k)
+			bench_row.add_child(c); bench_cards.append(c)
+		var sep = ColorRect.new(); sep.color = Color(1, 1, 1, 0.18); sep.custom_minimum_size = Vector2(2, 70); sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		bench_row.add_child(sep)
+		bench_row.add_child(tagl.call("RES"))
+		var used = {}
+		for k in 18:
+			var u = get_u(k)
+			if u != "": used[Sys.item(u).pid] = true
+		var res = Sys.club_items().filter(func(it): return not used.has(it.pid))
+		var seen = {}
+		var res_u = []
+		res.sort_custom(func(a, b): return int(Data.P(a.pid).get("ovr", 0)) > int(Data.P(b.pid).get("ovr", 0)))
+		for it in res:
+			if seen.has(it.pid) or Data.P(it.pid).is_empty(): continue
+			seen[it.pid] = true; res_u.append(it.uid)
+			if res_u.size() >= 24: break
+		for u in res_u:
+			var c = PlayerCard.make(Sys.item_player(u), 7.2, true)
+			c.pressed.connect(func(): reserve_pressed(u))
+			_hook(c, func(): return u, -1)
+			bench_row.add_child(c)
+		var bsc = UI.scroll(bench_row, true); bsc.custom_minimum_size.y = 7.2 * 10.4 + 18
+		var strip = PanelContainer.new()
+		strip.add_theme_stylebox_override("panel", UI._sb(Color(0.03, 0.05, 0.08, 0.75), Color(1, 1, 1, 0.07), 1, 6, Vector4(10, 6, 10, 4)))
+		strip.add_child(bsc)
+		holder.add_child(strip)
+		var g = func(k, kb): return Pad.glyph(k) if Pad.style != "" else kb
+		holder.add_child(UI.label("%s Select / Swap     %s Details     %s Search     %s Team Management     Drag cards to swap" % [g.call("A", "[Enter]"), g.call("X", "[F]"), g.call("Y", "[T]"), g.call("START", "[M]")], 13, UI.DIM))
+		var fu = get_u(focus_i) if focus_i >= 0 else (sq.slots[9] if sq.slots.size() > 9 else "")
+		hover(fu, focus_i if focus_i >= 0 else 9)
+		_refocus(focus_i, bench_cards)
 	func act(a: String) -> void:
 		var i = sel; var u = get_u(i)
 		match a:
 			"replace": pick(i); return
-			"move": moving = i; UI.toast("Now select the slot to swap with"); return
+			"move": moving = i; sel = -1; UI.toast("Now select the card to swap with"); draw(i); return
 			"view":
 				await UI.inspect(Sys.item_player(u), [], Sys.item(u))
 			"cap":
@@ -280,61 +496,13 @@ class SquadEditor extends RefCounted:
 				Save.dirty(); sel = -1
 			"cancel": sel = -1
 		draw(i)
-	func draw(focus_i: int) -> void:
-		for c in holder.get_children(): c.queue_free()
-		var info = Sys.squad_info(sq)
-		var cap_idx: int = sq.slots.find(sq.captain) if sq.captain != "" else -1
-		var side = UI.vb(12); side.custom_minimum_size.x = 300
-		var chem_col = UI.GREEN if info.chem.total >= 24 else (UI.YELLOW if info.chem.total >= 12 else UI.RED)
-		side.add_child(UI.hb(10, [UI.panel(UI.vb(0, [UI.head(str(info.rating), 30), UI.caps("Squad rating", 10)]), "Glass"), UI.panel(UI.vb(0, [UI.head(str(info.chem.total), 30, chem_col), UI.caps("Chemistry /33", 10)]), "Glass")]))
-		side.add_child(UI.field("Squad", UI.option(range(Save.data.squads.size()).map(func(k): return [k, Save.data.squads[k].name]), int(Save.data.active_squad), func(v): Save.data.active_squad = v; Save.dirty(); UI.replace("squad"))))
-		side.add_child(UI.field("Formation", UI.option(Data.formation_names.map(func(x): return [x, x]), sq.formation, func(v): sq.formation = v; Save.dirty(); draw(-1))))
-		side.add_child(UI.hb(8, [UI.btn("Auto-build best XI", func(): Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good"); draw(-1), "Small"),
-			UI.btn("Rename", func(): await UI.modules[1].rename_squad(sq); UI.replace("squad"), "Small"),
-			UI.btn("New", func(): Sys.squad_create("Squad %d" % (Save.data.squads.size() + 1)); Save.data.active_squad = Save.data.squads.size() - 1; UI.replace("squad"), "Small")]))
-		side.add_child(UI.panel(UI.vb(6, [UI.caps("Chemistry links", 11), UI.label("■ Green: same club, or nation + league", 12, UI.GREEN), UI.label("■ Yellow: same nation or league", 12, UI.YELLOW), UI.label("■ Red: no link", 12, UI.RED),
-			UI.wrapl(UI.label("Each player earns 0–3 chem from teammates sharing his club, nation and league. Out-of-position players get 0.", 12, UI.DIM), 260)]), "Glass"))
-		selbox = UI.vb(8)
-		if sel >= 0:
-			var u = get_u(sel); var pl: Dictionary = Sys.item_player(u) if u != "" else {}
-			var pos: String = Data.formations[sq.formation][sel][0] if sel < 11 else "SUB"
-			selbox.add_child(UI.caps("Selected: " + pos, 11))
-			selbox.add_child(UI.bold(("%s (%d)" % [pl.name, pl.ovr]) if not pl.is_empty() else "Empty slot", 14))
-			var acts = HFlowContainer.new(); acts.add_theme_constant_override("h_separation", 6); acts.add_theme_constant_override("v_separation", 6)
-			acts.add_child(UI.btn("Replace" if not pl.is_empty() else "Add player", func(): act("replace"), "Small", true))
-			if not pl.is_empty():
-				acts.add_child(UI.btn("Swap with…", func(): act("move"), "Small"))
-				acts.add_child(UI.btn("View", func(): act("view"), "Small"))
-				if sel < 11: acts.add_child(UI.btn("Make captain", func(): act("cap"), "Small"))
-				acts.add_child(UI.btn("Remove", func(): act("remove"), "Small"))
-			acts.add_child(UI.btn("Cancel", func(): act("cancel"), "Small"))
-			selbox.add_child(acts)
-		else: selbox.add_child(UI.wrapl(UI.label("Select a player on the pitch or bench. Drag cards to swap.", 13, UI.DIM), 260))
-		side.add_child(UI.panel(selbox, "Glass"))
-		holder.add_child(side)
-		pitch = PitchView.new().setup(sq.formation, info.players, info.chem, cap_idx, sel if sel < 11 else -1)
-		pitch.slot_pressed.connect(click)
-		pitch.slot_drop.connect(func(a, b): swap(a, b); sel = -1; draw(b))
-		holder.add_child(pitch)
-		var bench = UI.vb(10, [UI.caps("Substitutes")]); bench.custom_minimum_size.x = 250
-		bench_grid = GridContainer.new(); bench_grid.columns = 3; bench_grid.add_theme_constant_override("h_separation", 8); bench_grid.add_theme_constant_override("v_separation", 10)
-		for k in 7:
-			var u: String = sq.subs[k]
-			var c = PlayerCard.make(Sys.item_player(u) if u != "" else {}, 7.4, true); c.empty_pos = "SUB"
-			c.drag_id = 11 + k; c.drop_cb = func(a, b): swap(a, b); sel = -1; draw(b)
-			c.pressed.connect(func(): Sfx.play("select"); click(11 + k))
-			if sel == 11 + k: c.modulate = Color(1.25, 1.25, 1.25)
-			bench_grid.add_child(c)
-		bench.add_child(bench_grid)
-		bench.add_child(UI.wrapl(UI.label("Changes save automatically.", 12, UI.DIM), 230))
-		holder.add_child(bench)
-		_refocus(focus_i)
-	func _refocus(focus_i: int) -> void:
+	func _refocus(focus_i: int, bench_cards: Array) -> void:
 		await UI.get_tree().process_frame
 		if not is_instance_valid(pitch) or not pitch.is_inside_tree(): return
 		if sel >= 0: UI.focus_first(selbox)
 		elif focus_i >= 0 and focus_i < 11 and focus_i < pitch.cards.size(): pitch.cards[focus_i].grab_focus()
-		elif focus_i >= 11: bench_grid.get_child(focus_i - 11).grab_focus()
+		elif focus_i >= 11 and focus_i - 11 < bench_cards.size(): bench_cards[focus_i - 11].grab_focus()
+		elif focus_i < 0 and pitch.cards.size() > 9: pitch.cards[9].grab_focus()
 
 # ------------------------------------------------------------------ STORE
 func buy_pack(id: String) -> void:

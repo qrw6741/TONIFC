@@ -41,6 +41,14 @@ func run() -> void:
 				await w(1.0); await shot("g22_items_" + pk)
 				print("CUR ", UI.cur_name)
 				UI.modules[1].s_packresult  # noop
+		if extra == "--squad":
+			Sys.auto_build(Sys.active_squad()); UI.replace("squad"); await w(0.6); await shot("g05b_squad_built")
+			var hh = UI.cur.find_children("*", "VBoxContainer", true, false).filter(func(n): return n.has_meta("editor"))
+			var S = hh[0].get_meta("editor")
+			S.pitch.cards[6].grab_focus(); await w(0.3); await shot("g05c_squad_hover")
+			S.details(); await w(0.6); await shot("g05d_squad_details"); UI.close_top(null); await w(0.3)
+			S.click(6); await w(0.3); await shot("g05e_squad_selected")
+			S.team_mgmt(); await w(0.5); await shot("g05f_team_mgmt"); UI.close_top(null)
 		if extra == "--season":
 			Season.add_xp(Season.XP_PER * 23 + 300, "test")
 			UI.replace("season"); await shot("g30_season")
@@ -71,10 +79,17 @@ func run() -> void:
 			print("SET ", sid, " ", Gallery.score(sid).total, " grade ", Gallery.score(sid).grade, " max ", Gallery.max_score(sid))
 			UI.go("gallery"); await shot("g40_gallery")
 			UI.go("galleryset", {"id": sid}); await shot("g41_set")
+			print("BEFORE UPGRADE grade ", Gallery.score(sid).grade, " gain ", Gallery.upgrade_gain(sid))
+			print("UPGRADE +", Gallery.upgrade(sid), " grade now ", Gallery.score(sid).grade)
+			UI.replace("galleryset", {"id": sid}); await shot("g41b_set_upgraded")
+			UI.modules[4]._slot_pick(sid, 0); await w(0.6); await shot("g41c_slot_pick"); UI.close_top(null); await w(0.3)
 			print("GRADE ", Gallery.grade(sid), " tokens ", Gallery.tokens(), " level ", Gallery.level())
 			Gallery.st().tokens = 3000
 			UI.go("gallerystore"); await shot("g42_store")
 			print("BUY ", Gallery.buy(Gallery.STORE[6]), " unopened has icon pick ", Save.data.unopened.has("pickicon"))
+			Gallery.st().tokens = 3000; var gi = Gallery.store_items()[0]; print("BUY GALLERY CARD ", Gallery.buy(gi), " in club untr: ", Sys.club_items().filter(func(x): return x.pid == gi.reward.player).map(func(x): return x.untr))
+			print("MARKET has gallery: ", Sys.market_search({}).any(func(l): return Data.P(l.pid).type == "gallery"))
+			UI.inspect(Data.P(gi.reward.player)); await shot("g42b_gallery_card"); UI.close_top(null)
 			UI.go("galleryset", {"id": "L:ESP1"}); await shot("g43_league")
 			UI.replace("home"); await shot("g44_home")
 		if extra == "--event":
