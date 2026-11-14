@@ -121,11 +121,11 @@ func _migrate(d: Dictionary) -> Dictionary:
 		if typeof(d.get("event")) == TYPE_DICTIONARY: for e in d.event.get("evos", []): locked[e.uid] = true
 		for it in d.club:
 			var pid: String = str(it.pid)
-			var excl: bool = ["pass", "gallery", "potm"].has(Data.P(pid).get("type", "")) or pid.begins_with("ev")
+			var excl: bool = ["pass", "gallery", "potm", "phantom"].has(Data.P(pid).get("type", "")) or pid.begins_with("ev")
 			if not excl and not locked.has(it.uid): it.untr = false
 		for x in d.get("pending", []):
 			var px: String = str(x.pid)
-			if not (["pass", "gallery", "potm"].has(Data.P(px).get("type", "")) or px.begins_with("ev")): x.untr = false
+			if not (["pass", "gallery", "potm", "phantom"].has(Data.P(px).get("type", "")) or px.begins_with("ev")): x.untr = false
 		d.trade_v2 = true
 	return d
 

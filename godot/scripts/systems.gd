@@ -153,7 +153,7 @@ func item(u: String) -> Dictionary:
 func item_player(u: String) -> Dictionary:
 	var it = item(u); return {} if it.is_empty() else Cons.item_view(it)
 ## only exclusive rarities are untradeable (Season Pass, Gallery, POTM, Evolutions) — everything else can be sold
-const UNTRADEABLE_TYPES := ["pass", "gallery", "potm"]
+const UNTRADEABLE_TYPES := ["pass", "gallery", "potm", "phantom"]
 func exclusive(pid: String) -> bool:
 	return UNTRADEABLE_TYPES.has(Data.P(pid).get("type", "")) or pid.begins_with("ev")
 func club_add(pid: String, untr := false, src := "") -> Dictionary:
@@ -246,7 +246,7 @@ func build_ai_squad(strength: float, club := "", formation := "") -> Dictionary:
 	var slots: Array = Data.formations[formation].map(func(f): return f[0])
 	var pool: Array
 	if club != "": pool = Data.by_club[club].filter(func(p): return p.type == "base")
-	else: pool = Data.players.filter(func(p): return p.type == "base" or (not p.type in ["pass", "potm", "gallery"] and strength >= 84 and randf() < 0.3))
+	else: pool = Data.players.filter(func(p): return p.type == "base" or (not p.type in ["pass", "potm", "gallery", "phantom"] and strength >= 84 and randf() < 0.3))
 	var used = {}
 	var out = []
 	for pos in slots:
@@ -341,7 +341,8 @@ func tier_pool(tier: String) -> Array:
 	match tier:
 		"special": pool = Data.players.filter(func(p): return ["totw", "promo", "hero", "icon", "rising"].has(p.type))
 		"legend": pool = Data.players.filter(func(p): return p.type == "hero" or p.type == "icon")
-		"totw", "promo", "hero", "icon", "found", "rising": pool = Data.players.filter(func(p): return p.type == tier)
+		"totw", "promo", "hero", "icon", "found", "rising", "fright": pool = Data.players.filter(func(p): return p.type == tier and not (tier == "fright" and Fright.exclusive_fright(p.id)))
+		"ph_finale": pool = Fright.phantom_finale
 		"gold": pool = Data.players.filter(func(p): return p.type == "base" and Data.tier_of(p.ovr) == "gold")
 		"asc_finale": pool = Data.ascension_finale.duplicate()
 		_:
@@ -365,7 +366,7 @@ func xp_scaled(n: int, key: String) -> int:
 func roll_tier(tier: String) -> Dictionary:
 	var r = _roll_tier(tier)
 	# Extreme: an 84+ or special pull only survives 1 time in 1000 (guaranteed-tier pools are left alone)
-	if extreme() and not ["legend", "asc_finale", "special", "totw", "promo", "hero", "icon", "found", "rising"].has(tier):
+	if extreme() and not ["legend", "asc_finale", "ph_finale", "special", "totw", "promo", "hero", "icon", "found", "rising", "fright"].has(tier):
 		var pool = tier_pool(tier)
 		var low = pool.filter(func(p): return p.type == "base" and p.ovr < 84)
 		var tries = 0
@@ -380,7 +381,7 @@ func _roll_tier(tier: String) -> Dictionary:
 		return pick(pool.filter(func(p): return p.type == t))
 	var mn = 99
 	for p in pool: mn = min(mn, p.ovr)
-	if tier == "asc_finale": return pick(pool)
+	if tier == "asc_finale" or tier == "ph_finale": return pick(pool)
 	# steep curve: low ratings are common, top-rated players are genuinely rare
 	var k = 1.5 if tier.begins_with("gold") else (1.4 if tier.begins_with("ovr") else 6.0)
 	return weighted(pool.map(func(p): return [exp(-(p.ovr - mn) / k), p]))
@@ -404,7 +405,7 @@ func generate_pack(id: String) -> Array:
 	for g in pk.guar:
 		for i in int(g[1]): out.append(roll_tier(g[0]))
 	var ws = []
-	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising"].has(t) else 1.0), t])
+	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising", "fright"].has(t) else 1.0), t])
 	while out.size() < int(pk.items): out.append(roll_tier(weighted(ws)))
 	out.sort_custom(func(a, b): return Data.card_value_score(a) > Data.card_value_score(b))
 	return out
@@ -437,7 +438,7 @@ func M() -> Dictionary:
 	for k in ["pool", "watch", "tl"]: if not m.has(k): m[k] = []
 	return m
 func _market_player_pool() -> Array:
-	return Data.players.filter(func(p): return not p.type in ["found", "pass", "potm", "gallery"] and not str(p.id).begins_with("ev"))
+	return Data.players.filter(func(p): return not p.type in ["found", "pass", "potm", "gallery", "phantom"] and not str(p.id).begins_with("ev"))
 var _mpp = []
 func _random_listing_player() -> Dictionary:
 	if _mpp.is_empty(): _mpp = _market_player_pool()
@@ -709,7 +710,8 @@ func obj_period(o: Dictionary) -> String:
 		"quick": return "Q%d" % quick_period()
 		"daily": return day_key()
 		"weekly": return week_key()
-		"season": return "S1"
+		"season": return Season.ID.to_upper()
+		"halloween": return "HW26"
 		"event": return Event.ID
 	return "M"
 func obj_key(o: Dictionary) -> String: return o.id + "@" + obj_period(o)
@@ -852,7 +854,7 @@ func draft_reward(w: int) -> Dictionary:
 	return [{"coins": 1000, "pack": "gold"}, {"coins": 3000, "pack": "premium"}, {"coins": 8000, "pack": "draftreward", "points": 50}, {"coins": 15000, "pack": "jumbo", "points": 100}, {"coins": 30000, "pack": "mega", "points": 200}][w]
 const DRAFT_ROUNDS := ["Round of 16", "Quarter-Final", "Semi-Final", "Final"]
 func draft_choices(pos: String, exclude: Dictionary, captain := false) -> Array:
-	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and not p.type in ["pass", "potm", "gallery"])
+	var pool: Array = Data.players.filter(func(p): return Data.fits_pos(p, pos) and p.ovr >= (86 if captain else 76) and not exclude.has(p.id) and not p.type in ["pass", "potm", "gallery", "phantom"])
 	if captain: return shuffled(pool).slice(0, 5)
 	var out = []; var seen = exclude.duplicate()
 	for i in 200:

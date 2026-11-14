@@ -14,9 +14,9 @@ func s_title(_p) -> Dictionary:
 	var page = Control.new()
 	var c = CenterContainer.new(); c.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(c)
 	var v = UI.vb(10); v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var logo = UI.hb(0, [UI.head("PRIME", 110, Color("#e9edf2")), UI.head("27", 110, UI.GOLD)]); logo.alignment = BoxContainer.ALIGNMENT_CENTER
+	var logo = UI.hb(0, [UI.head("PRIME", 110, Color("#e9edf2")), UI.head("27", 110, Color("#ff7a1a") if Fright.THEME else UI.GOLD)]); logo.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_child(logo)
-	var sub = UI.label("F O O T B A L L", 18, UI.GOLD2, UI.font_head); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(sub)
+	var sub = UI.label("F O O T B A L L" + ("   ·   F R I G H T   N I G H T" if Fright.THEME else ""), 18, Color("#ffb35a") if Fright.THEME else UI.GOLD2, UI.font_head); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(sub)
 	v.add_child(UI.vb(0, [Control.new()])); v.get_child(-1).custom_minimum_size.y = 50
 	var b = UI.btn("Ⓐ  Press Start", func():
 		Sfx.play("boom"); Sfx.music_on()
@@ -135,7 +135,7 @@ func feature(k: String) -> Control:
 	match k:
 		"ut":
 			title = "TEAM OF\nTHE WEEK 1"; sub = "New Team of the Week is now available in packs for a limited time!"; label = "Enter Ultimate XI"
-			var totw: Array = Data.players.filter(func(p): return p.type == "totw"); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
+			var totw: Array = Fright.totw_latest.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
 			var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 16); g.add_theme_constant_override("v_separation", 16)
 			for p in totw.slice(0, 4): var c = UI.card(p, 12.5); c.focus_mode = Control.FOCUS_NONE; c.mouse_filter = Control.MOUSE_FILTER_IGNORE; g.add_child(c)
 			art = g

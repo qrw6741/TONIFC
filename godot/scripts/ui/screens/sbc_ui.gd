@@ -3,7 +3,7 @@ extends RefCounted
 ## ("select & submit pre-filtered players until you reach the score") and its intro.
 
 const GEM := Color("#5fe3c8")
-const CATS := ["Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
+const CATS := ["Halloween", "Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
 
 func gem_text(n: int) -> String: return "✦ " + Sys.fmt(n)
 
@@ -30,14 +30,14 @@ func _reward_art(r: Dictionary, big := true) -> Control:
 func _reward_name(r: Dictionary) -> String:
 	if r.has("player"): var p = Data.P(r.player); return "%d %s (%s)" % [p.ovr, p.name, Data.rarity_name(p)]
 	var parts = []
-	if r.has("pack"): parts.append(Data.packs[r.pack].name + " (Untradeable)")
+	if r.has("pack"): parts.append(Data.packs[r.pack].name)
 	if r.get("coins", 0): parts.append("%s Coins" % Sys.fmt(r.coins))
 	if r.get("tokens", 0): parts.append("%d Star Tokens" % r.tokens)
 	return " + ".join(parts)
 
 func s_sbc(p) -> Dictionary:
 	var f = UI.hub_shell("sbc")
-	var cat: String = p.get("cat", "Exchanges")
+	var cat: String = p.get("cat", "Halloween")
 	if cat == "Exchanges" and not Save.data.sbc.get("intro_seen", false):
 		Save.data.sbc.intro_seen = true; Save.dirty()
 		UI.go.call_deferred("sbcintro")

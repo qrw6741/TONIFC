@@ -231,13 +231,13 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 	var pk: Dictionary = Data.packs[id]
 	var cols: Array = {"bronze": ["#e2b48c", "#b07a4f", "#7d4f2c"], "silver": ["#f1f3f6", "#b9c1cb", "#8b95a3"], "gold": ["#f8e4a6", "#e0be62", "#b88f2e"],
 		"premium": ["#fff3c4", "#e8b631", "#8a6410"], "jumbo": ["#fff3c4", "#e8b631", "#4a3505"], "rare": ["#ffffff", "#f0c94e", "#c3901c"], "mega": ["#f4e7ff", "#9d6dff", "#3a1a7a"],
-		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"], "pass": ["#ff6a3d", "#8c0f24", "#1c0410"], "pick": ["#ffc76b", "#c2401f", "#2a0610"], "gallery": ["#ffd1f3", "#b23ad1", "#1a0b33"], "rising": ["#8af4ff", "#2140c9", "#0a0d3a"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
+		"ultimate": ["#1a1a1a", "#000000", "#3a2a08"], "totw": ["#2a2a2a", "#111111", "#0b0b0b"], "promo": ["#ff4fa3", "#3a1268", "#08142e"], "icon": ["#fffaf0", "#eadcb8", "#c6aa6a"], "found": ["#6ff3dc", "#1d5d5a", "#0c2c32"], "pass": ["#ff6a3d", "#8c0f24", "#1c0410"], "pick": ["#ffc76b", "#c2401f", "#2a0610"], "gallery": ["#ffd1f3", "#b23ad1", "#1a0b33"], "fright": ["#ff8a1f", "#4a1260", "#0b0410"], "phantom": ["#c8f7ff", "#3b4a7a", "#0d1022"], "rising": ["#8af4ff", "#2140c9", "#0a0d3a"]}.get(pk.art, ["#f8e4a6", "#e0be62", "#b88f2e"])
 	var pts = PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)])
 	grad_poly(ci, pts, r, Color(cols[0]), Color(cols[1]), Color(cols[2]))
 	# moving shine
 	var sx = r.position.x + fmod(t * 0.35, 1.6) * r.size.x * 1.6 - r.size.x * 0.4
 	ci.draw_colored_polygon(PackedVector2Array([Vector2(clamp(sx, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx + r.size.x * 0.18, r.position.x, r.end.x), r.position.y), Vector2(clamp(sx - r.size.x * 0.1, r.position.x, r.end.x), r.end.y), Vector2(clamp(sx - r.size.x * 0.28, r.position.x, r.end.x), r.end.y)]), Color(1, 1, 1, 0.25))
-	var dark: bool = ["ultimate", "totw", "promo", "mega", "found", "pass", "pick", "gallery", "rising"].has(pk.art)
+	var dark: bool = ["ultimate", "totw", "promo", "mega", "found", "pass", "pick", "gallery", "rising", "fright", "phantom"].has(pk.art)
 	var tc = Color("#f3d88a") if (pk.art == "ultimate" or pk.art == "totw") else (Color.WHITE if dark else Color(0, 0, 0, 0.7))
 	var border = Color("#ffc76b") if pk.art == "pass" or pk.art == "pick" else Color("#e8b631") if pk.art == "ultimate" else (Color("#d9b25c") if pk.art == "totw" else Color(1, 1, 1, 0.35))
 	ci.draw_rect(r, border, false, 2.0)
@@ -293,3 +293,23 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 		5: pass
 		6: ci.draw_colored_polygon(PackedVector2Array([P.call(30, 40), P.call(32, 22), P.call(46, 12), P.call(66, 6), P.call(74, 18), P.call(70, 34), P.call(62, 22), P.call(46, 26), P.call(36, 30)]), hair)
 		_: ci.draw_colored_polygon(PackedVector2Array([P.call(31, 38), P.call(36, 22), P.call(44, 18), P.call(44, 10), P.call(56, 10), P.call(56, 18), P.call(64, 22), P.call(69, 38), P.call(62, 30), P.call(38, 30)]), hair)
+
+# ---------- Halloween props
+static func bat(ci: CanvasItem, p: Vector2, s: float, ph: float) -> void:
+	# body + two convex wings (always valid polygons, even mid-flap)
+	var f: float = sin(ph) * 0.6
+	var col = Color(0.05, 0.02, 0.08, 0.9)
+	for side in [-1.0, 1.0]:
+		var tip = p + Vector2(side * s * 1.4, -s * (0.35 + f))
+		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(side * s * 0.15, -s * 0.15), tip, p + Vector2(side * s * 0.9, s * 0.25), p + Vector2(side * s * 0.15, s * 0.2)]) if side > 0 else PackedVector2Array([p + Vector2(side * s * 0.15, -s * 0.15), p + Vector2(side * s * 0.15, s * 0.2), p + Vector2(side * s * 0.9, s * 0.25), tip]), col)
+	ci.draw_circle(p, s * 0.25, col)
+	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.2, -s * 0.15), p + Vector2(-s * 0.12, -s * 0.42), p + Vector2(-s * 0.02, -s * 0.18)]), col)
+	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(s * 0.02, -s * 0.18), p + Vector2(s * 0.12, -s * 0.42), p + Vector2(s * 0.2, -s * 0.15)]), col)
+static func pumpkin(ci: CanvasItem, p: Vector2, r: float, t: float) -> void:
+	for k in [-0.55, 0.55, 0.0]: ci.draw_circle(p + Vector2(r * k, 0), r * (0.62 if k != 0.0 else 0.7), Color("#e8730e") if k == 0.0 else Color("#c95e0a"))
+	ci.draw_rect(Rect2(p + Vector2(-r * 0.1, -r * 0.95), Vector2(r * 0.2, r * 0.3)), Color("#3d6b1f"))
+	var g = Color(1, 0.85, 0.3, 0.75 + 0.25 * sin(t * 4.0))
+	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-r * 0.4, -r * 0.2), p + Vector2(-r * 0.15, -r * 0.2), p + Vector2(-r * 0.28, -r * 0.42)]), g)
+	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(r * 0.4, -r * 0.2), p + Vector2(r * 0.15, -r * 0.2), p + Vector2(r * 0.28, -r * 0.42)]), g)
+	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-r * 0.45, r * 0.12), p + Vector2(r * 0.45, r * 0.12), p + Vector2(r * 0.25, r * 0.38), p + Vector2(-r * 0.25, r * 0.38)]), g)
+

@@ -93,6 +93,26 @@ func _draw() -> void:
 			var gr: float = cs * (0.42 if mini else 0.5)
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
+	if p.type == "fright":
+		# spider web in the corner, bats on the flanks and a pumpkin glow at the bottom
+		var wc = Vector2(w * 0.9, h * 0.08); var wr: float = cs * (2.2 if not mini else 1.6)
+		for k in 5:
+			var a = PI * 0.5 + k * PI / 8.0
+			draw_line(wc, wc + Vector2(cos(a), sin(a)) * wr * 1.4, Color(1, 0.8, 0.6, 0.35), max(1.0, cs * 0.06))
+		for ring in [0.5, 0.9, 1.3]:
+			var pts = PackedVector2Array()
+			for k in 5: var a2 = PI * 0.5 + k * PI / 8.0; pts.append(wc + Vector2(cos(a2), sin(a2)) * wr * ring)
+			draw_polyline(pts, Color(1, 0.8, 0.6, 0.3), max(1.0, cs * 0.05))
+		if not mini:
+			Gfx.bat(self, Vector2(w * 0.09, h * 0.5), cs * 0.6, 0.5)
+			Gfx.bat(self, Vector2(w * 0.91, h * 0.56), cs * 0.5, 2.0)
+		Gfx.glow(self, Vector2(w * 0.5, h * 0.95), cs * 3.0, Color(1, 0.5, 0.05, 0.25))
+	if p.type == "phantom":
+		# ghostly wisps rising up the sides
+		for sx in [w * 0.08, w * 0.92]:
+			var pts2 = PackedVector2Array()
+			for k in 9: pts2.append(Vector2(sx + sin(k * 0.9 + _t * 2.0) * cs * 0.35, h * (0.72 - k * 0.05)))
+			draw_polyline(pts2, Color(0.75, 0.97, 1, 0.45), max(1.0, cs * 0.14), true)
 	if p.type == "pass" and not mini:
 		# Ascension chevrons on both flanks
 		for k in 3:

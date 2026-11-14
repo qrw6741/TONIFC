@@ -1,12 +1,14 @@
 extends Node
 ## Season Pass — 50 levels with a Free and a Premium track. Earn Season XP from
-## matches, objectives and SBCs. Exclusive "Ascension" cards only come from here.
+## matches, objectives and SBCs. Season 2 "Fright Night": exclusive Phantom Pass cards only come from here.
 ## Premium is unlocked with Prime Points (free in-game credits, no real money).
 
 signal changed
 
-const NAME := "Season 1 · Ascension"
-const ID := "s1"
+const NAME := "Season 2 · Fright Night"
+const TITLE := "SEASON 2: FRIGHT NIGHT"
+const TAGLINE := "Halloween is here — climb 50 levels of Phantom Pass rewards"
+const ID := "s2"
 const LEVELS := 50
 const XP_PER := 40000   # ×50 harder than launch (was 800)
 const PREMIUM_COST := 1000
@@ -14,6 +16,7 @@ const LEVEL_COST := 7500   # buying a level scales with it (was 150)
 const OVERFLOW_COINS := 3000
 
 func asc(base_id: String) -> Dictionary: return {"player": "asc_" + base_id}
+func ph(base_id: String) -> Dictionary: return {"player": "ph_" + base_id}
 func pk(id: String) -> Dictionary: return {"pack": id}
 func co(n: int) -> Dictionary: return {"coins": n}
 func pt(n: int) -> Dictionary: return {"points": n}
@@ -23,17 +26,17 @@ var PREM = {}
 
 func _ready() -> void:
 	FREE = {
-		1: co(1000), 2: pk("gold"), 3: co(1500), 4: pt(50), 5: pk("pp83x2"), 6: co(2000), 7: pk("premium"), 8: pt(100), 9: co(2500), 10: asc("p1526"),
-		11: co(3000), 12: pk("pp82x5"), 13: pk("premium"), 14: co(3500), 15: pk("pick84"), 16: pt(150), 17: pk("jumbo"), 18: pk("pp83x2"), 19: co(5000), 20: pk("rare"),
-		21: co(5000), 22: pt(200), 23: pk("pp82x5"), 24: pk("mega"), 25: asc("p377"), 26: co(7500), 27: pk("pp83x2"), 28: pt(250), 29: pk("rare"), 30: pk("pick86"),
-		31: co(10000), 32: pk("pp82x5"), 33: pk("jumbo"), 34: pt(300), 35: pk("pp83x2"), 36: co(12500), 37: pk("mega"), 38: pk("pp82x5"), 39: pt(400), 40: asc("p298"),
-		41: co(15000), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick84"), 46: co(20000), 47: pk("pp83x2"), 48: pk("mega"), 49: pk("pp83x2"), 50: asc("p973")}
+		1: co(1000), 2: pk("frightsmall"), 3: co(1500), 4: pt(50), 5: pk("pp83x2"), 6: co(2000), 7: pk("premium"), 8: pt(100), 9: co(2500), 10: ph("p15"),
+		11: co(3000), 12: pk("pp82x5"), 13: pk("frightsmall"), 14: co(3500), 15: pk("pick84"), 16: pt(150), 17: pk("jumbo"), 18: pk("pp83x2"), 19: co(5000), 20: pk("rare"),
+		21: co(5000), 22: pt(200), 23: pk("pp82x5"), 24: pk("mega"), 25: ph("p131"), 26: co(7500), 27: pk("pp83x2"), 28: pt(250), 29: pk("frightsmall"), 30: pk("pick86"),
+		31: co(10000), 32: pk("pp82x5"), 33: pk("jumbo"), 34: pt(300), 35: pk("pp83x2"), 36: co(12500), 37: pk("mega"), 38: pk("pp82x5"), 39: pt(400), 40: ph("p294"),
+		41: co(15000), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick84"), 46: co(20000), 47: pk("pp83x2"), 48: pk("frightpack"), 49: pk("pp83x2"), 50: ph("p231")}
 	PREM = {
-		1: asc("p988"), 2: pk("pp82x5"), 3: co(5000), 4: pk("pp83x2"), 5: pk("rare"), 6: pt(200), 7: pk("pp82x5"), 8: pk("pick84"), 9: co(10000), 10: pk("pp83x2"),
-		11: pk("mega"), 12: pk("pp82x5"), 13: pt(300), 14: pk("pp83x2"), 15: asc("p464"), 16: pk("pp82x5"), 17: co(15000), 18: pk("pick86"), 19: pk("pp83x2"), 20: asc("p56"),
-		21: pk("pp82x5"), 22: pk("rare"), 23: pk("pp83x2"), 24: co(20000), 25: pk("pick86"), 26: pk("pp82x5"), 27: pk("pp85x1"), 28: pt(500), 29: pk("pp83x2"), 30: asc("p12"),
-		31: pk("pp82x5"), 32: pk("totwpack"), 33: pk("pp83x2"), 34: co(25000), 35: pk("pick86"), 36: pk("pp82x5"), 37: pk("pp83x2"), 38: pk("pp83x2"), 39: pt(750), 40: asc("p35"),
-		41: pk("pp82x5"), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick86"), 46: pk("pp82x5"), 47: pk("pp83x2"), 48: pk("ultimate"), 49: pk("pp85x1"), 50: pk("pickasc")}
+		1: ph("p313"), 2: pk("pp82x5"), 3: co(5000), 4: pk("pp83x2"), 5: pk("frightsmall"), 6: pt(200), 7: pk("pp82x5"), 8: pk("pick84"), 9: co(10000), 10: pk("pp83x2"),
+		11: pk("mega"), 12: pk("pp82x5"), 13: pt(300), 14: pk("pp83x2"), 15: ph("p221"), 16: pk("pp82x5"), 17: co(15000), 18: pk("pick86"), 19: pk("pp83x2"), 20: ph("p430"),
+		21: pk("pp82x5"), 22: pk("rare"), 23: pk("pp83x2"), 24: co(20000), 25: pk("frightpack"), 26: pk("pp82x5"), 27: pk("pp85x1"), 28: pt(500), 29: pk("pp83x2"), 30: ph("p234"),
+		31: pk("pp82x5"), 32: pk("totwpack"), 33: pk("pp83x2"), 34: co(25000), 35: pk("pick86"), 36: pk("pp82x5"), 37: pk("pp83x2"), 38: pk("pp83x2"), 39: pt(750), 40: ph("p19"),
+		41: pk("pp82x5"), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick86"), 46: pk("pp82x5"), 47: pk("pp83x2"), 48: pk("frightpack"), 49: pk("pp85x1"), 50: pk("pickph")}
 	# drop any reward that references content missing from this build
 	for tr in [FREE, PREM]:
 		for lv in tr.keys():
@@ -103,7 +106,7 @@ func claim_all() -> int:
 				if r.has("player"): players += 1
 				if r.has("pack"): packs += 1
 	Sys.quiet = false
-	if n: Sys.toast.emit("Claimed %d rewards — %d packs sent to My Packs%s" % [n, packs, (", %d Ascension card%s to your club" % [players, "s" if players > 1 else ""]) if players else ""], "good")
+	if n: Sys.toast.emit("Claimed %d rewards — %d packs sent to My Packs%s" % [n, packs, (", %d Phantom Pass card%s to your club" % [players, "s" if players > 1 else ""]) if players else ""], "good")
 	return n
 
 func unlock_premium() -> bool:

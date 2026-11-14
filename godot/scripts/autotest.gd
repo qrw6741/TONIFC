@@ -87,6 +87,19 @@ func run() -> void:
 				for pl in Sys.generate_pack("rare"): if pl.ovr >= 84 or pl.type != "base": hi2 += 1
 			print("NORMAL rare packs: ", hi2, " of ", n)
 			UI.go("settings"); await w(0.5); await shot("g08_settings")
+		if extra == "--halloween":
+			print("HW fright ", Fright.fright.map(func(x): return "%d %s" % [x.ovr, x.name]))
+			print("HW totw2 ", Fright.totw_latest.size(), " phantom finale ", Fright.phantom_finale.map(func(x): return x.ovr))
+			print("HW season ", Season.NAME, " lvl10 free ", Season.reward(10, "free"), " prem50 ", Season.reward(50, "prem"))
+			print("HW fright pack ", Sys.generate_pack("frightpack").map(func(x): return "%d %s %s" % [x.ovr, x.type, x.name]))
+			print("HW objectives ", Data.objectives.filter(func(o): return o.cat == "halloween").size(), " sbcs ", Data.sbcs.filter(func(x): return x.cat == "Halloween").map(func(x): return [x.name, x.target]))
+			UI.replace("objectives", {"cat": "halloween"}); await w(0.5); await shot("g200_hw_objectives")
+			UI.replace("sbc"); await w(0.6); await shot("g201_hw_sbc")
+			UI.replace("season"); await w(0.6); await shot("g202_hw_season")
+			UI.replace("store", {"tab": "browse"}); await w(0.6); await shot("g203_hw_store")
+			UI.inspect(Data.P("fr_p233")); await w(0.4); await shot("g204_hw_card"); UI.close_top(null)
+			UI.inspect(Data.P("ph_p19")); await w(0.4); await shot("g205_hw_phantom"); UI.close_top(null)
+			UI.reset("main"); await w(0.6); await shot("g206_hw_main")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

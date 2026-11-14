@@ -78,15 +78,15 @@ func _claim_all() -> void:
 
 func _info_panel(lv: int, maxed: bool) -> Control:
 	var v = UI.vb(10)
-	v.add_child(UI.head("SEASON 1: ASCENSION", 32))
-	v.add_child(UI.label("Ones to rise — climb 50 levels of Ascension rewards", 14, UI.DIM))
+	v.add_child(UI.head(Season.TITLE, 32))
+	v.add_child(UI.label(Season.TAGLINE, 14, UI.DIM))
 	var pill = PanelContainer.new()
 	pill.add_theme_stylebox_override("panel", UI._sb(Color("#1f8f4e"), Color(0, 0, 0, 0), 0, 6, Vector4(10, 4, 12, 4)))
 	pill.add_child(UI.hb(6, [ClockIco.new(), UI.bold("%d Days" % Season.days_left(), 14, Color.WHITE)]))
 	v.add_child(UI.hb(8, [pill, UI.spacer()]))
 	if Season.premium(): v.add_child(UI.bold("✓  Acquired", 15, UI.GREEN))
 	else: v.add_child(UI.bold("Premium track not acquired", 15, Color("#ffc76b")))
-	v.add_child(UI.wrapl(UI.label("Earn XP and redeem rewards across the season. The Premium track adds 83+ and 82+ upgrade packs, Player Picks and exclusive Ascension cards (83–86).", 13, UI.DIM), 400))
+	v.add_child(UI.wrapl(UI.label("Earn XP and redeem rewards across the season. The Premium track adds 83+ and 82+ upgrade packs, Player Picks, Fright Night packs and exclusive Phantom Pass cards (83–86).", 13, UI.DIM), 400))
 	var xpl = UI.hb(8, [UI.bold("Level %d / %d" % [lv, Season.LEVELS], 15), UI.spacer(),
 		UI.label(("%s XP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level", 13, UI.DIM)])
 	v.add_child(xpl)
@@ -128,7 +128,7 @@ func _feature(feat: Dictionary, l: int, track: String) -> void:
 	var desc = ""
 	if r.has("player"):
 		var pl = Data.P(r.player)
-		desc = "%s · Season Pass exclusive Ascension card. +1 skill move & weak foot." % pl.pos
+		desc = "%s · %s — Season Pass exclusive. +1 skill move." % [pl.pos, Data.rarity_name(pl)]
 	elif r.has("pack"): desc = Data.packs[r.pack].desc
 	elif r.get("coins", 0): desc = "Coins credited instantly to your club."
 	else: desc = "Prime Points — free in-game credits for packs and the Season Pass."
@@ -274,7 +274,7 @@ class HeroArt extends Control:
 		var n = 18
 		for i in n:
 			var y0 = h * i / n; var y1 = h * (i + 1) / n
-			var c = Color("#5a2208").lerp(Color("#c9781c"), 1.0 - abs(float(i) / n - 0.45) * 1.6)
+			var c = Color("#1c0b2e").lerp(Color("#d4620f"), clamp(1.0 - abs(float(i) / n - 0.55) * 1.7, 0.0, 1.0))
 			draw_rect(Rect2(0, y0, w, y1 - y0 + 1), c)
 		var o = Vector2(w * 0.26, h * 0.5)
 		for i in 14:
@@ -287,6 +287,14 @@ class HeroArt extends Control:
 		for i in 7:
 			var x = fmod(i * 173.0 + t * 12.0, w + 300) - 150
 			draw_colored_polygon(PackedVector2Array([Vector2(x, h), Vector2(x + 26, h), Vector2(x + 26 + h * 0.6, 0), Vector2(x + h * 0.6, 0)]), Color(1, 0.95, 0.75, 0.035))
+		# full moon, bats and pumpkins
+		var mc = Vector2(w * 0.86, h * 0.2)
+		for k in 5: draw_circle(mc, 52 + k * 14, Color(1, 0.75, 0.35, 0.05))
+		draw_circle(mc, 46, Color("#ffe3a3")); draw_circle(mc + Vector2(-12, -8), 9, Color(0.85, 0.7, 0.45, 0.5)); draw_circle(mc + Vector2(14, 12), 6, Color(0.85, 0.7, 0.45, 0.5))
+		for k in 5:
+			var bp = Vector2(fmod(w * 0.5 + k * 157.0 + t * (22 + k * 4), w + 80) - 40, h * (0.12 + 0.07 * k) + sin(t * 3 + k) * 8)
+			Gfx.bat(self, bp, 9 + k % 3 * 3, t * 9 + k)
+		for k in 3: Gfx.pumpkin(self, Vector2(w * (0.58 + k * 0.14), h - 24), 20 - k * 3, t)
 		draw_rect(Rect2(0, h - 60, w, 60), Color(0, 0, 0, 0.18))
 		draw_rect(Rect2(0, 0, w, h), Color(1, 0.85, 0.5, 0.25), false, 1.0)
 
@@ -307,7 +315,7 @@ func _tile_pressed(l: int, track: String) -> void:
 		UI.toast("Reach Season Pass Level %d to claim this reward" % l)
 
 func _unlock_dialog() -> void:
-	var body = UI.vb(8, [UI.wrapl(UI.label("Unlock the Premium track for %s Prime Points. You instantly get every Premium reward up to your current level, including 82+ x5 and 83+ x2 packs, Player Picks and 5 exclusive Ascension cards (83–86)." % Sys.fmt(Season.PREMIUM_COST), 15), 520),
+	var body = UI.vb(8, [UI.wrapl(UI.label("Unlock the Premium track for %s Prime Points. You instantly get every Premium reward up to your current level, including 82+ x5 and 83+ x2 packs, Player Picks and 5 exclusive Phantom Pass cards (83–86)." % Sys.fmt(Season.PREMIUM_COST), 15), 520),
 		UI.label("Balance: ◆ %s  (Prime Points are free in-game credits)" % Sys.fmt(Save.data.points), 13, UI.DIM)])
 	var v = await UI.modal("Unlock Premium Season Pass?", body, [["Unlock  ◆ %s" % Sys.fmt(Season.PREMIUM_COST), true, "Primary"], ["Cancel", null, ""]])
 	if v and Season.unlock_premium(): Sfx.play("bigreveal"); UI.replace("season")

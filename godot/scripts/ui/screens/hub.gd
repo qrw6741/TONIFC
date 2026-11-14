@@ -42,11 +42,11 @@ func s_home(_p) -> Dictionary:
 	# right column
 	var right = UI.vb(14); UI.grow(right)
 	var pc = UI.hb(6)
-	for p in Event.stars.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
-	var pt = UI.tile([UI.bold("Rising Stars", 24, Color("#8af4ff")), UI.bold("Event live · the best young players, boosted — objectives, Evolutions & SBCs", 13, UI.TEAL), CenterContainer.new()], func(): UI.go("event"))
+	for p in Fright.fright.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
+	var pt = UI.tile([UI.bold("Fright Night  ·  Halloween", 24, Color("#ff8a1f")), UI.bold("New promo, TOTW 2, Halloween objectives & SBCs — Fright Night Pack in the Store", 13, Color("#c99bff")), CenterContainer.new()], func(): UI.replace("objectives", {"cat": "halloween"}))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
 	var slv: int = Season.level(); var scl: int = Season.claim_count()
-	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Earn XP to unlock Ascension cards", 13, UI.GREEN if scl else UI.TEAL)]), UI.spacer(), UI.card(Data.ascension_finale[0], 3.6, true) if not Data.ascension_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
+	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Season 2 · Fright Night — earn Phantom Pass cards", 13, UI.GREEN if scl else Color("#ff9a3c"))]), UI.spacer(), UI.card(Fright.phantom_finale[0], 3.6, true) if not Fright.phantom_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
 	var un: int = Save.data.unopened.size()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold(("%d unopened" % un) if un else "Store", 22), UI.bold("Open your packs" if un else "Packs from 400 coins", 13, UI.TEAL)]), UI.spacer(), UI.icon("pack", Save.data.unopened[0] if un else "premium", Vector2(52, 74))])], func(): UI.replace("store", {"tab": "mine" if un else "packs"})))
 	right.add_child(UI.panel(UI.vb(4, [UI.caps("Balance"), UI.hb(18, [UI.head("● " + Sys.fmt(Save.data.coins), 22, UI.GOLD2), UI.head("◆ " + Sys.fmt(Save.data.points), 22, UI.TEAL)]), UI.label("Prime Points are free in-game credits — no real money.", 12, UI.DIM)])))
@@ -58,7 +58,7 @@ func s_home(_p) -> Dictionary:
 func s_objectives(p) -> Dictionary:
 	var f = UI.hub_shell("objectives")
 	var cat: String = p.get("cat", "quick")
-	var cats = [["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"]]
+	var cats = [["halloween", "Halloween"], ["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"]]
 	var labs = cats.map(func(c): return [c[0], c[1] + (" •" if Data.objectives.any(func(o): return o.cat == c[0] and Sys.obj_done(o) and not Sys.obj_claimed(o)) else "")])
 	f.body.add_child(UI.hb(10, [page_title("Objectives"), UI.spacer(), UI.seg(labs, cat, func(v): UI.replace("objectives", {"cat": v}))]))
 	var qlab = UI.bold("", 14, Color("#ffd23f"))
@@ -70,7 +70,7 @@ func s_objectives(p) -> Dictionary:
 		upd.call()
 		var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm); tm.timeout.connect(upd)
 		f.body.add_child(qlab)
-	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 1 · rewards Foundations players", "milestone": "Permanent milestones"}[cat]
+	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 2 · rewards Foundations players", "milestone": "Permanent milestones", "halloween": "Fright Night · Trick or Treat packs, a Fright Night pack and 87 Fright Night Doku"}[cat]
 	f.body.add_child(UI.label(sub, 13, UI.DIM))
 	var list = UI.vb(10)
 	for o in Data.objectives.filter(func(x): return x.cat == cat and Sys.obj_live(x)):
@@ -580,8 +580,8 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	Save.write_now()
 	var best: Dictionary = items[0]
 	# walkouts are rare: 87+ cards, or icons/heroes, or 85+ special promo cards
-	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm"].has(best.type))
-	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
+	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm", "fright", "phantom"].has(best.type))
+	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising", "fright"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
 	Sfx.music_off()
 	var o = preload("res://scripts/ui/pack_fx.gd").new()
 	o.setup(id, best, walkout, lvl)
