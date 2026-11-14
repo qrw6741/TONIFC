@@ -97,7 +97,7 @@ func _info_panel(lv: int, maxed: bool) -> Control:
 	var cb = UI.btn("Claim all (%d)" % n_claim, func(): _claim_all(), "Primary" if n_claim else "Small")
 	cb.disabled = n_claim == 0; acts.add_child(cb)
 	if not Season.premium(): acts.add_child(UI.btn("Unlock Premium ◆ %s" % Sys.fmt(Season.PREMIUM_COST), func(): _unlock_dialog(), "Small"))
-	if not maxed: acts.add_child(UI.btn("Level ◆ %d" % Season.LEVEL_COST, func():
+	if not maxed: acts.add_child(UI.btn("Level ◆ %s" % Sys.fmt(Season.LEVEL_COST), func():
 		if Season.buy_level(): UI.replace("season", {"focus": Season.level()}), "Small"))
 	v.add_child(acts)
 	var pn = PanelContainer.new()

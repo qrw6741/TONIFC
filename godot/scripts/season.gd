@@ -8,9 +8,9 @@ signal changed
 const NAME := "Season 1 · Ascension"
 const ID := "s1"
 const LEVELS := 50
-const XP_PER := 800
+const XP_PER := 40000   # ×50 harder than launch (was 800)
 const PREMIUM_COST := 1000
-const LEVEL_COST := 150
+const LEVEL_COST := 7500   # buying a level scales with it (was 150)
 const OVERFLOW_COINS := 3000
 
 func asc(base_id: String) -> Dictionary: return {"player": "asc_" + base_id}
