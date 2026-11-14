@@ -486,22 +486,99 @@ func seg(items: Array, current: String, cb: Callable) -> HBoxContainer:
 	h.add_child(p); return h
 func coin_text(n) -> String: return "● " + Sys.fmt(n)
 
+## animated currency icons: a faceted Prime Points gem with a twinkle, a minted gold coin, an XP ring
+class CurIcon extends Control:
+	var kind = "points"; var t = 0.0; var acc = 0.0; var prog = 0.0
+	func _ready() -> void: t = randf() * 6.0
+	func _process(d: float) -> void:
+		t += d; acc += d
+		if acc > 1.0 / 15.0 and is_visible_in_tree(): acc = 0.0; queue_redraw()
+	func _draw() -> void:
+		var c = size / 2; var r = min(size.x, size.y) * 0.5
+		match kind:
+			"points": UI.paint_gem(self, c, r, t)
+			"coins": UI.paint_coin(self, c, r, t)
+			_:
+				draw_arc(c, r * 0.86, 0, TAU, 32, Color(1, 1, 1, 0.15), r * 0.18)
+				draw_arc(c, r * 0.86, -PI / 2, -PI / 2 + TAU * clamp(prog, 0.0, 1.0), 32, Color("#3fe0c8"), r * 0.18)
+				draw_circle(c, r * 0.62, Color("#1a2230"))
+				var st = PackedVector2Array()
+				for i in 10:
+					var an = -PI / 2 + i * TAU / 10.0; var rr = r * (0.42 if i % 2 == 0 else 0.18)
+					st.append(c + Vector2(cos(an), sin(an)) * rr)
+				draw_colored_polygon(st, Color("#ffd86b"))
+
+## brilliant-cut gem: crown + table + pavilion facets in teal→violet, rim light and a twinkling star
+static func paint_gem(ci: CanvasItem, c: Vector2, r: float, t := 0.0) -> void:
+	var w = r * 0.98; var top = c.y - r * 0.62; var gird = c.y - r * 0.12; var tip = c.y + r * 0.92
+	var tl = Vector2(c.x - w * 0.52, top); var tr = Vector2(c.x + w * 0.52, top)
+	var gl = Vector2(c.x - w, gird); var gr = Vector2(c.x + w, gird); var bt = Vector2(c.x, tip)
+	var ml = Vector2(c.x - w * 0.18, gird); var mr = Vector2(c.x + w * 0.18, gird)
+	for k in 4: ci.draw_circle(c, r * (1.25 - k * 0.12), Color(0.37, 0.95, 0.88, 0.05 + 0.02 * k * (0.7 + 0.3 * sin(t * 1.7))))
+	ci.draw_colored_polygon(PackedVector2Array([gl + Vector2(0, r * 0.1), Vector2(c.x, tip + r * 0.1), gr + Vector2(0, r * 0.1)]), Color(0, 0, 0, 0.3))
+	# pavilion (lower) facets
+	ci.draw_colored_polygon(PackedVector2Array([gl, ml, bt]), Color("#1aa6a0"))
+	ci.draw_colored_polygon(PackedVector2Array([ml, mr, bt]), Color("#5ff2e0"))
+	ci.draw_colored_polygon(PackedVector2Array([mr, gr, bt]), Color("#7a4fd6"))
+	# crown (upper) facets
+	ci.draw_colored_polygon(PackedVector2Array([gl, tl, ml]), Color("#3ee6d2"))
+	ci.draw_colored_polygon(PackedVector2Array([tl, tr, mr, ml]), Color("#b8fff6"))
+	ci.draw_colored_polygon(PackedVector2Array([tr, gr, mr]), Color("#9a7bff"))
+	var o = PackedVector2Array([tl, tr, gr, bt, gl, tl])
+	ci.draw_polyline(o, Color(1, 1, 1, 0.85), max(1.0, r * 0.08), true)
+	ci.draw_line(gl, gr, Color(1, 1, 1, 0.55), max(1.0, r * 0.05))
+	# moving shine + twinkle
+	var sh = fmod(t * 0.35, 1.6)
+	if sh < 1.0:
+		var x = lerpf(tl.x, tr.x, sh)
+		ci.draw_line(Vector2(x, top + r * 0.04), Vector2(x - r * 0.25, gird - r * 0.04), Color(1, 1, 1, 0.7), max(1.0, r * 0.1))
+	var tw = max(0.0, sin(t * 2.3)) 
+	if tw > 0.05:
+		var sp = Vector2(c.x + w * 0.55, top - r * 0.08); var s = r * 0.42 * tw
+		ci.draw_line(sp - Vector2(s, 0), sp + Vector2(s, 0), Color(1, 1, 1, tw), max(1.0, r * 0.07))
+		ci.draw_line(sp - Vector2(0, s), sp + Vector2(0, s), Color(1, 1, 1, tw), max(1.0, r * 0.07))
+
+## minted coin: rim gradient, reeded edge, embossed "PF", sweeping shine
+static func paint_coin(ci: CanvasItem, c: Vector2, r: float, t := 0.0) -> void:
+	ci.draw_circle(c + Vector2(0, r * 0.12), r * 0.98, Color(0, 0, 0, 0.3))
+	ci.draw_circle(c, r * 0.98, Color("#9a6a12"))
+	for i in 5: ci.draw_circle(c - Vector2(0, r * 0.03 * i), r * (0.94 - i * 0.02), Color("#f8d77a").lerp(Color("#d4a12a"), i / 4.0))
+	for i in 24:
+		var a = TAU * i / 24.0
+		ci.draw_line(c + Vector2(cos(a), sin(a)) * r * 0.8, c + Vector2(cos(a), sin(a)) * r * 0.9, Color("#b8861d"), max(1.0, r * 0.06))
+	ci.draw_circle(c, r * 0.68, Color("#e9b93e"))
+	ci.draw_arc(c, r * 0.68, 0, TAU, 28, Color("#fff1c4"), max(1.0, r * 0.07))
+	if r >= 9: Gfx.text_c(ci, UI.font_head, c.x, c.y + r * 0.3, "PF", int(r * 0.85), Color("#8a5a10"))
+	else: ci.draw_circle(c, r * 0.28, Color("#b8861d"))
+	var sh = fmod(t * 0.3, 1.8)
+	if sh < 1.0:
+		var x = c.x - r * 0.35 + sh * r * 0.8
+		ci.draw_line(Vector2(x + r * 0.15, c.y - r * 0.5), Vector2(x - r * 0.15, c.y + r * 0.5), Color(1, 1, 1, 0.5), max(1.0, r * 0.1))
+
+func _cur_pill(icon: Control, lab: Label, tint: Color) -> PanelContainer:
+	var pc = PanelContainer.new()
+	var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.03, 0.05, 0.08, 0.72); sb.border_color = Color(tint, 0.45); sb.set_border_width_all(1); sb.set_corner_radius_all(18)
+	sb.content_margin_left = 6; sb.content_margin_right = 14; sb.content_margin_top = 3; sb.content_margin_bottom = 3
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.add_child(hb(8, [icon, lab]))
+	return pc
+
 func currency_bar() -> HBoxContainer:
-	var h = hb(18)
-	var c = bold(Sys.fmt(Sys.D().coins), 16, GOLD2); c.set_meta("cur", "coins")
-	var p = bold(Sys.fmt(Sys.D().points), 16, TEAL); p.set_meta("cur", "points")
-	var lv = bold("LVL %d" % Sys.D().profile.level, 15, DIM); lv.set_meta("cur", "level")
-	h.add_child(hb(6, [_coin_icon(), c])); h.add_child(hb(6, [_pts_icon(), p])); h.add_child(lv)
+	var h = hb(10)
+	var c = bold(Sys.fmt(Sys.D().coins), 16, Color("#ffd86b")); c.set_meta("cur", "coins")
+	var p = bold(Sys.fmt(Sys.D().points), 16, Color("#8ff5ea")); p.set_meta("cur", "points")
+	var lv = bold("LVL %d" % Sys.D().profile.level, 14, TEXT); lv.set_meta("cur", "level")
+	var lvi = CurIcon.new(); lvi.kind = "level"; lvi.custom_minimum_size = Vector2(24, 24)
+	lvi.prog = float(Sys.D().profile.xp) / max(1, Sys.xp_need(Sys.D().profile.level))
+	h.add_child(_cur_pill(_coin_icon(), c, Color("#ffd86b")))
+	h.add_child(_cur_pill(_pts_icon(), p, Color("#5ff2e0")))
+	h.add_child(_cur_pill(lvi, lv, Color(1, 1, 1)))
 	currency_labels.append_array([c, p, lv])
 	return h
 func _coin_icon() -> Control:
-	var i = Control.new(); i.custom_minimum_size = Vector2(16, 16)
-	i.draw.connect(func(): i.draw_circle(Vector2(8, 9), 7.5, GOLD); i.draw_circle(Vector2(6.5, 7.5), 3, Color(1, 0.95, 0.75, 0.8)))
-	return i
+	var i = CurIcon.new(); i.kind = "coins"; i.custom_minimum_size = Vector2(24, 24); i.mouse_filter = Control.MOUSE_FILTER_IGNORE; return i
 func _pts_icon() -> Control:
-	var i = Control.new(); i.custom_minimum_size = Vector2(16, 16)
-	i.draw.connect(func(): i.draw_colored_polygon(PackedVector2Array([Vector2(8, 1), Vector2(15, 9), Vector2(8, 17), Vector2(1, 9)]), TEAL))
-	return i
+	var i = CurIcon.new(); i.kind = "points"; i.custom_minimum_size = Vector2(26, 26); i.mouse_filter = Control.MOUSE_FILTER_IGNORE; return i
 func refresh_currency() -> void:
 	for l in currency_labels:
 		if not is_instance_valid(l): continue
