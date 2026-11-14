@@ -273,25 +273,60 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 	ellipse(ci, P.call(56, 45), 11 * s, 19 * s, Color(0, 0, 0, 0.07))
 	var by = 40.0 + f.get("brow", 0)
 	ci.draw_line(P.call(40, by), P.call(47, by - 1), hair, 2.2 * s); ci.draw_line(P.call(53, by - 1), P.call(60, by), hair, 2.2 * s)
-	ellipse(ci, P.call(43.5, 45), 2.3 * s, 1.6 * s, Color("#1a1a1a")); ellipse(ci, P.call(56.5, 45), 2.3 * s, 1.6 * s, Color("#1a1a1a"))
+	ellipse(ci, P.call(43.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85)); ellipse(ci, P.call(56.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85))
+	ellipse(ci, P.call(43.8, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a")); ellipse(ci, P.call(56.2, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a"))
+	ellipse(ci, P.call(40, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35)); ellipse(ci, P.call(60, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35))
 	ci.draw_polyline(PackedVector2Array([P.call(50, 46), P.call(48.5, 53), P.call(52, 54)]), shade, 1.4 * s)
 	ci.draw_polyline(PackedVector2Array([P.call(45, 59), P.call(50, 61), P.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
-	# beard
+	# beard: 1 stubble · 2 full · 3 moustache · 4 goatee · 5 trimmed beard
 	match int(f.get("beard", 0)):
-		1: ci.draw_colored_polygon(PackedVector2Array([P.call(36, 52), P.call(40, 64), P.call(50, 70), P.call(60, 64), P.call(64, 52), P.call(58, 61), P.call(50, 63), P.call(42, 61)]), Color(hair, 0.55))
-		2: ci.draw_colored_polygon(PackedVector2Array([P.call(35, 48), P.call(38, 66), P.call(50, 74), P.call(62, 66), P.call(65, 48), P.call(60, 62), P.call(50, 65), P.call(40, 62)]), Color(hair, 0.9))
-		3: ci.draw_colored_polygon(PackedVector2Array([P.call(43, 60), P.call(50, 57), P.call(57, 60), P.call(50, 62)]), hair)
+		1: ci.draw_colored_polygon(PackedVector2Array([P.call(36, 50), P.call(40, 63), P.call(50, 68), P.call(60, 63), P.call(64, 50), P.call(58, 60), P.call(50, 62), P.call(42, 60)]), Color(hair, 0.32))
+		2: ci.draw_colored_polygon(PackedVector2Array([P.call(34, 46), P.call(37, 66), P.call(50, 75), P.call(63, 66), P.call(66, 46), P.call(60, 61), P.call(50, 64), P.call(40, 61)]), Color(hair, 0.95))
+		3: ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56), P.call(57, 58.5), P.call(50, 60)]), hair)
+		4:
+			ci.draw_colored_polygon(PackedVector2Array([P.call(44, 61), P.call(50, 60), P.call(56, 61), P.call(54, 68), P.call(50, 70), P.call(46, 68)]), Color(hair, 0.9))
+			ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56.5), P.call(57, 58.5), P.call(50, 59.5)]), Color(hair, 0.9))
+		5:
+			ci.draw_colored_polygon(PackedVector2Array([P.call(35, 48), P.call(38, 63), P.call(50, 70), P.call(62, 63), P.call(65, 48), P.call(59, 60), P.call(50, 62.5), P.call(41, 60)]), Color(hair, 0.75))
+			ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56.5), P.call(57, 58.5), P.call(50, 59.5)]), Color(hair, 0.8))
 	# hair
-	match int(f.get("hair", 0)):
-		0, 7, 9: ci.draw_colored_polygon(PackedVector2Array([P.call(30, 40), P.call(31, 26), P.call(40, 17), P.call(50, 15), P.call(60, 17), P.call(69, 26), P.call(70, 40), P.call(64, 29), P.call(50, 27), P.call(36, 29)]), hair)
-		1: ci.draw_colored_polygon(PackedVector2Array([P.call(29, 42), P.call(29, 22), P.call(40, 13), P.call(50, 12), P.call(62, 13), P.call(71, 22), P.call(71, 42), P.call(68, 26), P.call(58, 22), P.call(50, 30), P.call(38, 23), P.call(32, 30)]), hair)
+	var hs: int = int(f.get("hair", 0))
+	var hl = hair.lightened(0.18)
+	match hs:
+		0: ci.draw_colored_polygon(PackedVector2Array([P.call(30, 40), P.call(31, 26), P.call(40, 17), P.call(50, 15), P.call(60, 17), P.call(69, 26), P.call(70, 40), P.call(64, 29), P.call(50, 27), P.call(36, 29)]), hair)
+		1:
+			ci.draw_colored_polygon(PackedVector2Array([P.call(29, 42), P.call(29, 22), P.call(40, 13), P.call(50, 12), P.call(62, 13), P.call(71, 22), P.call(71, 42), P.call(68, 26), P.call(58, 22), P.call(50, 30), P.call(38, 23), P.call(32, 30)]), hair)
+			ci.draw_polyline(PackedVector2Array([P.call(38, 18), P.call(48, 15), P.call(60, 17)]), Color(hl, 0.6), 1.4 * s)
 		2: ci.draw_colored_polygon(PackedVector2Array([P.call(31, 36), P.call(34, 24), P.call(50, 19), P.call(66, 24), P.call(69, 36), P.call(60, 30), P.call(40, 30)]), Color(hair, 0.85))
-		3:
-			ci.draw_colored_polygon(PackedVector2Array([P.call(28, 60), P.call(26, 30), P.call(36, 14), P.call(50, 10), P.call(64, 14), P.call(74, 30), P.call(72, 60), P.call(68, 34), P.call(50, 22), P.call(32, 34)]), hair)
+		3: ci.draw_colored_polygon(PackedVector2Array([P.call(28, 60), P.call(26, 30), P.call(36, 14), P.call(50, 10), P.call(64, 14), P.call(74, 30), P.call(72, 60), P.call(68, 34), P.call(50, 22), P.call(32, 34)]), hair)
 		4:
 			ci.draw_circle(P.call(50, 24), 17 * s, hair); ci.draw_circle(P.call(36, 30), 9 * s, hair); ci.draw_circle(P.call(64, 30), 9 * s, hair)
-		5: pass
+		5: ci.draw_arc(P.call(50, 40), 17 * s, PI * 1.15, PI * 1.85, 12, Color(1, 1, 1, 0.18), 2.0 * s)   # bald: a little shine
 		6: ci.draw_colored_polygon(PackedVector2Array([P.call(30, 40), P.call(32, 22), P.call(46, 12), P.call(66, 6), P.call(74, 18), P.call(70, 34), P.call(62, 22), P.call(46, 26), P.call(36, 30)]), hair)
+		7:
+			# curly top: short sides, a crown of curls
+			ci.draw_colored_polygon(PackedVector2Array([P.call(31, 38), P.call(33, 27), P.call(67, 27), P.call(69, 38), P.call(62, 31), P.call(38, 31)]), Color(hair, 0.85))
+			for c in [[38, 23, 6.5], [46, 18, 7.0], [55, 18, 7.0], [63, 23, 6.5], [42, 14, 5.5], [51, 12, 6.0], [59, 14, 5.5]]: ci.draw_circle(P.call(c[0], c[1]), c[2] * s, hair)
+			for c in [[44, 15], [53, 13], [60, 19]]: ci.draw_arc(P.call(c[0], c[1]), 2.6 * s, 0, PI, 6, Color(hl, 0.5), 1.0 * s)
+		9:
+			# slicked back
+			ci.draw_colored_polygon(PackedVector2Array([P.call(30, 38), P.call(30, 24), P.call(38, 14), P.call(50, 11), P.call(62, 14), P.call(70, 24), P.call(70, 38), P.call(66, 26), P.call(50, 22), P.call(34, 26)]), hair)
+			for k in 4: ci.draw_line(P.call(40 + k * 6, 23), P.call(42 + k * 6, 13), Color(hl, 0.45), 1.0 * s)
+		10:
+			# dreadlocks / braids
+			ci.draw_colored_polygon(PackedVector2Array([P.call(30, 36), P.call(33, 22), P.call(50, 16), P.call(67, 22), P.call(70, 36), P.call(60, 29), P.call(40, 29)]), hair)
+			for k in 7:
+				var x = 32.0 + k * 6.0
+				ci.draw_line(P.call(x, 22), P.call(x - 2 + (k % 3), 46 + (k % 2) * 6), hair, 3.0 * s)
+		11:
+			# man bun
+			ci.draw_colored_polygon(PackedVector2Array([P.call(30, 38), P.call(31, 25), P.call(40, 17), P.call(50, 15), P.call(60, 17), P.call(69, 25), P.call(70, 38), P.call(64, 28), P.call(50, 25), P.call(36, 28)]), hair)
+			ci.draw_circle(P.call(50, 9), 7.5 * s, hair); ci.draw_line(P.call(44, 14), P.call(56, 14), hair.darkened(0.3), 1.5 * s)
+		12:
+			# short twists
+			ci.draw_colored_polygon(PackedVector2Array([P.call(31, 37), P.call(33, 25), P.call(67, 25), P.call(69, 37), P.call(61, 30), P.call(39, 30)]), Color(hair, 0.9))
+			for k in 6:
+				for j in 2: ci.draw_circle(P.call(36 + k * 5.6, 20 - j * 4 + (k % 2) * 1.5), 3.0 * s, hair)
 		_: ci.draw_colored_polygon(PackedVector2Array([P.call(31, 38), P.call(36, 22), P.call(44, 18), P.call(44, 10), P.call(56, 10), P.call(56, 18), P.call(64, 22), P.call(69, 38), P.call(62, 30), P.call(38, 30)]), hair)
 
 # ---------- Halloween props

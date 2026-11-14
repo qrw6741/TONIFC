@@ -28,7 +28,7 @@ var ai_squad_names = []
 var draft_cost = {}
 
 const SKINS := ["#f6d3b3", "#ecc09a", "#d9a277", "#c48a5c", "#a86f45", "#8a5634", "#6b3f24", "#4e2c18"]
-const HAIRC := ["#141010", "#2d1d12", "#5a3a1e", "#8a5a2b", "#c99a4b", "#d9c38a", "#6b6b6b"]
+const HAIRC := ["#141010", "#2d1d12", "#5a3a1e", "#8a5a2b", "#c99a4b", "#e3cc8c", "#7a7a7a", "#efe6d2", "#b5541f"]
 const STAT_LABELS := ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"]
 const GK_LABELS := ["DIV", "HAN", "KIC", "REF", "SPD", "POS"]
 
@@ -85,6 +85,7 @@ func _make_asc(b: Dictionary, target: int) -> Dictionary:
 
 func _add_season_content() -> void:
 	card_types["pass"] = {"name": "Ascension", "order": 5}
+	for p in players: preload("res://scripts/faces.gd").apply(p)   # real-player looks (cards created below copy them)
 	for a in ASCENSION:
 		var b: Dictionary = by_id.get(a[0], {})
 		if b.is_empty(): continue

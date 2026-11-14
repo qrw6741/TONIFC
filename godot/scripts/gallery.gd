@@ -39,10 +39,10 @@ func _ready() -> void:
 ## bought only with Gallery Tokens. [id, name, nat, league, pos, alt, ovr, stats, sm, wf, foot, height, age, workrates, face, cost]
 const GALLERY_CARDS := [
 	["gal_carrick", "Michael Carrick", "ENG", "ENG1", "CDM", ["CM", "CB"], 86, [66, 72, 90, 81, 82, 77], 3, 4, "R", 189, 45, ["M", "H"], {"skin": 1, "hair": 1, "hairC": 1, "beard": 0, "brow": 1, "seed": 3101}, 900],
-	["gal_kuyt", "Dirk Kuyt", "NED", "ENG1", "RW", ["ST", "RM"], 85, [80, 82, 79, 81, 56, 86], 3, 4, "R", 183, 46, ["H", "H"], {"skin": 0, "hair": 2, "hairC": 3, "beard": 0, "brow": 0, "seed": 3102}, 1000],
+	["gal_kuyt", "Dirk Kuyt", "NED", "ENG1", "RW", ["ST", "RM"], 85, [80, 82, 79, 81, 56, 86], 3, 4, "R", 183, 46, ["H", "H"], {"skin": 0, "hair": 2, "hairC": 8, "beard": 0, "brow": 0, "seed": 3102}, 1000],
 	["gal_arteta", "Mikel Arteta", "ESP", "ENG1", "CM", ["CDM", "CAM"], 85, [72, 77, 89, 86, 71, 70], 4, 4, "R", 176, 44, ["M", "M"], {"skin": 2, "hair": 1, "hairC": 0, "beard": 1, "brow": 1, "seed": 3103}, 1000],
-	["gal_king", "Ledley King", "ENG", "ENG1", "CB", [], 86, [81, 50, 66, 70, 89, 86], 2, 3, "L", 188, 46, ["M", "H"], {"skin": 6, "hair": 0, "hairC": 0, "beard": 1, "brow": 1, "seed": 3104}, 1100],
-	["gal_sneijder", "Wesley Sneijder", "NED", "ITA1", "CAM", ["CM"], 87, [76, 87, 91, 88, 50, 70], 4, 5, "R", 170, 42, ["H", "M"], {"skin": 0, "hair": 0, "hairC": 3, "beard": 0, "brow": 0, "seed": 3105}, 1300]]
+	["gal_king", "Ledley King", "ENG", "ENG1", "CB", [], 86, [81, 50, 66, 70, 89, 86], 2, 3, "L", 188, 46, ["M", "H"], {"skin": 6, "hair": 2, "hairC": 0, "beard": 1, "brow": 1, "seed": 3104}, 1100],
+	["gal_sneijder", "Wesley Sneijder", "NED", "ITA1", "CAM", ["CM"], 87, [76, 87, 91, 88, 50, 70], 4, 5, "R", 170, 42, ["H", "M"], {"skin": 0, "hair": 2, "hairC": 4, "beard": 0, "brow": 0, "seed": 3105}, 1300]]
 ## first version of the Gallery cards (boosted current players) — kept only so existing saves stay valid
 const GALLERY_LEGACY := [["p226", 87], ["p834", 87], ["p485", 87], ["p1524", 87], ["p1233", 88]]
 func _make_gallery_cards() -> void:
