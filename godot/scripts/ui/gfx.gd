@@ -250,6 +250,60 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 	text_c(ci, UI.font_bold, r.get_center().x, r.end.y - r.size.y * 0.1, ("PICK 1 OF %d" % int(pk.pick.n)) if pk.has("pick") else ("PF27 · %d ITEMS" % int(pk.items)), int(r.size.x * 0.075), tc)
 
 # ------------------------------------------------------------------ portrait
+## special cards strike a celebration pose instead of the standard bust (picked per player, always the same)
+const POSES := ["point", "fist", "arms", "shush", "celebrate", "point_up"]
+static func pose_for(p: Dictionary) -> String:
+	var t: String = str(p.get("type", "base"))
+	if t == "base" or t == "found": return ""
+	if p.has("pose"): return str(p.pose)
+	return POSES[hash_s(str(p.get("id", ""))) % POSES.size()]
+
+static func _limb(ci: CanvasItem, a: Vector2, b: Vector2, wd: float, c: Color) -> void:
+	ci.draw_line(a, b, c, wd); ci.draw_circle(a, wd * 0.5, c); ci.draw_circle(b, wd * 0.5, c)
+
+## arms & hands for a pose, drawn over the bust (P maps the 100×100 portrait grid)
+static func _pose(ci: CanvasItem, pose: String, P: Callable, s: float, skin: Color, A: Color, B: Color, gk := false) -> void:
+	var sl = 11.0 * s; var fa = 8.0 * s; var hand = 5.2 * s
+	var arm = skin
+	if gk: skin = Color("#c6f24a")    # keepers wear their gloves
+	var dk = skin.darkened(0.18); var trim = Color(B, 0.9)
+	match pose:
+		"point":
+			# arm comes up from the bottom-left, finger pointing straight at you
+			_limb(ci, P.call(14, 104), P.call(22, 88), sl, A); ci.draw_line(P.call(17, 95), P.call(25, 92), trim, 1.6 * s)
+			_limb(ci, P.call(22, 88), P.call(33, 72), fa, arm)
+			ci.draw_circle(P.call(34, 70), hand, skin); ci.draw_circle(P.call(34, 70), hand * 0.55, dk)
+			_limb(ci, P.call(35, 68), P.call(41, 62), 2.6 * s, skin); ci.draw_circle(P.call(41.5, 61.5), 1.9 * s, skin.lightened(0.08))
+		"point_up":
+			# one finger to the sky
+			_limb(ci, P.call(86, 104), P.call(84, 84), sl, A); ci.draw_line(P.call(80, 90), P.call(88, 90), trim, 1.6 * s)
+			_limb(ci, P.call(84, 84), P.call(82, 50), fa, arm)
+			ci.draw_circle(P.call(82, 47), hand, skin)
+			_limb(ci, P.call(82, 44), P.call(83, 32), 2.6 * s, skin)
+		"fist":
+			# fist pump beside the head
+			_limb(ci, P.call(82, 104), P.call(85, 80), sl, A); ci.draw_line(P.call(80, 86), P.call(89, 84), trim, 1.6 * s)
+			_limb(ci, P.call(85, 80), P.call(79, 52), fa, arm)
+			ci.draw_circle(P.call(78, 47), hand * 1.15, skin)
+			for k in 3: ci.draw_line(P.call(74.5 + k * 2.6, 44), P.call(74.5 + k * 2.6, 48), dk, 1.0 * s)
+		"arms":
+			# arms folded across the chest
+			_limb(ci, P.call(10, 92), P.call(20, 84), sl, A); _limb(ci, P.call(90, 92), P.call(80, 84), sl, A)
+			_limb(ci, P.call(20, 86), P.call(70, 90), fa * 1.05, arm)
+			_limb(ci, P.call(80, 86), P.call(30, 93), fa * 1.05, arm.darkened(0.06))
+			ci.draw_circle(P.call(75, 90), hand * 0.9, skin); ci.draw_circle(P.call(25, 93), hand * 0.9, skin.darkened(0.06))
+		"shush":
+			# finger to the lips
+			_limb(ci, P.call(62, 104), P.call(60, 86), sl, A); ci.draw_line(P.call(55, 92), P.call(65, 92), trim, 1.6 * s)
+			_limb(ci, P.call(60, 86), P.call(54, 68), fa, arm)
+			ci.draw_circle(P.call(53, 66), hand, skin); ci.draw_circle(P.call(54, 67), hand * 0.5, dk)
+			_limb(ci, P.call(52, 63), P.call(50, 55), 2.6 * s, skin)
+		"celebrate":
+			# both arms up, roaring
+			_limb(ci, P.call(16, 86), P.call(8, 66), sl, A); _limb(ci, P.call(84, 86), P.call(92, 66), sl, A)
+			_limb(ci, P.call(8, 66), P.call(12, 40), fa, arm); _limb(ci, P.call(92, 66), P.call(88, 40), fa, arm)
+			ci.draw_circle(P.call(12, 36), hand * 1.1, skin); ci.draw_circle(P.call(88, 36), hand * 1.1, skin)
+
 static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = null) -> void:
 	var f: Dictionary = p.get("face", {"skin": 2, "hair": 0, "hairC": 0, "beard": 0, "brow": 0})
 	var skin = Color(Data.SKINS[int(f.skin)]); var hair = Color(Data.HAIRC[int(f.hairC)])
@@ -277,7 +331,12 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 	ellipse(ci, P.call(43.8, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a")); ellipse(ci, P.call(56.2, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a"))
 	ellipse(ci, P.call(40, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35)); ellipse(ci, P.call(60, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35))
 	ci.draw_polyline(PackedVector2Array([P.call(50, 46), P.call(48.5, 53), P.call(52, 54)]), shade, 1.4 * s)
-	ci.draw_polyline(PackedVector2Array([P.call(45, 59), P.call(50, 61), P.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
+	var pose: String = pose_for(p)
+	if pose in ["celebrate", "fist"]:
+		ellipse(ci, P.call(50, 60), 4.2 * s, 3.4 * s, Color("#4a1f1a")); ci.draw_rect(Rect2(P.call(46.5, 57.4), Vector2(7, 1.4) * s), Color(1, 1, 1, 0.85))
+	elif pose == "point" or pose == "point_up":
+		ci.draw_polyline(PackedVector2Array([P.call(44, 58.5), P.call(50, 62), P.call(56, 58.5)]), Color("#7a3d33"), 1.8 * s)
+	else: ci.draw_polyline(PackedVector2Array([P.call(45, 59), P.call(50, 61), P.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
 	# beard: 1 stubble · 2 full · 3 moustache · 4 goatee · 5 trimmed beard
 	match int(f.get("beard", 0)):
 		1: ci.draw_colored_polygon(PackedVector2Array([P.call(36, 50), P.call(40, 63), P.call(50, 68), P.call(60, 63), P.call(64, 50), P.call(58, 60), P.call(50, 62), P.call(42, 60)]), Color(hair, 0.32))
@@ -328,6 +387,8 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 			for k in 6:
 				for j in 2: ci.draw_circle(P.call(36 + k * 5.6, 20 - j * 4 + (k % 2) * 1.5), 3.0 * s, hair)
 		_: ci.draw_colored_polygon(PackedVector2Array([P.call(31, 38), P.call(36, 22), P.call(44, 18), P.call(44, 10), P.call(56, 10), P.call(56, 18), P.call(64, 22), P.call(69, 38), P.call(62, 30), P.call(38, 30)]), hair)
+
+	if pose != "": _pose(ci, pose, P, s, skin, A, B, str(p.get("pos", "")) == "GK")
 
 # ---------- Halloween props
 static func bat(ci: CanvasItem, p: Vector2, s: float, ph: float) -> void:

@@ -212,6 +212,15 @@ func run() -> void:
 			S.details(); await w(0.6); await shot("g05d_squad_details"); UI.close_top(null); await w(0.3)
 			S.click(6); await w(0.3); await shot("g05e_squad_selected")
 			S.team_mgmt(); await w(0.5); await shot("g05f_team_mgmt"); UI.close_top(null)
+		if extra == "--poses":
+			var row = UI.hb(14); var row2 = UI.hb(14)
+			var base = Data.P("p14")
+			row.add_child(UI.card(base, 15.0))
+			for i in Gfx.POSES.size():
+				var q: Dictionary = Fright.totw_latest[i % Fright.totw_latest.size()].duplicate(); q.pose = Gfx.POSES[i]
+				(row if i < 3 else row2).add_child(UI.card(q, 15.0))
+			var box = UI.vb(14, [row, row2]); box.position = Vector2(20, 20)
+			UI.overlay.add_child(box); await shot("poses"); box.queue_free()
 		if extra == "--promo":
 			UI.go("home"); await w(0.5); await shot("pr_home")
 			UI.go("promo"); await w(0.8); await shot("pr_new")

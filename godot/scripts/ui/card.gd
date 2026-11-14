@@ -130,6 +130,7 @@ func _draw() -> void:
 		Gfx.league(self, Vector2(w / 2, cs * 8.3), cs * 1.25, p.lg)
 		Gfx.crest(self, Vector2(w / 2 + cs * 1.6, cs * 8.3), cs * 1.15, p.club)
 	else:
+		if Gfx.pose_for(p) != "": Gfx.glow(self, Vector2(w - cs * 4.4, cs * 5.0), cs * 4.6, Color(st.glow, 0.22))
 		Gfx.portrait(self, Rect2(Vector2(w - cs * 8.2, cs * 1.15), Vector2(cs * 7.6, cs * 8.0)), p)
 		Gfx.text(self, font_h, Vector2(cs * 1.3, cs * 3.9), str(p.ovr), int(cs * 2.6), tc)
 		Gfx.text(self, font_b, Vector2(cs * 1.42, cs * 5.4), p.pos, int(cs * 1.1), tc)
