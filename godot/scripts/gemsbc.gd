@@ -5,7 +5,7 @@ extends Node
 const MAX_ITEMS := 0   # 0 = no limit: submit as many players as you like
 
 ## Player of the Month — SBC-only cards. [base id, boost, league label, gem target]
-const POTM := [["p230", 4, "Premier League", 25000], ["p444", 4, "LaLiga", 25000], ["p1523", 4, "Ligue 1", 20000], ["p1189", 4, "Bundesliga", 20000], ["p807", 4, "Serie A", 12500]]
+const POTM := [["p230", 4, "Premier League", 1500000], ["p444", 4, "LaLiga", 1500000], ["p1523", 4, "Ligue 1", 1200000], ["p1189", 4, "Bundesliga", 1200000], ["p807", 4, "Serie A", 750000]]
 
 func _ready() -> void:
 	Data.packs["pp76"] = {"name": "76+ Gold Player Pack", "items": 1, "coins": 0, "points": 0, "art": "gold", "guar": [["ovr76", 1]], "w": {"ovr76": 1}, "desc": "1 gold player rated 76+.", "reward": true}
