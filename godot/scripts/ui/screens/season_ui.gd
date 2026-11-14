@@ -58,7 +58,7 @@ func s_season(p) -> Dictionary:
 	row.add_child(end_cap)
 	var sc = UI.scroll(row, true); sc.custom_minimum_size.y = TH + 52; sc.size_flags_vertical = Control.SIZE_FILL
 	f.body.add_child(sc)
-	f.body.add_child(UI.label("1,000 SP per level · matches 15–70 SP (Rivals/Champs win 70, other wins 50, draw 30, loss 15) up to 850 SP a day · objectives 30–500 · SBCs 50.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
+	f.body.add_child(UI.label("1,000 XP per level (the same XP levels your club) · matches 15–70 XP (Rivals/Champs win 70, other wins 50, draw 30, loss 15) up to 850 XP a day · objectives 30–500 · SBCs 50.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
 	_feature(feat, focus_lv, focus_tr)
 	UI.keyhook(f.node, {"j3": func(): _claim_all(), "k%d" % KEY_C: func(): _claim_all()})
 	var jump = func():
@@ -88,7 +88,7 @@ func _info_panel(lv: int, maxed: bool) -> Control:
 	else: v.add_child(UI.bold("Premium track not acquired", 15, Color("#ffc76b")))
 	v.add_child(UI.wrapl(UI.label("Earn XP and redeem rewards across the season. The Premium track adds 83+ and 82+ upgrade packs, Player Picks, Fright Night packs and exclusive Phantom Pass cards (83–86).", 13, UI.DIM), 400))
 	var xpl = UI.hb(8, [UI.bold("Level %d / %d" % [lv, Season.LEVELS], 15), UI.spacer(),
-		UI.label((("%s SP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level") + " · match SP today %d / %d" % [Season.today_match_sp(), Season.MATCH_CAP], 13, UI.DIM)])
+		UI.label((("%s XP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level") + " · match XP today %d / %d" % [Season.today_match_sp(), Season.MATCH_CAP], 13, UI.DIM)])
 	v.add_child(xpl)
 	var lb = LevelBar.new(); lb.v = 1.0 if maxed else float(Season.level_xp()) / Season.XP_PER; lb.custom_minimum_size = Vector2(0, 10)
 	v.add_child(lb)
@@ -247,8 +247,8 @@ class SpBadge extends Control:
 		draw_circle(c, 34, Color("#2a2140"))
 		draw_arc(c, 34, 0, TAU, 40, Color("#9b6bff"), 3.0, true)
 		var fnt = UI.font_head
-		var tw = fnt.get_string_size("SP", HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
-		draw_string(fnt, c + Vector2(-tw / 2, 11), "SP", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
+		var tw = fnt.get_string_size("XP", HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
+		draw_string(fnt, c + Vector2(-tw / 2, 11), "XP", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
 		var t2 = UI.font_bold.get_string_size("SEASON END", HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 		draw_string(UI.font_bold, Vector2(size.x / 2 - t2 / 2, c.y + 58), "SEASON END", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UI.DIM)
 

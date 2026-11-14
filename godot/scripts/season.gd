@@ -84,7 +84,7 @@ func add_match_sp(n: int, why: String) -> void:
 	if g > 0:
 		s.cap_n = int(s.get("cap_n", 0)) + g
 		add_xp(g, why)
-	else: Sys.toast.emit("Daily match SP cap reached (850) — objectives still give SP", "info")
+	else: Sys.toast.emit("Daily match XP cap reached (850) — objectives and SBCs still give XP", "info")
 	s.last_match = {"sp": int(s.xp) - x0, "base": n, "capped": g < n}
 
 ## today's match SP so far (0–850)
@@ -95,19 +95,20 @@ func today_match_sp() -> int:
 ## one line for the full-time screen: what this match did to the Season Pass
 func match_line() -> String:
 	var m: Dictionary = st().get("last_match", {})
-	var txt = "+%d SP" % int(m.get("sp", 0))
+	var txt = "+%d XP" % int(m.get("sp", 0))
 	if m.get("capped", false): txt += " (daily match cap hit)"
 	elif Sys.extreme() and int(m.get("base", 0)) > 0: txt += " (Extreme ÷1000)"
 	if level() >= LEVELS: return txt + " · Season Pass maxed"
-	return txt + " · Season Pass Lv %d: %s / %s SP · today %d / %d" % [level(), Sys.fmt(level_xp()), Sys.fmt(XP_PER), today_match_sp(), MATCH_CAP]
+	return txt + " · Season Pass & Club: Lv %d · %s / %s XP · today %d / %d" % [level(), Sys.fmt(level_xp()), Sys.fmt(XP_PER), today_match_sp(), MATCH_CAP]
 
 func add_xp(n: int, why := "") -> void:
 	if Save.data == null or n <= 0: return
 	if why != "Bought level": n = Sys.xp_scaled(n, "season")
 	if n <= 0: return
 	var s = st(); var before = level(); var before_total: int = int(s.xp)
-	if why != "" and why != "test": Sys.toast.emit("+%d SP · %s" % [n, why], "info")
+	if why != "" and why != "test": Sys.toast.emit("+%d XP · %s" % [n, why], "info")
 	s.xp = before_total + n
+	Sys.club_gain(n)
 	var after = level()
 	if after > before:
 		Sfx.play("reveal")

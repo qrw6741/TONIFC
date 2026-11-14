@@ -315,9 +315,11 @@ func log_tx(kind: String, amount: int, cur: String, desc: String) -> void:
 	if D().tx.size() > 300: D().tx.resize(300)
 	Save.dirty()
 
-func xp_need(level: int) -> int: return 800 + level * 350
-func add_xp(n: int) -> void:
-	n = xp_scaled(n, "club")
+## ONE XP: every XP you earn fills the Season Pass AND your Club Level by the same amount
+func xp_need(_level: int) -> int: return 1000
+func add_xp(n: int) -> void: Season.add_xp(n, "XP")
+## club level side of an XP gain (already scaled by Season.add_xp)
+func club_gain(n: int) -> void:
 	if n <= 0: return
 	var pr: Dictionary = D().profile
 	pr.xp += n
@@ -765,7 +767,7 @@ func reward_text(r: Dictionary) -> String:
 	if r.has("player"): var p = Data.P(r.player); parts.append("%d %s" % [p.ovr, p.name])
 	if r.get("xp", 0): parts.append("%s XP" % fmt(r.xp))
 	if r.get("tokens", 0): parts.append("%d Star Tokens" % int(r.tokens))
-	if r.get("sxp", 0): parts.append("%d SP" % int(r.sxp))
+	if r.get("sxp", 0): parts.append("%d XP" % int(r.sxp))
 	return " + ".join(parts)
 func grant(r: Dictionary, src: String) -> void:
 	if r.get("coins", 0): add("coins", int(r.coins), src)
@@ -913,8 +915,7 @@ func record_ut_match(res: Dictionary) -> String:
 			if Data.pos_group.get(g.get("pos", ""), "") == "MID": mid = true
 	if assists > 0: track("assist", assists); st.assists += assists
 	if mid: track("goal_mid")
-	var club_xp: int = 300 if r == "W" else (180 if r == "D" else 120)
-	add_xp(club_xp); res["ut"] = true; D().last_club_xp = xp_scaled_preview(club_xp)
+	res["ut"] = true
 	Event.after_match(res, r)
 	Evo.after_match(res, r, ga)
 	Season.add_match_sp(Season.match_sp(r, str(res.get("mode", ""))), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))

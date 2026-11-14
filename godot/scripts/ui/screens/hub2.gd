@@ -393,7 +393,6 @@ func show_results(res: Dictionary, title: String, rewards: String, on_continue: 
 	main.add_child(UI.hb(40, [gl, gr]))
 	if rewards != "": main.add_child(UI.pill(rewards, UI.GREEN))
 	if res.get("ut", false) and Save.data.season.has("last_match"):
-		main.add_child(UI.pill("+%d Club XP (club level)" % int(Save.data.get("last_club_xp", 0)), UI.DIM))
 		main.add_child(UI.pill(Season.match_line(), Color("#ff8a5c")))
 	main.add_child(UI.btn("Ⓐ  Continue", on_continue, "Primary", true))
 	for c in main.get_children(): c.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

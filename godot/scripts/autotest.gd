@@ -213,7 +213,9 @@ func run() -> void:
 			S.click(6); await w(0.3); await shot("g05e_squad_selected")
 			S.team_mgmt(); await w(0.5); await shot("g05f_team_mgmt"); UI.close_top(null)
 		if extra == "--spline":
-			for i in 3: print("SP gained ", _sim_check(), " · ", Season.match_line())
+			for i in 3:
+				var c0 = int(Save.data.profile.xp) + int(Save.data.profile.level) * 1000
+				print("SP gained ", _sim_check(), " club gained ", int(Save.data.profile.xp) + int(Save.data.profile.level) * 1000 - c0, " · ", Season.match_line())
 			var res = {"home": {"name": "Toni FC"}, "away": {"name": "Rivals AI"}, "hg": 2, "ag": 1, "goals": [], "user_side": "home", "mode": "rivals", "stats": {"poss": [55, 45], "shots": [9, 6], "sot": [5, 2], "passes": [400, 330], "tackles": [12, 14], "fouls": [8, 9], "corners": [4, 3]}, "winner": "home"}
 			Sys.record_ut_match(res); UI.show_results(res, "Division Rivals", "+900 coins", func(): pass); await shot("sp_result")
 			UI.replace("season"); await shot("sp_season")

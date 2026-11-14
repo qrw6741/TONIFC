@@ -688,7 +688,7 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	var items = preset if not preset.is_empty() else Sys.generate_pack(id)
 	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": Sys.exclusive(p.id), "dest": "keep"})
 	for p in items: Gallery.record(p.id, "pack", true)
-	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
+	Save.data.stats.packs += 1; Sys.track("pack")
 	Save.write_now()
 	var best: Dictionary = items[0]
 	# walkouts are rare: 87+ cards, or icons/heroes, or 85+ special promo cards
