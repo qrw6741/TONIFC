@@ -365,7 +365,8 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
 	Save.write_now()
 	var best: Dictionary = items[0]
-	var walkout: bool = best.ovr >= 84 or ["icon", "hero", "promo", "totw", "rising"].has(best.type)
+	# walkouts are rare: 87+ cards, or icons/heroes, or 85+ special promo cards
+	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm"].has(best.type))
 	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
 	Sfx.music_off()
 	var o = preload("res://scripts/ui/pack_fx.gd").new()

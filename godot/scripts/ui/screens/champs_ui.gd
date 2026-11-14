@@ -364,7 +364,7 @@ func _play_match() -> void:
 	var nm = "%s%s" % [Sys.pick(["Elite", "Prime", "Apex", "Legend", "Volt", "Nova"]), Sys.pick(["_FC", "Gaming", "XI", "99", "Utd"])]
 	var opp = Sys.ai_team(nm, min(93, 85 + int(r.w) * 0.45 + Sys.experience() * 20))
 	Sys.league3_check(ut)
-	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "ultimate", "ai": min(1.3, 1.05 + int(r.w) * 0.02 + Sys.experience()), "elite": true, "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "FUT Champions · Match %d/%d" % [int(r.played) + 1, Champs.MATCHES], "knockout": true}, func(res):
+	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "ultimate", "ai": min(1.3, 1.12 + int(r.w) * 0.015 + Sys.experience()), "elite": true, "half_len": int(Save.data.settings.half_len), "mode": "champs", "title": "FUT Champions · Match %d/%d" % [int(r.played) + 1, Champs.MATCHES], "knockout": true}, func(res):
 		var r0 = Sys.record_ut_match(res)
 		var won: bool = r0 == "W" or (r0 == "D" and res.get("winner", "") == "home")
 		var out = Champs.record(won, "%d-%d" % [res.hg, res.ag], nm)

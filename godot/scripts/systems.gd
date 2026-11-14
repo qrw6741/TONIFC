@@ -348,7 +348,7 @@ func roll_tier(tier: String) -> Dictionary:
 	for p in pool: mn = min(mn, p.ovr)
 	if tier == "asc_finale": return pick(pool)
 	# steep curve: low ratings are common, top-rated players are genuinely rare
-	var k = 2.0 if tier.begins_with("gold") else (1.8 if tier.begins_with("ovr") else 6.0)
+	var k = 1.5 if tier.begins_with("gold") else (1.4 if tier.begins_with("ovr") else 6.0)
 	return weighted(pool.map(func(p): return [exp(-(p.ovr - mn) / k), p]))
 func pack_odds(id: String) -> Array:
 	var pk: Dictionary = Data.packs[id]
@@ -800,7 +800,7 @@ func rivals_streak() -> int: return int(D().modes.rivals.get("streak", 0))
 func rivals_strength(div: int) -> float:
 	return min(93.0, 76.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
 func rivals_ai(div: int) -> float:
-	return min(1.3, 0.52 + (10 - div) * 0.062 + experience() + min(5, rivals_streak()) * 0.03)
+	return min(1.3, 0.62 + (10 - div) * 0.065 + experience() + min(5, rivals_streak()) * 0.035)
 func ai_label(a: float) -> String:
 	return "Beginner" if a < 0.35 else ("Amateur" if a < 0.5 else ("Semi-Pro" if a < 0.63 else ("Professional" if a < 0.76 else ("World Class" if a < 0.88 else ("Legendary" if a < 0.98 else ("Ultimate" if a < 1.1 else "Ultimate+"))))))
 func rivals_difficulty(div: int) -> String:

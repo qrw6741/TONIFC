@@ -52,35 +52,47 @@ func _ready() -> void:
 		by_club[p.club].append(p)
 	_add_season_content()
 	# harder game: every difficulty level plays smarter
-	for k in difficulties: difficulties[k].ai = min(1.15, float(difficulties[k].ai) + 0.08)
+	for k in difficulties: difficulties[k].ai = min(1.2, float(difficulties[k].ai) + 0.14)
+	# special cards are much rarer in every non-promo pack (guaranteed slots unaffected)
+	for id in packs:
+		if packs[id].get("promo", false): continue
+		for t in ["totw", "promo", "hero", "icon"]:
+			if packs[id].w.has(t): packs[id].w[t] = float(packs[id].w[t]) * 0.35
 
 # ---------------- Season Pass exclusive content ----------------
-## Ascension — Season Pass-only rarity. [base player id, boost, finale-pick?]
+## Ascension — Season Pass-only rarity. [base player id, final OVR, finale-pick?]
+## Deliberately modest (83–86): good upgrades, not overpowered.
 const ASCENSION := [
-	["p14", 4, false], ["p229", 3, false], ["p812", 4, false], ["p247", 4, false],   # free track
-	["p130", 3, false], ["p2", 4, false], ["p1515", 4, false], ["p437", 4, false], ["p421", 5, false],   # premium track
-	["p420", 4, true], ["p443", 5, true], ["p256", 4, true]]   # level 50 Ascension Player Pick
+	["p1526", 83, false], ["p377", 84, false], ["p298", 84, false], ["p973", 85, false],   # free track
+	["p988", 83, false], ["p464", 84, false], ["p56", 85, false], ["p12", 85, false], ["p35", 86, false],   # premium track
+	["p833", 86, true], ["p894", 86, true], ["p13", 86, true]]   # level 50 Ascension Player Pick
+## earlier Ascension cards stay valid for saves that already own them
+const ASCENSION_LEGACY := [["p14", 4], ["p229", 3], ["p812", 4], ["p247", 4], ["p130", 3], ["p2", 4], ["p1515", 4], ["p437", 4], ["p421", 5], ["p420", 4], ["p443", 5], ["p256", 4]]
 var ascension_finale = []
 
 func asc_id(base_id: String) -> String: return "asc_" + base_id
+
+func _make_asc(b: Dictionary, target: int) -> Dictionary:
+	var p: Dictionary = b.duplicate(true)
+	var boost: int = max(1, target - int(b.ovr))
+	p.id = asc_id(b.id); p.base = b.id; p.type = "pass"; p.rare = true; p.ovr = target
+	var st = []
+	for i in 6: st.append(min(99, int(b.stats[i]) + boost + (1 if int(b.stats[i]) >= 78 else 0)))
+	p.stats = st
+	p.sm = min(5, int(b.sm) + 1); p.wf = min(5, int(b.wf) + 1)
+	players.append(p); by_id[p.id] = p
+	return p
 
 func _add_season_content() -> void:
 	card_types["pass"] = {"name": "Ascension", "order": 5}
 	for a in ASCENSION:
 		var b: Dictionary = by_id.get(a[0], {})
 		if b.is_empty(): continue
-		var boost: int = a[1]
-		var p: Dictionary = b.duplicate(true)
-		p.id = asc_id(a[0]); p.base = a[0]; p.type = "pass"; p.rare = true
-		p.ovr = min(97, int(b.ovr) + boost)
-		var st = []
-		for i in 6:
-			var v: int = int(b.stats[i])
-			st.append(min(99, v + boost + (2 if v >= 80 else 0)))
-		p.stats = st
-		p.sm = min(5, int(b.sm) + 1); p.wf = min(5, int(b.wf) + 1)
-		players.append(p); by_id[p.id] = p
+		var p = _make_asc(b, int(a[1]))
 		if a[2]: ascension_finale.append(p)
+	for a in ASCENSION_LEGACY:
+		var b: Dictionary = by_id.get(a[0], {})
+		if not b.is_empty() and not by_id.has(asc_id(a[0])): _make_asc(b, min(97, int(b.ovr) + int(a[1])))
 	for t in [["ovr82", "82+ Player"], ["ovr83", "83+ Player"], ["ovr84", "84+ Player"], ["ovr85", "85+ Player"], ["ovr86", "86+ Player"], ["ovr88", "88+ Player"], ["asc_finale", "Ascension"]]:
 		tier_label[t[0]] = t[1]
 	var rp = func(name: String, items: int, tier: String, desc: String, art := "pass") -> Dictionary:
@@ -89,7 +101,7 @@ func _add_season_content() -> void:
 	packs["pp83x2"] = rp.call("83+ x2 Players Pack", 2, "ovr83", "2 players rated 83 or higher. Season Pass reward.")
 	packs["pp85x1"] = rp.call("85+ Player Pack", 1, "ovr85", "1 player rated 85 or higher. Season Pass reward.")
 	for pk in [["pick84", "84+ Player Pick", "ovr84", "Choose 1 of 3 players rated 84 or higher."], ["pick86", "86+ Player Pick", "ovr86", "Choose 1 of 3 players rated 86 or higher."],
-			["pick88", "88+ Player Pick", "ovr88", "Choose 1 of 3 players rated 88 or higher."], ["pickasc", "Ascension Player Pick", "asc_finale", "Choose 1 of 3 Ascension superstars: Mbappé, Yamal or Haaland."]]:
+			["pick88", "88+ Player Pick", "ovr88", "Choose 1 of 3 players rated 88 or higher."], ["pickasc", "Ascension Player Pick", "asc_finale", "Choose 1 of 3 Ascension cards: Pulisic, Lookman or Eze (86)."]]:
 		var d = rp.call(pk[1], 1, pk[2], pk[3], "pick"); d.pick = {"n": 3, "tier": pk[2]}
 		packs[pk[0]] = d
 

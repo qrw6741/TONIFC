@@ -537,7 +537,7 @@ func try_tackle(m: MP, opp: MP, is_ai: bool) -> bool:
 		m.vx += (opp.x - m.x) / d * 2; m.vy += (opp.y - m.y) / d * 2; return false
 	stats.tackles[si(m.side)] += 1; Sfx.play("tackle")
 	var p: float = clamp(0.3 + (m.defn - opp.dri) / 100.0 + ((m.team.ai - 0.6) * 0.25 if is_ai else 0.12) + (0.14 if m.jockey else 0.0) - (d - 1.0) * 0.15, 0.08, 0.85)
-	if is_ai and elite: p = clamp(p + 0.28, 0.2, 0.95)
+	if is_ai and elite: p = clamp(p + 0.32, 0.25, 0.95)
 	if t - opp.recv_t < 0.5: p *= 0.5
 	if opp.invuln > 0: p *= 0.25
 	if opp == ctrl and opp.team.user and inp.get("close", false) and ball.owner == opp: p *= 0.7   # shielding
@@ -863,7 +863,7 @@ func gk_save_check() -> void:
 	var speed = Vector2(b.vx, b.vy).length()
 	var p: float = gkr / 100.0 * 1.15 - reach * 0.17 - (speed - 18.0) * 0.012 + max(0.12, tt) * 0.35
 	if reach < 0.8: p += 0.25
-	if elite and not def_t.user: p += 0.18 - (0.1 if reach > 2.6 else 0.0)
+	if elite and not def_t.user: p += 0.21 - (0.1 if reach > 2.6 else 0.0)
 	if sh.get("chip", false) and abs(gk.x - gl) > 2.5: p *= 0.35
 	p = clamp(p, 0.04, 0.95)
 	var save = randf() < p

@@ -57,13 +57,13 @@ func run() -> void:
 			UI.modules[1].open_pack("pick86", false); await w(1.6); await shot("g34_pick")
 			print("PICK ", Save.data.pick_cur)
 			UI.modules[1].open_pack("pickasc", false); await w(1.6); await shot("g35_pick_asc")
-			var asc = Data.P("asc_p443"); print("ASC ", asc.ovr, " ", asc.stats, " sm ", asc.sm)
+			var asc = Data.P("asc_p13"); print("ASC ", asc.ovr, " ", asc.stats, " sm ", asc.sm)
 			UI.inspect(asc); await shot("g36_asc_card"); UI.close_top(null)
 			print("MARKET has pass: ", Sys.market_search({}).any(func(l): return Data.P(l.pid).type == "pass"))
 		if extra == "--gallery":
 			print("TOP ", Gallery.top_clubs)
 			for pid in ["p256", "p247", "p420", "p443", "p0", "p14"]: print("GEMS ", Data.P(pid).name, " ", Data.P(pid).ovr, " ", Gallery.gems(Data.P(pid)))
-			print("GEMS asc ", Gallery.gems(Data.P("asc_p443")), " 70-rated ", Gallery.gems(Data.players.filter(func(x): return x.ovr == 70)[0]))
+			print("GEMS asc ", Gallery.gems(Data.P("asc_p13")), " 70-rated ", Gallery.gems(Data.players.filter(func(x): return x.ovr == 70)[0]))
 			var club: String = Gallery.top_clubs["ENG1"][0]
 			for pl in Data.by_club[club]:
 				if pl.type == "base" and pl.ovr >= 78: Gallery.record(pl.id, "pack")

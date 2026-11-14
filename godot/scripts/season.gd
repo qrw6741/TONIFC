@@ -23,17 +23,17 @@ var PREM = {}
 
 func _ready() -> void:
 	FREE = {
-		1: co(1000), 2: pk("gold"), 3: co(1500), 4: pt(50), 5: pk("pp83x2"), 6: co(2000), 7: pk("premium"), 8: pt(100), 9: co(2500), 10: asc("p14"),
+		1: co(1000), 2: pk("gold"), 3: co(1500), 4: pt(50), 5: pk("pp83x2"), 6: co(2000), 7: pk("premium"), 8: pt(100), 9: co(2500), 10: asc("p1526"),
 		11: co(3000), 12: pk("pp82x5"), 13: pk("premium"), 14: co(3500), 15: pk("pick84"), 16: pt(150), 17: pk("jumbo"), 18: pk("pp83x2"), 19: co(5000), 20: pk("rare"),
-		21: co(5000), 22: pt(200), 23: pk("pp82x5"), 24: pk("mega"), 25: asc("p229"), 26: co(7500), 27: pk("pp83x2"), 28: pt(250), 29: pk("rare"), 30: pk("pick86"),
-		31: co(10000), 32: pk("pp82x5"), 33: pk("jumbo"), 34: pt(300), 35: pk("pp83x2"), 36: co(12500), 37: pk("mega"), 38: pk("pp82x5"), 39: pt(400), 40: asc("p812"),
-		41: co(15000), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick84"), 46: co(20000), 47: pk("pp83x2"), 48: pk("mega"), 49: pk("pp83x2"), 50: asc("p247")}
+		21: co(5000), 22: pt(200), 23: pk("pp82x5"), 24: pk("mega"), 25: asc("p377"), 26: co(7500), 27: pk("pp83x2"), 28: pt(250), 29: pk("rare"), 30: pk("pick86"),
+		31: co(10000), 32: pk("pp82x5"), 33: pk("jumbo"), 34: pt(300), 35: pk("pp83x2"), 36: co(12500), 37: pk("mega"), 38: pk("pp82x5"), 39: pt(400), 40: asc("p298"),
+		41: co(15000), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick84"), 46: co(20000), 47: pk("pp83x2"), 48: pk("mega"), 49: pk("pp83x2"), 50: asc("p973")}
 	PREM = {
-		1: asc("p130"), 2: pk("pp82x5"), 3: co(5000), 4: pk("pp83x2"), 5: pk("rare"), 6: pt(200), 7: pk("pp82x5"), 8: pk("pick84"), 9: co(10000), 10: pk("pp83x2"),
-		11: pk("mega"), 12: pk("pp82x5"), 13: pt(300), 14: pk("pp83x2"), 15: asc("p2"), 16: pk("pp82x5"), 17: co(15000), 18: pk("pick86"), 19: pk("pp83x2"), 20: asc("p1515"),
-		21: pk("pp82x5"), 22: pk("rare"), 23: pk("pp83x2"), 24: co(20000), 25: pk("pick86"), 26: pk("pp82x5"), 27: pk("pp85x1"), 28: pt(500), 29: pk("pp83x2"), 30: asc("p437"),
-		31: pk("pp82x5"), 32: pk("totwpack"), 33: pk("pp83x2"), 34: co(25000), 35: pk("pick86"), 36: pk("pp82x5"), 37: pk("pp83x2"), 38: pk("pp83x2"), 39: pt(750), 40: asc("p421"),
-		41: pk("pp82x5"), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick88"), 46: pk("pp82x5"), 47: pk("pp83x2"), 48: pk("ultimate"), 49: pk("pp85x1"), 50: pk("pickasc")}
+		1: asc("p988"), 2: pk("pp82x5"), 3: co(5000), 4: pk("pp83x2"), 5: pk("rare"), 6: pt(200), 7: pk("pp82x5"), 8: pk("pick84"), 9: co(10000), 10: pk("pp83x2"),
+		11: pk("mega"), 12: pk("pp82x5"), 13: pt(300), 14: pk("pp83x2"), 15: asc("p464"), 16: pk("pp82x5"), 17: co(15000), 18: pk("pick86"), 19: pk("pp83x2"), 20: asc("p56"),
+		21: pk("pp82x5"), 22: pk("rare"), 23: pk("pp83x2"), 24: co(20000), 25: pk("pick86"), 26: pk("pp82x5"), 27: pk("pp85x1"), 28: pt(500), 29: pk("pp83x2"), 30: asc("p12"),
+		31: pk("pp82x5"), 32: pk("totwpack"), 33: pk("pp83x2"), 34: co(25000), 35: pk("pick86"), 36: pk("pp82x5"), 37: pk("pp83x2"), 38: pk("pp83x2"), 39: pt(750), 40: asc("p35"),
+		41: pk("pp82x5"), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick86"), 46: pk("pp82x5"), 47: pk("pp83x2"), 48: pk("ultimate"), 49: pk("pp85x1"), 50: pk("pickasc")}
 	# drop any reward that references content missing from this build
 	for tr in [FREE, PREM]:
 		for lv in tr.keys():
@@ -45,7 +45,10 @@ func st() -> Dictionary:
 	if d == null: return {}
 	if typeof(d.get("season")) != TYPE_DICTIONARY or d.season.get("id", "") != ID:
 		d.season = {"id": ID, "xp": 0, "premium": false, "free": {}, "prem": {}, "bonus": 0}
+	if not d.season.has("ends"): d.season.ends = int(Time.get_unix_time_from_system()) + 30 * 86400
 	return d.season
+
+func days_left() -> int: return max(0, int(ceil((float(st().get("ends", 0)) - Time.get_unix_time_from_system()) / 86400.0)))
 
 func level() -> int: return min(LEVELS, int(st().xp) / XP_PER)
 func level_xp() -> int: return int(st().xp) - level() * XP_PER if level() < LEVELS else int(st().xp) - LEVELS * XP_PER
