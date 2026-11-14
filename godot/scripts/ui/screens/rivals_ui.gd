@@ -159,7 +159,7 @@ func s_rivals(p) -> Dictionary:
 	t.timeout.connect(func():
 		upd_cd.call()
 		if Rivals.st().unclaimed.size() != last_un.n and UI.modals.is_empty(): UI.replace("rivals"))
-	return {"node": page, "bg": "off"}
+	return {"node": page, "bg": "off", "back": _back_or_play}
 
 func _preview(d: int) -> void:
 	var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 20); g.add_theme_constant_override("v_separation", 8)
@@ -180,3 +180,7 @@ func play_match() -> void:
 		var r = Sys.record_ut_match(res); var out = Rivals.record(r)
 		Sys.log_match(res, "Rivals", r)
 		UI.show_results(res, "Division Rivals", "+%s coins%s" % [Sys.fmt(out.coins), (" · " + out.msg) if out.msg != "" else ""], func(): UI.replace("rivals")))
+
+func _back_or_play() -> void:
+	if UI.stack.is_empty(): UI.reset("play")
+	else: UI.back()

@@ -272,6 +272,39 @@ func run() -> void:
 			UI.go("champsreward", {"res": res}); await w(1.2); await shot("g150_reward_anim")
 			await w(3.2); await shot("g151_reward_final")
 			print("QP after ", Champs.st().qp, " tokens ", Champs.tokens())
+			print("CUR ", UI.cur_name, " modals ", UI.modals.size(), " in_match ", UI.in_match, " focus ", UI.get_viewport().gui_get_focus_owner())
+			var ev = InputEventAction.new(); ev.action = "ui_cancel"; ev.pressed = true; Input.parse_input_event(ev)
+			await w(0.6); print("AFTER ESC ", UI.cur_name)
+			UI.go("champsreward", {"res": res}); await w(4.5)
+			var fo = UI.get_viewport().gui_get_focus_owner(); print("FOCUS ", fo, " ", fo.text if fo is Button else "")
+			for pr in [true, false]:
+				var ev2 = InputEventKey.new(); ev2.physical_keycode = KEY_ENTER; ev2.keycode = KEY_ENTER; ev2.pressed = pr; Input.parse_input_event(ev2); await w(0.1)
+			await w(0.6); print("AFTER ENTER ", UI.cur_name)
+			UI.go("champsreward", {"res": res}); await w(4.5)
+			var fo2 = UI.get_viewport().gui_get_focus_owner(); print("FOCUS2 ", fo2, " ", fo2.text if fo2 is Button else "", " stack ", UI.stack.map(func(x): return x[0]))
+			for pr in [true, false]:
+				var jb = InputEventJoypadButton.new(); jb.button_index = JOY_BUTTON_A; jb.pressed = pr; Input.parse_input_event(jb); await w(0.1)
+			await w(0.6); print("AFTER PAD A ", UI.cur_name)
+			UI.go("champsreward", {"res": res}); await w(4.5)
+			for pr in [true, false]:
+				var jb2 = InputEventJoypadButton.new(); jb2.button_index = JOY_BUTTON_B; jb2.pressed = pr; Input.parse_input_event(jb2); await w(0.1)
+			await w(0.6); print("AFTER PAD B ", UI.cur_name)
+			# realistic flow: finish a run, press Play on the Champions screen, wait for the animation, press A
+			Champs.st().next_at = 0; Champs.st().qp = 1000; Champs.start()
+			for k in 15: Champs.record(k % 3 != 0, "2-0", "x")
+			UI.reset("champions"); await w(0.8)
+			UI.modules[8]._play_pressed(); await w(5.0); await shot("g152_real_flow")
+			var fo4 = UI.get_viewport().gui_get_focus_owner(); print("REAL FOCUS ", fo4, " ", fo4.text if fo4 is Button else "", " cur ", UI.cur_name, " modals ", UI.modals.size())
+			for pr in [true, false]:
+				var jb4 = InputEventJoypadButton.new(); jb4.button_index = JOY_BUTTON_A; jb4.pressed = pr; Input.parse_input_event(jb4); await w(0.1)
+			await w(0.6); print("REAL AFTER PAD A ", UI.cur_name)
+			for pr in [true, false]:
+				var jb5 = InputEventJoypadButton.new(); jb5.button_index = JOY_BUTTON_B; jb5.pressed = pr; Input.parse_input_event(jb5); await w(0.1)
+			await w(0.6); print("THEN PAD B ", UI.cur_name)
+			UI.reset("main"); await w(0.6); var fo3 = UI.get_viewport().gui_get_focus_owner(); print("MAIN FOCUS ", fo3)
+			for pr in [true, false]:
+				var jb3 = InputEventJoypadButton.new(); jb3.button_index = JOY_BUTTON_A; jb3.pressed = pr; Input.parse_input_event(jb3); await w(0.1)
+			await w(0.6); print("AFTER PAD A on main ", UI.cur_name)
 			for el in [false, true]:
 				var gs = [0, 0]; var sv = 0; var sh = 0; var tk = 0
 				for g in 3:

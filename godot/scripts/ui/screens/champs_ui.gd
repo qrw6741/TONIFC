@@ -200,7 +200,8 @@ func s_champions(_p) -> Dictionary:
 	var t = Timer.new(); t.wait_time = 1.0; t.autostart = true; page.add_child(t)
 	t.timeout.connect(func(): cd_txt.call(); upd_play.call())
 	if not fin.is_empty(): UI.go.call_deferred("champsreward", {"res": fin})
-	return {"node": page, "bg": "off"}
+	# Back always works, even when the history was cleared (e.g. after the rewards reveal)
+	return {"node": page, "bg": "off", "back": _back_or_play}
 
 func _emblem_circle() -> Control:
 	var c = Control.new(); c.custom_minimum_size = Vector2(130, 130)
@@ -319,7 +320,7 @@ func s_champsreward(p) -> Dictionary:
 	v.add_child(row)
 	v.add_child(UI.vspacer())
 	var g = func(ps: String, xb: String, kb: String) -> String: return ps if Pad.style == "ps" else (xb if Pad.style == "xbox" else kb)
-	var adv = UI.btn("%s  Advance" % g.call("✕", "A", "Enter"), func(): UI.reset("champions"), "Primary", true); adv.custom_minimum_size.x = 200
+	var adv = UI.btn("%s  Advance" % g.call("✕", "A", "Enter"), func(): _leave_reward(), "Primary", true); adv.custom_minimum_size.x = 200
 	v.add_child(UI.hb(22, [adv, UI._key_hint(g.call("○", "B", "Esc"), "Back")]))
 	# staggered reveal: pop in, count up, sparkle
 	var start = func():
@@ -341,7 +342,12 @@ func s_champsreward(p) -> Dictionary:
 		var fin = page.create_tween(); fin.tween_interval(0.8 + cols.size() * 0.75 + 0.6)
 		fin.tween_callback(func(): Sfx.play("bigreveal"); for k in 3: sparks.burst(Vector2(sparks.size.x * (0.25 + k * 0.25), sparks.size.y * 0.35), 60, [Color("#ffd36b"), Color("#ff4f5e"), Color.WHITE][k]))
 	start.call_deferred()
-	return {"node": page, "bg": "off", "back": func(): UI.reset("champions")}
+	return {"node": page, "bg": "off", "back": func(): _leave_reward()}
+
+## leave the rewards reveal → Champions screen, keeping Play underneath so Back still exits
+func _leave_reward() -> void:
+	UI.stack = [["play", {}, []]]
+	UI._show("champions", {})
 
 func _play_pressed() -> void:
 	var r = Champs.run()
@@ -397,3 +403,7 @@ func s_champsstore(_p) -> Dictionary:
 		flow.add_child(t); first = false
 	f.body.add_child(UI.scroll(flow))
 	return {"node": f.node, "bg": "hub"}
+
+func _back_or_play() -> void:
+	if UI.stack.is_empty(): UI.reset("play")
+	else: UI.back()
