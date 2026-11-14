@@ -674,18 +674,18 @@ func sell(l: Dictionary, price: int) -> void:
 # ------------------------------------------------------------------ objectives & rewards
 # ------------------------------------------------------------------ quick objectives (refresh every 3 minutes)
 const QUICK_SECS := 180.0
-const QUICK_ACTION := [["q_pack", "Pack Opener", "Open 1 pack", "pack", 1, {"coins": 400, "sxp": 100}],
+const QUICK_ACTION := [["q_pack", "Pack Opener", "Open 1 pack", "pack", 1, {"coins": 400, "sxp": 15}],
 	["q_pack2", "Double Rip", "Open 2 packs", "pack", 2, {"coins": 900}],
 	["q_buy", "Market Shopper", "Buy a player on the Transfer Market", "buy", 1, {"coins": 600}],
-	["q_list", "Trader", "List a player on the Transfer Market", "list", 1, {"coins": 300, "sxp": 100}],
+	["q_list", "Trader", "List a player on the Transfer Market", "list", 1, {"coins": 300, "sxp": 15}],
 	["q_qs", "Clear Out", "Quick sell 3 items", "quicksell", 3, {"coins": 400}],
 	["q_sbc", "Squad Builder", "Complete any SBC", "sbc", 1, {"pack": "gold"}],
 	["q_sell", "Profit Maker", "Sell a player on the Transfer Market", "sell", 1, {"coins": 700}]]
 const QUICK_MATCH := [["q_goal", "On Target", "Score a goal in an Ultimate XI match", "goal", 1, {"coins": 700}],
-	["q_match", "Matchday", "Finish an Ultimate XI match", "match", 1, {"coins": 800, "sxp": 150}],
+	["q_match", "Matchday", "Finish an Ultimate XI match", "match", 1, {"coins": 800, "sxp": 25}],
 	["q_win", "Quick Win", "Win an Ultimate XI match", "win", 1, {"pack": "premium"}],
 	["q_assist", "Provider", "Get an assist in Ultimate XI", "assist", 1, {"coins": 600}],
-	["q_goals3", "Hat-trick Hunt", "Score 3 goals in Ultimate XI", "goal", 3, {"coins": 1500, "sxp": 200}],
+	["q_goals3", "Hat-trick Hunt", "Score 3 goals in Ultimate XI", "goal", 3, {"coins": 1500, "sxp": 30}],
 	["q_evo", "Evolve", "Level up an Evolution", "evo_lvl", 1, {"coins": 800}]]
 func _ready() -> void:
 	for q in QUICK_ACTION + QUICK_MATCH:
@@ -741,7 +741,7 @@ func obj_claim(o: Dictionary) -> bool:
 	if not obj_done(o) or obj_claimed(o): return false
 	D().objectives.claimed[obj_key(o)] = true
 	grant(o.reward, "Objective: " + o.title)
-	Season.add_xp({"daily": 150, "weekly": 400, "season": 600}.get(o.cat, 300), "Objective")
+	Season.add_xp({"daily": 30, "weekly": 250, "season": 500, "milestone": 200, "halloween": 150}.get(o.cat, 100), "Objective")
 	return true
 
 func reward_text(r: Dictionary) -> String:
@@ -752,7 +752,7 @@ func reward_text(r: Dictionary) -> String:
 	if r.has("player"): var p = Data.P(r.player); parts.append("%d %s" % [p.ovr, p.name])
 	if r.get("xp", 0): parts.append("%s XP" % fmt(r.xp))
 	if r.get("tokens", 0): parts.append("%d Star Tokens" % int(r.tokens))
-	if r.get("sxp", 0): parts.append("%d Season XP" % int(r.sxp))
+	if r.get("sxp", 0): parts.append("%d SP" % int(r.sxp))
 	return " + ".join(parts)
 func grant(r: Dictionary, src: String) -> void:
 	if r.get("coins", 0): add("coins", int(r.coins), src)
@@ -824,7 +824,7 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 	D().sbc.done[sbc.id] = sbc_count(sbc.id) + 1
 	D().stats.sbcs += 1
 	grant(sbc.reward, "SBC: " + sbc.name)
-	Season.add_xp(300, "SBC")
+	Season.add_xp(50, "SBC")
 	track("sbc"); history('Completed SBC "%s"' % sbc.name)
 	Save.dirty(); return true
 
@@ -903,7 +903,7 @@ func record_ut_match(res: Dictionary) -> String:
 	add_xp(300 if r == "W" else (180 if r == "D" else 120))
 	Event.after_match(res, r)
 	Evo.after_match(res, r, ga)
-	Season.add_xp(450 if r == "W" else (300 if r == "D" else 200), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))
+	Season.add_match_sp(Season.match_sp(r, str(res.get("mode", ""))), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))
 	return r
 func log_match(res: Dictionary, mode: String, r: String) -> void:
 	D().matches.push_front({"t": now(), "mode": mode, "home": res.home.name, "away": res.away.name, "hg": res.hg, "ag": res.ag, "res": r})
@@ -945,4 +945,4 @@ func simulate_match(cfg: Dictionary) -> Dictionary:
 	var poss = int(clamp(round(50 + (H.mid - A.mid) * 1.2 + randf_range(-5, 5)), 30, 70))
 	var stats = {"poss": [poss, 100 - poss], "shots": [rint(4, 9) + sc[0] * 2, rint(4, 9) + sc[1] * 2], "sot": [sc[0] + rint(1, 3), sc[1] + rint(1, 3)],
 		"passes": [rint(300, 520), rint(300, 520)], "tackles": [rint(8, 20), rint(8, 20)], "fouls": [rint(4, 12), rint(4, 12)], "corners": [rint(1, 8), rint(1, 8)]}
-	return {"home": cfg.home, "away": cfg.away, "hg": sc[0], "ag": sc[1], "goals": goals, "stats": stats, "winner": winner, "pens": pens, "user_side": cfg.get("user_side", ""), "simulated": true}
+	return {"home": cfg.home, "away": cfg.away, "hg": sc[0], "ag": sc[1], "goals": goals, "stats": stats, "winner": winner, "pens": pens, "user_side": cfg.get("user_side", ""), "simulated": true, "mode": cfg.get("mode", "")}

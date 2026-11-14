@@ -102,6 +102,6 @@ func submit(sbc: Dictionary, uids: Array) -> bool:
 	Save.data.sbc.done[sbc.id] = Sys.sbc_count(sbc.id) + 1
 	Save.data.stats.sbcs += 1
 	Sys.grant(sbc.reward, "SBC: " + sbc.name)
-	Season.add_xp(300, "SBC")
+	Season.add_xp(50, "SBC")
 	Sys.track("sbc"); Sys.history('Completed SBC "%s"' % sbc.name)
 	Save.dirty(); return true

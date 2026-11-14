@@ -20,10 +20,15 @@ func s_title(_p) -> Dictionary:
 	v.add_child(UI.vb(0, [Control.new()])); v.get_child(-1).custom_minimum_size.y = 50
 	var b = UI.btn("Ⓐ  Press Start", func():
 		Sfx.play("boom"); Sfx.music_on()
+		if Cloud.companion() and not Cloud.signed_in(): UI.reset("cloud"); return
 		UI.reset("onboard" if Save.data == null else "main"), "Primary", true)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(b)
-	var sl = UI.btn("Save Slots  ·  Slot %d" % Save.slot, func(): Sfx.play("select"); Sfx.music_on(); UI.go("slots"), "")
-	sl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(sl)
+	if not Cloud.companion():
+		var sl = UI.btn("Save Slots  ·  Slot %d" % Save.slot, func(): Sfx.play("select"); Sfx.music_on(); UI.go("slots"), "")
+		sl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(sl)
+	var cb = UI.btn(("☁  Cloud · " + Cloud.username()) if Cloud.signed_in() else "☁  Cloud Account", func(): Sfx.play("select"); Sfx.music_on(); UI.go("cloud"), "")
+	cb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(cb)
+	if Cloud.companion(): logo.add_child(UI.head(" COMPANION", 40, UI.TEAL))
 	var hint = UI.label("Keyboard, mouse, Xbox or PS5 controller · Top 5 leagues 2025/26", 13, UI.DIM); hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(hint)
 	c.add_child(v)
 	return _ret(page, func(): pass, "menu", {"no_music": true})
@@ -101,6 +106,10 @@ const ITEMS := [["ut", "Ultimate XI", "Build your dream squad"], ["kickoff", "Ki
 	["clubs", "Clubs", "Explore every league & club"], ["tourn", "Tournaments", "Knockout cups"], ["customize", "Customize", "Badge, kits & stadium"], ["profile", "Profile", "Stats & history"], ["slots", "Save Slots", "3 clubs · switch or start new"], ["settings", "Settings", "Audio, gameplay & saves"]]
 
 func s_main(_p) -> Dictionary:
+	if Cloud.companion():
+		# the companion only has Ultimate Team
+		UI.reset.call_deferred("home" if Save.data != null else "cloud")
+		return _ret(Control.new(), func(): pass, "hub")
 	var pr: Dictionary = Save.data.profile
 	var top = UI.hb(14, [UI.head("PRIME", 30, Color("#e9edf2")), UI.head("27", 30, UI.GOLD), UI.spacer(), UI.bold(pr.name, 15), UI.label("LVL %d" % pr.level, 15, UI.DIM)])
 	var f = UI.frame(top, "Prime Football 27 · top 5 leagues 2025/26")
@@ -454,6 +463,7 @@ func s_settings(_p) -> Dictionary:
 	gp.add_child(exb)
 	var d = UI.vb(12, [gp, UI.caps("Save data"), UI.label("Playing on Slot %d of %d" % [Save.slot, Save.SLOTS], 14, UI.TEAL),
 		UI.btn("Save Slots…", func(): UI.go("slots"), "Primary"),
+		UI.btn(("☁ Cloud · " + Cloud.username()) if Cloud.signed_in() else "☁ Cloud Account…", func(): UI.go("cloud"), ""),
 		UI.wrapl(UI.label("Progress saves automatically. This slot's file:\n" + ProjectSettings.globalize_path(Save.path()), 13, UI.DIM), 300),
 		UI.btn("Reset all progress", func():
 			if await UI.modal("Reset this slot?", "This permanently deletes the club, players, coins and history in Slot %d. Other slots are not touched." % Save.slot, [["Cancel", null, ""], ["Delete Slot %d" % Save.slot, true, "Danger"]]):
@@ -577,3 +587,90 @@ func _delete_slot(n: int) -> void:
 	UI.toast("Slot %d deleted" % n, "bad")
 	if was_cur: UI.reset("slots")
 	else: UI.replace("slots")
+
+# ------------------------------------------------------------------ cloud account
+func s_cloud(_p) -> Dictionary:
+	var f = UI.sub_shell("Cloud Account", "Prime Football 27", true) if Save.data != null else {"node": Control.new(), "body": UI.vb(14)}
+	if Save.data == null:
+		var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		for kv in [["left", 60], ["right", 60], ["top", 40], ["bottom", 30]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
+		f.node.add_child(mg); mg.add_child(f.body)
+	f.body.add_child(UI.vb(2, [UI.head("CLOUD ACCOUNT", 40), UI.label("Save your club online and use it in the companion app — simulate matches, packs, market, SBCs and objectives from your phone.", 14, UI.DIM)]))
+	var st = UI.bold(Cloud.status, 16, UI.TEAL)
+	var upd = func(): if is_instance_valid(st): st.text = Cloud.status
+	Cloud.status_changed.connect(upd)
+	f.body.add_child(UI.panel(UI.hb(10, [UI.caps("Status", 11), st]), "Glass"))
+	var row = UI.hb(20)
+	if not Cloud.configured():
+		var S = {"u": "", "k": ""}
+		row.add_child(UI.panel(UI.vb(10, [UI.caps("Server setup (one time)", 12, UI.GOLD2),
+			UI.wrapl(UI.label("Paste your Supabase Project URL and anon public key (Supabase → Project Settings → API).", 13, UI.DIM), 440),
+			UI.field("Project URL", UI.line("", func(t): S.u = t, "https://xxxx.supabase.co", 440)),
+			UI.field("anon public key", UI.line("", func(t): S.k = t, "eyJ…", 440)),
+			UI.btn("Save server", func():
+				if not S.u.begins_with("https://") or S.k.length() < 20: UI.toast("Check the URL and key", "bad"); return
+				Cloud.set_server(S.u, S.k); UI.toast("Server saved", "good"); UI.replace("cloud"), "Primary")])))
+	elif not Cloud.signed_in():
+		var A = {"u": "", "p": ""}
+		var pin = UI.line("", func(t): A.p = t, "4–6 digits", 260); pin.secret = true; pin.max_length = 6
+		row.add_child(UI.panel(UI.vb(10, [UI.caps("Sign in or create an account", 12, UI.GOLD2),
+			UI.field("Username", UI.line("", func(t): A.u = t, "3–20 letters, numbers or _", 260)),
+			UI.field("PIN", pin),
+			UI.hb(10, [UI.btn("Sign in", func(): _cloud_sign_in(A.u, A.p), "Primary", true), UI.btn("Create account", func(): _cloud_register(A.u, A.p), "")]),
+			UI.wrapl(UI.label(("Creating an account uploads this slot's club (Slot %d)." % Save.slot) if Save.data != null else "Sign in with the account you made in the game.", 12, UI.DIM), 360)])))
+	else:
+		var a = Cloud.auth()
+		row.add_child(UI.panel(UI.vb(10, [UI.caps("Signed in", 12, UI.GOLD2), UI.head(str(a.user), 30), UI.label("Linked to Slot %d · cloud revision %d%s" % [Save.slot, int(a.get("rev", 0)), "  ·  changes waiting to upload" if a.get("dirty", false) else ""], 13, UI.DIM),
+			UI.hb(10, [UI.btn("Sync now", func(): _cloud_sync(), "Primary", true), UI.btn("Download from cloud", func(): _cloud_download(), ""), UI.btn("Sign out", func(): Cloud.sign_out(); UI.replace("cloud"), "Small")]),
+			UI.wrapl(UI.label("Progress uploads automatically a few seconds after you play. When you start the game, newer progress from the companion app is downloaded.", 12, UI.DIM), 440)])))
+	row.add_child(UI.panel(UI.vb(6, [UI.caps("Companion app", 12, UI.GOLD2),
+		UI.wrapl(UI.label("Open it in any phone browser and sign in with the same username and PIN. It's Ultimate Team only, and matches are simulated.", 13), 380),
+		UI.bold(COMPANION_URL, 14, UI.TEAL)]), "Glass"))
+	f.body.add_child(row)
+	return _ret(f.node, func(): UI.reset(("home" if Cloud.companion() else "main") if Save.data != null else "title"), "hub" if Save.data != null else "menu")
+
+const COMPANION_URL := "https://qrw6741.github.io/TONIFC/companion/"
+
+func _cloud_sign_in(u: String, p: String) -> void:
+	var r = await Cloud.sign_in(u, p)
+	if not r.get("ok", false): UI.toast(str(r.get("error", "Sign in failed")), "bad"); return
+	var cloud_save = r.get("save")
+	if cloud_save == null:
+		if Save.data != null: await Cloud.push(true); UI.toast("Signed in — uploaded this club to your new cloud account", "good")
+		elif Cloud.companion(): UI.toast("No club on this account yet — create one", "info"); UI.reset("onboard"); return
+	elif Save.data == null:
+		Cloud.apply_cloud(cloud_save, int(r.rev)); UI.toast("Welcome back, " + Cloud.username(), "good")
+	else:
+		var cl = str(cloud_save.get("profile", {}).get("club_name", "Club")); var here = str(Save.data.profile.club_name)
+		var v = await UI.modal("Which club?", "The cloud has %s (from %s). This device has %s in Slot %d." % [cl, str(r.get("device", "another device")), here, Save.slot],
+			[["Use cloud club", "cloud", "Primary"], ["Upload this device's club", "local", ""]])
+		if v == "local": await Cloud.push(true)
+		else: Cloud.apply_cloud(cloud_save, int(r.rev))
+	UI.reset("home" if Cloud.companion() and Save.data != null else "cloud")
+
+func _cloud_register(u: String, p: String) -> void:
+	if Save.data == null and not Cloud.companion(): UI.toast("Create a club first", "bad"); return
+	var r = await Cloud.register(u, p)
+	if not r.get("ok", false): UI.toast(str(r.get("error", "Couldn't create the account")), "bad"); return
+	UI.toast("Account %s created" % Cloud.username(), "good")
+	if Save.data == null: UI.reset("onboard"); return
+	UI.replace("cloud")
+
+func _cloud_sync() -> void:
+	var r = await Cloud.push()
+	if r.get("ok", false): UI.toast("Synced to the cloud", "good"); UI.replace("cloud"); return
+	if str(r.get("error", "")) == "conflict": await resolve_conflict()
+	else: UI.toast(str(r.get("error", "Sync failed")), "bad")
+
+func _cloud_download() -> void:
+	if not await UI.modal("Download from cloud?", "This replaces the club in Slot %d with your cloud club." % Save.slot, [["Cancel", null, ""], ["Download", true, "Primary"]]): return
+	var r = await Cloud.pull()
+	if r.get("ok", false): UI.toast("Cloud club downloaded", "good"); UI.reset("home" if Cloud.companion() else "main")
+	else: UI.toast(str(r.get("error", "Download failed")), "bad")
+
+## both this device and the cloud changed since the last sync
+func resolve_conflict() -> void:
+	var v = await UI.modal("Cloud has newer progress", "Your club was changed on another device (e.g. the companion app) and on this one. Which progress do you want to keep?",
+		[["Use cloud progress", "cloud", "Primary"], ["Keep this device (overwrite cloud)", "local", ""], ["Decide later", null, ""]])
+	if v == "cloud": await Cloud.pull(); UI.reset("home" if Cloud.companion() else "main")
+	elif v == "local": await Cloud.push(true); UI.toast("Cloud updated from this device", "good")

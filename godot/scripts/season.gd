@@ -10,9 +10,10 @@ const TITLE := "SEASON 2: FRIGHT NIGHT"
 const TAGLINE := "Halloween is here — climb 50 levels of Phantom Pass rewards"
 const ID := "s2"
 const LEVELS := 50
-const XP_PER := 40000   # ×50 harder than launch (was 800)
+const XP_PER := 1000    # FC 27: every level costs 1,000 Season Points (SP)
+const MATCH_CAP := 850  # FC 27: match play earns at most 850 SP per day
 const PREMIUM_COST := 1000
-const LEVEL_COST := 7500   # buying a level scales with it (was 150)
+const LEVEL_COST := 200
 const OVERFLOW_COINS := 3000
 
 func asc(base_id: String) -> Dictionary: return {"player": "asc_" + base_id}
@@ -68,12 +69,27 @@ func claim_count() -> int:
 		if can_claim(lv, "prem"): n += 1
 	return n
 
+## SP from a match: 15–100 depending on result and mode, capped at 850 SP a day (like FC 27)
+func match_sp(result: String, mode: String) -> int:
+	if result == "W": return 70 if mode in ["rivals", "champs"] else (60 if mode in ["draft", "event"] else 50)
+	if result == "D": return 30
+	return 15
+func add_match_sp(n: int, why: String) -> void:
+	if Save.data == null: return
+	var s = st()
+	if str(s.get("cap_day", "")) != Sys.day_key(): s.cap_day = Sys.day_key(); s.cap_n = 0
+	var room: int = max(0, MATCH_CAP - int(s.get("cap_n", 0)))
+	var g: int = min(n, room)
+	if g <= 0: Sys.toast.emit("Daily match SP cap reached (850) — objectives still give SP", "info"); return
+	s.cap_n = int(s.get("cap_n", 0)) + g
+	add_xp(g, why)
+
 func add_xp(n: int, why := "") -> void:
 	if Save.data == null or n <= 0: return
 	if why != "Bought level": n = Sys.xp_scaled(n, "season")
 	if n <= 0: return
 	var s = st(); var before = level(); var before_total: int = int(s.xp)
-	if why != "" and why != "test": Sys.toast.emit("+%d Season XP · %s" % [n, why], "info")
+	if why != "" and why != "test": Sys.toast.emit("+%d SP · %s" % [n, why], "info")
 	s.xp = before_total + n
 	var after = level()
 	if after > before:

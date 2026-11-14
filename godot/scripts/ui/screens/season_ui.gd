@@ -58,7 +58,7 @@ func s_season(p) -> Dictionary:
 	row.add_child(end_cap)
 	var sc = UI.scroll(row, true); sc.custom_minimum_size.y = TH + 52; sc.size_flags_vertical = Control.SIZE_FILL
 	f.body.add_child(sc)
-	f.body.add_child(UI.label("Earn Season XP: match win 450 · draw 300 · loss 200 · objectives 150–600 · SBCs 300.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
+	f.body.add_child(UI.label("1,000 SP per level · matches 15–70 SP (Rivals/Champs win 70, other wins 50, draw 30, loss 15) up to 850 SP a day · objectives 30–500 · SBCs 50.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
 	_feature(feat, focus_lv, focus_tr)
 	UI.keyhook(f.node, {"j3": func(): _claim_all(), "k%d" % KEY_C: func(): _claim_all()})
 	var jump = func():
@@ -88,7 +88,7 @@ func _info_panel(lv: int, maxed: bool) -> Control:
 	else: v.add_child(UI.bold("Premium track not acquired", 15, Color("#ffc76b")))
 	v.add_child(UI.wrapl(UI.label("Earn XP and redeem rewards across the season. The Premium track adds 83+ and 82+ upgrade packs, Player Picks, Fright Night packs and exclusive Phantom Pass cards (83–86).", 13, UI.DIM), 400))
 	var xpl = UI.hb(8, [UI.bold("Level %d / %d" % [lv, Season.LEVELS], 15), UI.spacer(),
-		UI.label(("%s XP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level", 13, UI.DIM)])
+		UI.label(("%s SP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level", 13, UI.DIM)])
 	v.add_child(xpl)
 	var lb = LevelBar.new(); lb.v = 1.0 if maxed else float(Season.level_xp()) / Season.XP_PER; lb.custom_minimum_size = Vector2(0, 10)
 	v.add_child(lb)

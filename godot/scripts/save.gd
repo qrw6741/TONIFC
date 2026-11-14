@@ -148,6 +148,8 @@ func write_now() -> void:
 	var f = FileAccess.open(path(), FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(data))
 	_write_meta()
+	var c = get_node_or_null("/root/Cloud")
+	if c: c.local_changed()
 
 func wipe() -> void:
 	delete_slot(slot)

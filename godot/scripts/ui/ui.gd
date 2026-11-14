@@ -631,13 +631,21 @@ func hub_shell(tab: String) -> Dictionary:
 		if t[0] == "season" and Season.claim_count() > 0: b.text += " •"
 		top.add_child(b)
 	top.add_child(caps(Pad.glyph("RB") if Pad.style == "ps" else "E", 10))
-	top.add_child(spacer()); top.add_child(currency_bar())
+	top.add_child(spacer()); top.add_child(cloud_btn()); top.add_child(currency_bar())
 	var f = frame(top, ("L1 / R1  tabs  ·  L2 / R2  sub-tabs  ·  R-stick scroll" if Pad.style == "ps" else ("LB / RB  tabs  ·  LT / RT  sub-tabs  ·  R-stick scroll" if Pad.style == "xbox" else "Q / E  switch tab")))
 	return f
 func _sepline() -> Control:
 	var c = ColorRect.new(); c.color = Color(1, 1, 1, 0.25); c.custom_minimum_size = Vector2(1, 30); return c
 func _underline() -> StyleBoxFlat:
 	var s = _sb(Color(0, 0, 0, 0), TEAL, 0, 0, Vector4(12, 8, 12, 8)); s.border_width_bottom = 3; return s
+
+## ☁ button: opens the Cloud screen, tinted by sync state
+func cloud_btn() -> Button:
+	var on: bool = Cloud.signed_in()
+	var b = btn(("☁ " + Cloud.username()) if on else "☁ Cloud", func(): go("cloud"), "Small")
+	b.add_theme_color_override("font_color", GREEN if on else DIM)
+	b.focus_mode = Control.FOCUS_NONE
+	return b
 
 func sub_shell(title: String, subtitle := "Ultimate XI", gold := false) -> Dictionary:
 	var top = hb(14)

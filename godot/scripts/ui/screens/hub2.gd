@@ -368,7 +368,11 @@ func run_match(cfg: Dictionary, on_done: Callable) -> void:
 	var info = "%s · %d-minute halves%s" % [Data.difficulties.get(cfg.get("difficulty", "professional"), {"name": ""}).name, int(cfg.get("half_len", 3)), (" · " + RULES[cfg.rules][0]) if cfg.get("rules", "classic") != "classic" else ""]
 	var body = UI.vb(10, [UI.hb(20, [side.call(cfg.home), UI.head("VS", 30), side.call(cfg.away)]), UI.label(info, 14, UI.DIM)])
 	body.get_child(0).alignment = BoxContainer.ALIGNMENT_CENTER
-	var v = await UI.modal(cfg.get("title", "Match"), body, [["Cancel", null, ""], ["Simulate", "sim", ""], ["Play Match", "play", "Primary"]])
+	var btns = [["Cancel", null, ""], ["Simulate", "sim", ""], ["Play Match", "play", "Primary"]]
+	if Cloud.companion():
+		btns = [["Cancel", null, ""], ["Simulate Match", "sim", "Primary"]]
+		body.add_child(UI.label("Companion app: matches are simulated. Play them yourself in the full game.", 13, UI.TEAL))
+	var v = await UI.modal(cfg.get("title", "Match"), body, btns)
 	if v != null: start.call(v == "sim")
 
 func show_results(res: Dictionary, title: String, rewards: String, on_continue: Callable) -> void:

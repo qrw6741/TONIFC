@@ -13,6 +13,12 @@ func _ready() -> void:
 
 func extreme_flag(x: String) -> bool: return x == "--extreme"
 
+func _sim_check() -> int:
+	var x0 = int(Season.st().xp)
+	var res = {"home": {"name": "A"}, "away": {"name": "B"}, "hg": 2, "ag": 0, "goals": [], "user_side": "home", "mode": "rivals", "stats": {}, "winner": "home"}
+	Sys.record_ut_match(res)
+	return int(Season.st().xp) - x0
+
 func shot(name: String) -> void:
 	await get_tree().create_timer(0.7).timeout
 	await RenderingServer.frame_post_draw
@@ -108,6 +114,14 @@ func run() -> void:
 			for pid in ids:
 				var c = UI.card(Data.P(pid), 7.0); c.focus_mode = Control.FOCUS_NONE; g.add_child(c)
 			UI.modal("Faces", g, [["OK", true, "Primary"]], true); await w(0.8); await shot("g210_faces"); UI.close_top(null)
+		if extra == "--cloudui":
+			print("CLOUD configured ", Cloud.configured(), " companion ", Cloud.companion())
+			UI.go("cloud"); await w(0.6); await shot("g220_cloud_setup")
+			Cloud.set_server("https://example.invalid", "testkey_testkey_testkey_123"); UI.replace("cloud"); await w(0.5); await shot("g221_cloud_signin")
+			var r = await Cloud.sign_in("tester", "1234"); print("CLOUD offline sign in -> ", r)
+			UI.reset("main"); await w(0.8); print("COMPANION main -> ", UI.cur_name); await shot("g222_companion_home")
+			var mm = await _sim_check(); print("SP after rivals win: ", mm)
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(Cloud.CONFIG_USER))
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)
