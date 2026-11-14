@@ -68,14 +68,14 @@ func _packs() -> void:
 func _objectives() -> void:
 	var o = func(id, title, desc, ev, target, reward): return {"id": id, "cat": "halloween", "title": title, "desc": desc, "ev": ev, "target": target, "reward": reward}
 	for x in [
-		o.call("hw_play", "Trick or Treat", "Play 3 matches in any Ultimate XI mode", "match", 3, {"pack": "frightsmall", "xp": 300}),
-		o.call("hw_goals", "Pumpkin Smasher", "Score 13 goals", "goal", 13, {"coins": 6660, "xp": 500}),
-		o.call("hw_wins", "Haunted Wins", "Win 6 matches", "win", 6, {"pack": "frightsmall", "xp": 600}),
-		o.call("hw_clean", "Ghost Defence", "Keep 3 clean sheets", "cleansheet", 3, {"coins": 9999, "xp": 500}),
-		o.call("hw_rivals", "Night of the Rivals", "Win 4 Division Rivals matches", "rivals_win", 4, {"pack": "frightpack", "xp": 800}),
-		o.call("hw_sbc", "Witch's Brew", "Complete 3 SBCs", "sbc", 3, {"coins": 13000, "xp": 400}),
-		o.call("hw_packs", "Cursed Packs", "Open 13 packs", "pack", 13, {"pack": "frightsmall", "xp": 300}),
-		o.call("hw_doku", "The Headless Winger", "Score 31 goals this Halloween to unlock 87 Fright Night Doku", "goal", 31, {"player": "fr_p253", "xp": 1000})]:
+		o.call("hw_play", "Trick or Treat", "Play 3 matches in any Ultimate XI mode", "match", 3, {"pack": "frightsmall"}),
+		o.call("hw_goals", "Pumpkin Smasher", "Score 13 goals", "goal", 13, {"coins": 6660}),
+		o.call("hw_wins", "Haunted Wins", "Win 6 matches", "win", 6, {"pack": "frightsmall"}),
+		o.call("hw_clean", "Ghost Defence", "Keep 3 clean sheets", "cleansheet", 3, {"coins": 9999}),
+		o.call("hw_rivals", "Night of the Rivals", "Win 4 Division Rivals matches", "rivals_win", 4, {"pack": "frightpack"}),
+		o.call("hw_sbc", "Witch's Brew", "Complete 3 SBCs", "sbc", 3, {"coins": 13000}),
+		o.call("hw_packs", "Cursed Packs", "Open 13 packs", "pack", 13, {"pack": "frightsmall"}),
+		o.call("hw_doku", "The Headless Winger", "Score 31 goals this Halloween to unlock 87 Fright Night Doku", "goal", 31, {"player": "fr_p253"})]:
 		Data.objectives.append(x)
 
 func _sbcs() -> void:

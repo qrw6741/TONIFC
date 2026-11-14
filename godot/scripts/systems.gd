@@ -756,8 +756,20 @@ func obj_claim(o: Dictionary) -> bool:
 	if not obj_done(o) or obj_claimed(o): return false
 	D().objectives.claimed[obj_key(o)] = true
 	grant(o.reward, "Objective: " + o.title)
-	Season.add_xp({"daily": 30, "weekly": 250, "season": 500, "milestone": 200, "halloween": 150}.get(o.cat, 100), "Objective")
+	Season.add_xp(obj_xp(o), "%s objective" % obj_tier(o).capitalize())
 	return true
+
+## objective difficulty → XP: easy 250 · medium 550 · hard 1,500 (quick 3-minute objectives keep their small bonus XP)
+const OBJ_XP := {"easy": 250, "medium": 550, "hard": 1500}
+func obj_tier(o: Dictionary) -> String:
+	if o.has("tier"): return str(o.tier)
+	if str(o.get("id", "")) == "hw_doku": return "hard"
+	match str(o.cat):
+		"daily": return "easy"
+		"weekly", "halloween": return "medium"
+		"season", "milestone": return "hard"
+	return "easy"
+func obj_xp(o: Dictionary) -> int: return 0 if o.cat == "quick" else int(OBJ_XP[obj_tier(o)])
 
 func reward_text(r: Dictionary) -> String:
 	var parts = []

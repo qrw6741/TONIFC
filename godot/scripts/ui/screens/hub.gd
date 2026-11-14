@@ -84,7 +84,10 @@ func s_objectives(p) -> Dictionary:
 			b.disabled = not done; right = b
 		var circle = UI.head("✓" if cl else ("!" if done else "%d%%" % int(100.0 * pr / o.target)), 16, UI.GREEN if cl else (UI.TEAL if done else UI.TEXT)); circle.custom_minimum_size.x = 54; circle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var mid = UI.vb(4, [UI.bold(o.title, 17), UI.label(o.desc, 13, UI.DIM), UI.bar(pr, o.target)]); UI.grow(mid, false, true)
-		var rv = UI.vb(6, [UI.bold(Sys.reward_text(o.reward), 13, UI.TEAL), right]); rv.custom_minimum_size.x = 260
+		var tier: String = Sys.obj_tier(o); var tcol = {"easy": UI.GREEN, "medium": Color("#ffb35c"), "hard": Color("#ff5a6a")}[tier]
+		var rtxt = Sys.reward_text(o.reward)
+		if Sys.obj_xp(o) > 0: rtxt = (rtxt + " + " if rtxt != "" else "") + "%s XP" % Sys.fmt(Sys.obj_xp(o))
+		var rv = UI.vb(6, [UI.caps(tier if cat != "quick" else "quick", 11, tcol), UI.bold(rtxt, 13, UI.TEAL), right]); rv.custom_minimum_size.x = 260
 		list.add_child(UI.panel(UI.hb(18, [circle, mid, rv])))
 	f.body.add_child(UI.scroll(list))
 	return _hub(f, "objectives")
