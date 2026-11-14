@@ -363,6 +363,7 @@ func xp_scaled(n: int, key: String) -> int:
 	c[key] = tot - whole; D().xp_carry = c
 	return whole
 
+func xp_scaled_preview(n: int) -> int: return n / 1000 if extreme() else n
 func roll_tier(tier: String) -> Dictionary:
 	var r = _roll_tier(tier)
 	# Extreme: an 84+ or special pull only survives 1 time in 1000 (guaranteed-tier pools are left alone)
@@ -912,7 +913,8 @@ func record_ut_match(res: Dictionary) -> String:
 			if Data.pos_group.get(g.get("pos", ""), "") == "MID": mid = true
 	if assists > 0: track("assist", assists); st.assists += assists
 	if mid: track("goal_mid")
-	add_xp(300 if r == "W" else (180 if r == "D" else 120))
+	var club_xp: int = 300 if r == "W" else (180 if r == "D" else 120)
+	add_xp(club_xp); res["ut"] = true; D().last_club_xp = xp_scaled_preview(club_xp)
 	Event.after_match(res, r)
 	Evo.after_match(res, r, ga)
 	Season.add_match_sp(Season.match_sp(r, str(res.get("mode", ""))), "Match " + ("win" if r == "W" else ("draw" if r == "D" else "played")))

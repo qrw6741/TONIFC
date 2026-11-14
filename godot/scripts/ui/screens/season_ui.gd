@@ -88,7 +88,7 @@ func _info_panel(lv: int, maxed: bool) -> Control:
 	else: v.add_child(UI.bold("Premium track not acquired", 15, Color("#ffc76b")))
 	v.add_child(UI.wrapl(UI.label("Earn XP and redeem rewards across the season. The Premium track adds 83+ and 82+ upgrade packs, Player Picks, Fright Night packs and exclusive Phantom Pass cards (83–86).", 13, UI.DIM), 400))
 	var xpl = UI.hb(8, [UI.bold("Level %d / %d" % [lv, Season.LEVELS], 15), UI.spacer(),
-		UI.label(("%s SP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level", 13, UI.DIM)])
+		UI.label((("%s SP to next" % Sys.fmt(Season.XP_PER - Season.level_xp())) if not maxed else "Max level") + " · match SP today %d / %d" % [Season.today_match_sp(), Season.MATCH_CAP], 13, UI.DIM)])
 	v.add_child(xpl)
 	var lb = LevelBar.new(); lb.v = 1.0 if maxed else float(Season.level_xp()) / Season.XP_PER; lb.custom_minimum_size = Vector2(0, 10)
 	v.add_child(lb)
