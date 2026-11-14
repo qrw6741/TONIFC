@@ -212,6 +212,10 @@ func run() -> void:
 			S.details(); await w(0.6); await shot("g05d_squad_details"); UI.close_top(null); await w(0.3)
 			S.click(6); await w(0.3); await shot("g05e_squad_selected")
 			S.team_mgmt(); await w(0.5); await shot("g05f_team_mgmt"); UI.close_top(null)
+		if extra == "--promo":
+			UI.go("home"); await w(0.5); await shot("pr_home")
+			UI.go("promo"); await w(0.8); await shot("pr_new")
+			UI.replace("promo", {"tab": "totw"}); await w(0.8); await shot("pr_totw")
 		if extra == "--spline":
 			for i in 3:
 				var c0 = int(Save.data.profile.xp) + int(Save.data.profile.level) * 1000

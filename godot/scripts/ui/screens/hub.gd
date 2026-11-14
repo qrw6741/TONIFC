@@ -44,7 +44,7 @@ func s_home(_p) -> Dictionary:
 	var right = UI.vb(14); UI.grow(right)
 	var pc = UI.hb(6)
 	for p in Fright.fright.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
-	var pt = UI.tile([UI.bold("Fright Night  ·  Halloween", 24, Color("#ff8a1f")), UI.bold("New promo, TOTW 2, Halloween objectives & SBCs — Fright Night Pack in the Store", 13, Color("#c99bff")), CenterContainer.new()], func(): UI.replace("objectives", {"cat": "halloween"}))
+	var pt = UI.tile([UI.bold("Fright Night  ·  Halloween", 24, Color("#ff8a1f")), UI.bold("New cards & the Team of the Week 2 squad — tap to see the whole drop", 13, Color("#c99bff")), CenterContainer.new()], func(): UI.go("promo"))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
 	var slv: int = Season.level(); var scl: int = Season.claim_count()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Season 2 · Fright Night — earn Phantom Pass cards", 13, UI.GREEN if scl else Color("#ff9a3c"))]), UI.spacer(), UI.card(Fright.phantom_finale[0], 3.6, true) if not Fright.phantom_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
@@ -899,7 +899,10 @@ func _home_mobile() -> Dictionary:
 	if Fright.THEME:
 		var fc = HBoxContainer.new(); fc.add_theme_constant_override("separation", -14)
 		for p in Fright.fright.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; fc.add_child(c)
-		b.add_child(m_tile("Fright Night", "Halloween objectives, SBCs & the Fright Night Pack", Color("#ff7a1a"), func(): UI.replace("objectives", {"cat": "halloween"}), fc, true))
+		b.add_child(m_tile("Fright Night", "%d new cards · tap to see them all" % Fright.fright.size(), Color("#ff7a1a"), func(): UI.go("promo"), fc, true))
+		var tc = HBoxContainer.new(); tc.add_theme_constant_override("separation", -14)
+		for p in Fright.totw_latest.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; tc.add_child(c)
+		b.add_child(m_tile("Team of the Week 2", "See the TOTW squad", Color("#d8dde6"), func(): UI.go("promo", {"tab": "totw"}), tc, true))
 	# play (simulated)
 	b.add_child(UI.caps("Play · matches are simulated", 11, Color("#8a93a3")))
 	var rv = Sys.D().modes.rivals
@@ -1022,3 +1025,83 @@ func _unassigned_menu() -> void:
 	Sfx.play("coin"); UI.toast("%d items done" % n, "good")
 	if Save.data.pending.is_empty(): UI.reset("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "browse"})
 	else: UI.replace("packresult")
+
+# ------------------------------------------------------------------ LIVE EVENT (Fright Night + TOTW 2)
+## Event hub opened from the main-menu event tiles: every new card in the drop, and the Team of the Week squad on a pitch.
+func s_promo(p) -> Dictionary:
+	var tab: String = p.get("tab", "new")
+	var f = UI.sub_shell("Fright Night · TOTW 2", "Live event")
+	var body: VBoxContainer = f.body
+	var orange = Color("#ff8a1f")
+	if not UI.mobile:
+		body.add_child(UI.hb(10, [UI.head("FRIGHT NIGHT", 38, orange), UI.label("Halloween promo · Team of the Week 2 · Phantom Pass", 15, Color("#c99bff")), UI.spacer(),
+			UI.seg([["new", "New cards"], ["totw", "TOTW 2 squad"]], tab, func(v): UI.replace("promo", {"tab": v}))]))
+	else:
+		body.add_child(UI.seg([["new", "New cards"], ["totw", "TOTW 2 squad"]], tab, func(v): UI.replace("promo", {"tab": v})))
+	var acts = UI.hb(8, [UI.btn("Fright Night Pack", func(): UI.go("store", {"tab": "browse", "cat": "promo"}), "Primary"),
+		UI.btn("Halloween objectives", func(): UI.go("objectives", {"cat": "halloween"}), "Small"),
+		UI.btn("Halloween SBCs", func(): UI.go("sbc", {"cat": "Halloween"}), "Small")])
+	body.add_child(acts)
+	var content = UI.vb(16)
+	if tab == "totw": _promo_totw(content)
+	else: _promo_new(content)
+	if UI.mobile: body.add_child(content)
+	else: var sc = UI.scroll(content); UI.grow(sc, true, true); body.add_child(sc)
+	return {"node": f.node, "bg": "hub"}
+
+func _promo_section(into: VBoxContainer, title: String, sub: String, col: Color, cards: Array) -> void:
+	into.add_child(UI.vb(2, [UI.bold(title, 20, col), UI.label(sub, 13, UI.DIM)]))
+	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 10); flow.add_theme_constant_override("v_separation", 10)
+	flow.set_meta("keep_flow", true)
+	var cs: float = 7.6 if UI.mobile else 9.0
+	for pl in cards:
+		if pl.is_empty(): continue
+		var pp: Dictionary = pl
+		flow.add_child(UI.card(pp, cs, false, func(): UI.inspect(pp)))
+	into.add_child(flow)
+
+func _promo_new(into: VBoxContainer) -> void:
+	var excl = [Data.P("fr_" + Fright.FRIGHT_OBJ[0])]
+	for x in Fright.FRIGHT_SBC: excl.append(Data.P("fr_" + x[0]))
+	var phantom = []
+	for x in Fright.PHANTOM_FREE + Fright.PHANTOM_PREM: phantom.append(Data.P("ph_" + x[0]))
+	phantom += Fright.phantom_finale
+	_promo_section(into, "Fright Night · %d cards" % Fright.fright.size(), "Boosted Halloween promo cards · tradeable · in the Fright Night Pack and Trick or Treat packs", Color("#ff8a1f"), Fright.fright)
+	_promo_section(into, "Objective & SBC exclusives", "Earn these from Halloween objectives and SBCs — they never drop in packs", Color("#ffb35c"), excl)
+	_promo_section(into, "Team of the Week 2 · %d cards" % Fright.totw_latest.size(), "In-form cards in TOTW and promo packs", Color("#e8e8e8"), Fright.totw_latest)
+	_promo_section(into, "Phantom Pass · Season Pass", "Untradeable Season 2 rewards (83–86) — level up the Season Pass to claim them", Color("#c99bff"), phantom)
+
+## the TOTW squad laid out on a pitch: forwards on top, keeper at the bottom, the rest on the bench
+func _promo_totw(into: VBoxContainer) -> void:
+	var lines = {"ATT": [], "MID": [], "DEF": [], "GK": []}; var bench = []
+	var limit = {"ATT": 3, "MID": 3, "DEF": 4, "GK": 1}
+	var sorted: Array = Fright.totw_latest.duplicate(); sorted.sort_custom(func(a, b): return a.ovr > b.ovr)
+	for pl in sorted:
+		var g: String = Data.pos_group.get(pl.pos, "MID")
+		if lines[g].size() < limit[g]: lines[g].append(pl)
+		else: bench.append(pl)
+	# fill any empty spots in the XI from the bench (nearest line first), so it's always 11
+	for g in ["ATT", "MID", "DEF"]:
+		while lines[g].size() < limit[g] and not bench.is_empty():
+			var pick = 0
+			for i in bench.size(): if Data.pos_group.get(bench[i].pos, "") == g: pick = i; break
+			lines[g].append(bench[pick]); bench.remove_at(pick)
+	var tot = 0; var n = 0
+	for g in lines: for pl in lines[g]: tot += int(pl.ovr); n += 1
+	into.add_child(UI.hb(10, [UI.bold("Team of the Week 2", 20), UI.spacer(), UI.pill("XI rating %d" % (int(round(float(tot) / max(1, n)))), UI.GOLD2)]))
+	var pitch = PanelContainer.new()
+	var sb = StyleBoxFlat.new(); sb.bg_color = Color("#123a24"); sb.set_corner_radius_all(14); sb.border_color = Color(1, 1, 1, 0.18); sb.set_border_width_all(2)
+	for s in ["left", "right", "top", "bottom"]: sb.set("content_margin_" + s, 12)
+	pitch.add_theme_stylebox_override("panel", sb)
+	var pv = UI.vb(14 if UI.mobile else 22)
+	var cs: float = 6.6 if UI.mobile else 9.0
+	for g in ["ATT", "MID", "DEF", "GK"]:
+		var row = HBoxContainer.new(); row.alignment = BoxContainer.ALIGNMENT_CENTER; row.add_theme_constant_override("separation", 6 if UI.mobile else 18)
+		row.set_meta("keep_row", true)
+		for pl in lines[g]:
+			var pp: Dictionary = pl
+			row.add_child(UI.card(pp, cs, false, func(): UI.inspect(pp)))
+		pv.add_child(row)
+	pitch.add_child(pv); into.add_child(pitch)
+	if not bench.is_empty():
+		_promo_section(into, "Bench", "Also in Team of the Week 2", UI.DIM, bench)
