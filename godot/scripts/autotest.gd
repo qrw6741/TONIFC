@@ -124,7 +124,7 @@ func run() -> void:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(Cloud.CONFIG_USER))
 		if extra == "--mobile":
 			print("MOBILE ", UI.mobile, " root ", UI.root.size)
-			for scr in ["home", "season", "store", "sbc", "transfers", "objectives", "play", "squad", "club"]:
+			for scr in ["home", "more", "season", "store", "sbc", "transfers", "objectives", "play", "squad", "club"]:
 				UI.reset(scr); await w(1.0); await shot("m_" + scr)
 			UI.go("rivals"); await w(1.0); await shot("m_rivals")
 			var fl = UI.cur.find_children("*", "HFlowContainer", true, false).size(); var wide = UI.cur.find_children("*", "HBoxContainer", true, false).filter(func(x): return x.get_combined_minimum_size().x > 420).map(func(x): return [x.get_child_count(), x.get_combined_minimum_size().x, x.has_meta("flowed"), UI._h_scroll_ancestor(x)])

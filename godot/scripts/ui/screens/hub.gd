@@ -8,6 +8,7 @@ func page_title(t: String) -> Label: return UI.head(t.to_upper(), 38)
 
 # ------------------------------------------------------------------ HOME
 func s_home(_p) -> Dictionary:
+	if UI.mobile: return _home_mobile()
 	var f = UI.hub_shell("home")
 	var pr: Dictionary = Save.data.profile
 	var sq = Sys.active_squad(); var info = Sys.squad_info(sq)
@@ -751,3 +752,80 @@ func _item_details(x: Dictionary, R: Dictionary) -> void:
 		"keep", "tl", "qs": x.dest = v; R.focus_band = v; Save.dirty(); R.render.call()
 		"cmp": await UI.compare_price(pl)
 		"cmpo": await UI.compare(pl, best)
+
+
+# ------------------------------------------------------------------ MOBILE HOME (companion on a phone)
+## rounded tile with a coloured accent bar, title, subtitle and an optional art piece on the right
+func m_tile(title: String, sub: String, accent: Color, cb: Callable, art: Control = null, tall := false, badge := "") -> Control:
+	var t = Button.new(); t.focus_mode = Control.FOCUS_ALL; t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.custom_minimum_size.y = 118 if tall else 86
+	var n = StyleBoxFlat.new(); n.bg_color = Color("#141c27"); n.set_corner_radius_all(14); n.border_width_left = 4; n.border_color = accent
+	var h = n.duplicate(); h.bg_color = Color("#1b2633")
+	for st in ["normal", "focus"]: t.add_theme_stylebox_override(st, n)
+	for st in ["hover", "pressed"]: t.add_theme_stylebox_override(st, h)
+	var row = UI.hb(10); row.set_anchors_preset(Control.PRESET_FULL_RECT); row.offset_left = 18; row.offset_right = -12; row.offset_top = 10; row.offset_bottom = -10
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var txt = UI.vb(2, [UI.bold(title, 18), UI.label(sub, 12, Color("#9aa6b4"))]); txt.size_flags_horizontal = Control.SIZE_EXPAND_FILL; txt.alignment = BoxContainer.ALIGNMENT_CENTER
+	txt.get_child(1).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(txt)
+	if badge != "":
+		var bp = PanelContainer.new(); bp.add_theme_stylebox_override("panel", UI._sb(accent, Color(0, 0, 0, 0), 0, 10, Vector4(8, 2, 8, 2)))
+		bp.add_child(UI.bold(badge, 12, Color("#0b1018"))); bp.size_flags_vertical = Control.SIZE_SHRINK_CENTER; row.add_child(bp)
+	if art: art.size_flags_vertical = Control.SIZE_SHRINK_CENTER; row.add_child(art)
+	for c in row.find_children("*", "Control", true, false): c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	t.add_child(row)
+	t.pressed.connect(func(): Sfx.play("select"); cb.call())
+	return t
+
+func _home_mobile() -> Dictionary:
+	var f = UI.hub_shell("home")
+	var sq = Sys.active_squad(); var info = Sys.squad_info(sq)
+	var b = f.body
+	# squad hero card
+	var mp = UI.icon("minipitch", {"formation": sq.formation, "players": info.players}, Vector2(96, 110))
+	b.add_child(m_tile(sq.name, "Rating %d  ·  Chemistry %d/33  ·  %s\nTap to manage your squad" % [info.rating, info.chem.total, sq.formation], UI.TEAL, func(): UI.go("squad"), mp, true))
+	# live event
+	if Fright.THEME:
+		var fc = HBoxContainer.new(); fc.add_theme_constant_override("separation", -14)
+		for p in Fright.fright.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; fc.add_child(c)
+		b.add_child(m_tile("Fright Night", "Halloween objectives, SBCs & the Fright Night Pack", Color("#ff7a1a"), func(): UI.replace("objectives", {"cat": "halloween"}), fc, true))
+	# play (simulated)
+	b.add_child(UI.caps("Play · matches are simulated", 11, Color("#8a93a3")))
+	var rv = Sys.D().modes.rivals
+	var play = UI.hb(8)
+	for x in [["Rivals", "Div %d" % int(rv.div), Rivals.div_color(int(rv.div)), func(): UI.go("rivals")],
+			["Champions", ("%d pts" % int(Champs.run().pts)) if Champs.run() != null else ("Qualified" if Champs.qualified() else "%d/1k QP" % int(Champs.st().qp)), Color("#e8b631"), func(): UI.go("champions")],
+			["Battles", "Squad Battles", Color("#6fa8ff"), func(): UI.go("squadbattles")]]:
+		var t = m_tile(x[0], x[1], x[2], x[3]); t.custom_minimum_size.y = 72; play.add_child(t)
+	b.add_child(play)
+	# everything else
+	b.add_child(UI.caps("Ultimate Team", 11, Color("#8a93a3")))
+	var oc: int = Sys.obj_claimable(); var sc: int = Season.claim_count(); var un: int = Save.data.unopened.size()
+	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 8)
+	for x in [["Objectives", "Daily, weekly & Halloween", Color("#3fe0a0"), func(): UI.reset("objectives"), str(oc) if oc else ""],
+			["Season Pass", "Level %d / %d" % [Season.level(), Season.LEVELS], Color("#9b6bff"), func(): UI.reset("season"), str(sc) if sc else ""],
+			["Store", ("%d packs to open" % un) if un else "Packs & Player Picks", Color("#ffd86b"), func(): UI.replace("store", {"tab": "mine" if un else "browse"}), str(un) if un else ""],
+			["Transfer Market", "Buy, sell & watch", Color("#4fd1ff"), func(): UI.reset("transfers"), ""],
+			["SBC", "Gem exchanges & players", Color("#5fe3c8"), func(): UI.reset("sbc"), ""],
+			["Club", "%d players" % Save.data.club.size(), Color("#c8d0db"), func(): UI.reset("club"), ""],
+			["Evolutions", "Upgrade your players", Color("#ff6fd8"), func(): UI.reset("evolutions"), ""],
+			["Gallery", "Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], Color("#ff9be6"), func(): UI.go("gallery"), ""]]:
+		g.add_child(m_tile(x[0], x[1], x[2], x[3], null, false, x[4]))
+	b.add_child(g)
+	b.add_child(m_tile("☁ " + (Cloud.username() if Cloud.signed_in() else "Cloud Account"), Cloud.status, UI.GREEN if Cloud.signed_in() else Color("#8a93a3"), func(): UI.go("cloud")))
+	return {"node": f.node, "bg": "hub", "tab": "home", "back": func(): pass}
+
+## "More" tab on phones
+func s_more(_p) -> Dictionary:
+	var f = UI.hub_shell("more")
+	var b = f.body
+	b.add_child(UI.head("MORE", 30))
+	for x in [["Objectives", "Daily, weekly, season & Halloween", Color("#3fe0a0"), func(): UI.reset("objectives")],
+			["Season Pass", Season.NAME, Color("#9b6bff"), func(): UI.reset("season")],
+			["Play", "Rivals, Champions, Squad Battles, Draft", Color("#6fa8ff"), func(): UI.reset("play")],
+			["Club", "Players, squads & duplicates", Color("#c8d0db"), func(): UI.reset("club")],
+			["Evolutions", "Upgrade players", Color("#ff6fd8"), func(): UI.reset("evolutions")],
+			["Gallery", "Sets, grades & Gallery cards", Color("#ff9be6"), func(): UI.go("gallery")],
+			["☁ Cloud Account", Cloud.status, UI.GREEN, func(): UI.go("cloud")]]:
+		b.add_child(m_tile(x[0], x[1], x[2], x[3]))
+	return {"node": f.node, "bg": "hub", "tab": "more", "back": func(): UI.reset("home")}

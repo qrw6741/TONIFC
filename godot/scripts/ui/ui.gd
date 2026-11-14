@@ -485,6 +485,11 @@ func seg(items: Array, current: String, cb: Callable) -> HBoxContainer:
 		if it[0] == current:
 			b.add_theme_stylebox_override("normal", _sb(Color(1, 1, 1, 0.16), Color(0, 0, 0, 0), 0, 8, Vector4(12, 6, 12, 6)))
 		inner.add_child(b)
+	if mobile:
+		# phones: a sideways-swipe strip on its own line instead of a wrapped column
+		var sc = ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		sc.follow_focus = false; sc.custom_minimum_size = Vector2(root.size.x - 60, 46); sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sc.add_child(p); h.add_child(sc); return h
 	h.add_child(p); return h
 func coin_text(n) -> String: return "● " + Sys.fmt(n)
 
@@ -625,7 +630,7 @@ func frame(top: Control, hint_extra := "", bg_style := "") -> Dictionary:
 	else:
 		v.add_child(bm)
 		v.add_child(hints(hint_extra))
-	return {"node": page, "body": body}
+	return {"node": page, "body": body, "v": v}
 
 func hub_shell(tab: String) -> Dictionary:
 	if mobile: return _hub_shell_mobile(tab)
@@ -646,21 +651,74 @@ func hub_shell(tab: String) -> Dictionary:
 	var f = frame(top, ("L1 / R1  tabs  ·  L2 / R2  sub-tabs  ·  R-stick scroll" if Pad.style == "ps" else ("LB / RB  tabs  ·  LT / RT  sub-tabs  ·  R-stick scroll" if Pad.style == "xbox" else "Q / E  switch tab")))
 	return f
 func _hub_shell_mobile(tab: String) -> Dictionary:
-	var row1 = hb(8, [icon("badge", Sys.D().profile.badge, Vector2(34, 38)), spacer(), cloud_btn(), currency_bar()])
-	var tabs = hb(4)
-	var cur_btn = null
-	for t in HUB_TABS:
-		var b = btn(t[1], func(): if t[0] != tab: Sfx.play("tab"); replace(t[0]), "Tab")
-		if t[0] == tab:
-			b.add_theme_color_override("font_color", Color.WHITE)
-			b.add_theme_stylebox_override("normal", _underline()); cur_btn = b
-		if t[0] == "objectives" and Sys.obj_claimable() > 0: b.text += " •"
-		if t[0] == "season" and Season.claim_count() > 0: b.text += " •"
-		tabs.add_child(b)
-	var ts = ScrollContainer.new(); ts.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; ts.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
-	ts.follow_focus = false; ts.custom_minimum_size.y = 44; ts.add_child(tabs)
-	if cur_btn: (func(): await get_tree().process_frame; if is_instance_valid(ts) and is_instance_valid(cur_btn): ts.scroll_horizontal = int(max(0, cur_btn.position.x - 60))).call()
-	return frame(vb(4, [row1, ts]))
+	var pr: Dictionary = Sys.D().profile
+	var title = vb(0, [caps("Ultimate XI", 10, Color("#8a93a3")), bold(pr.club_name, 17)])
+	var top = hb(8, [icon("badge", pr.badge, Vector2(34, 38)), title, spacer(), currency_bar()])
+	var f = frame(top)
+	f.v.add_child(_bottom_nav(tab))
+	return f
+
+func _sub_shell_mobile(title: String, subtitle: String) -> Dictionary:
+	var back_b = btn("‹", func(): if cur_back.is_valid(): Sfx.play("back"); cur_back.call(), "Small")
+	back_b.custom_minimum_size = Vector2(40, 38); back_b.add_theme_font_size_override("font_size", 26)
+	var t = vb(0, [caps(subtitle, 10, Color("#8a93a3")), bold(title, 17)]); t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var top = hb(8, [back_b, t, currency_bar()])
+	var f = frame(top)
+	f.v.add_child(_bottom_nav(""))
+	return f
+
+## bottom navigation (companion on a phone): Home · Squad · SBC · Market · Store · More
+const NAV := [["home", "Home", "home"], ["squad", "Squad", "shirt"], ["sbc", "SBC", "puzzle"], ["transfers", "Market", "swap"], ["store", "Store", "bag"], ["more", "More", "dots"]]
+func _bottom_nav(tab: String) -> Control:
+	var bar = PanelContainer.new()
+	var sb = _sb(Color("#0b1018"), Color(1, 1, 1, 0.08), 0, 0, Vector4(4, 6, 4, 14)); sb.border_width_top = 1
+	bar.add_theme_stylebox_override("panel", sb)
+	var row = HBoxContainer.new(); row.add_theme_constant_override("separation", 0); bar.add_child(row)
+	var active: String = tab if tab != "" else cur_name
+	if active in ["objectives", "season", "play", "club", "evolutions", "rivals", "champions", "squadbattles", "gallery", "cloud", "more"]: active = "more"
+	for it in NAV:
+		var on: bool = it[0] == active
+		var b = Button.new(); b.flat = true; b.focus_mode = Control.FOCUS_NONE; b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size.y = 52
+		for st in ["normal", "hover", "pressed", "focus"]: b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		var ic = NavIcon.new(); ic.kind = it[2]; ic.on = on; ic.custom_minimum_size = Vector2(26, 24); ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var badge := ""
+		if it[0] == "store" and not Sys.D().unopened.is_empty(): badge = str(Sys.D().unopened.size())
+		if it[0] == "more" and (Sys.obj_claimable() > 0 or Season.claim_count() > 0): badge = "•"
+		var lb = label(it[1] + ((" " + badge) if badge != "" else ""), 11, TEAL if on else Color("#8a93a3"), font_bold); lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var v = vb(2, [ic, lb]); v.set_anchors_preset(Control.PRESET_FULL_RECT); v.alignment = BoxContainer.ALIGNMENT_CENTER; v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b.add_child(v)
+		var key: String = it[0]
+		b.pressed.connect(func():
+			Sfx.play("tab")
+			if key == "squad": go("squad")
+			else: reset(key))
+		row.add_child(b)
+	return bar
+
+class NavIcon extends Control:
+	var kind = "home"
+	var on = false
+	func _draw() -> void:
+		var c = size / 2; var col = UI.TEAL if on else Color("#8a93a3"); var w = 2.0
+		match kind:
+			"home":
+				draw_polyline(PackedVector2Array([c + Vector2(-9, 0), c + Vector2(0, -9), c + Vector2(9, 0)]), col, w, true)
+				draw_polyline(PackedVector2Array([c + Vector2(-6, -2), c + Vector2(-6, 9), c + Vector2(6, 9), c + Vector2(6, -2)]), col, w, true)
+			"shirt":
+				draw_polyline(PackedVector2Array([c + Vector2(-4, -9), c + Vector2(-11, -5), c + Vector2(-8, 0), c + Vector2(-6, -2), c + Vector2(-6, 9), c + Vector2(6, 9), c + Vector2(6, -2), c + Vector2(8, 0), c + Vector2(11, -5), c + Vector2(4, -9), c + Vector2(0, -6), c + Vector2(-4, -9)]), col, w, true)
+			"puzzle":
+				draw_rect(Rect2(c + Vector2(-9, -9), Vector2(18, 18)), col, false, w)
+				draw_arc(c + Vector2(0, -9), 3.5, PI, TAU, 8, col, w); draw_arc(c + Vector2(9, 0), 3.5, -PI / 2, PI / 2, 8, col, w)
+			"swap":
+				draw_line(c + Vector2(-9, -4), c + Vector2(8, -4), col, w); draw_polyline(PackedVector2Array([c + Vector2(4, -8), c + Vector2(8, -4), c + Vector2(4, 0)]), col, w)
+				draw_line(c + Vector2(9, 5), c + Vector2(-8, 5), col, w); draw_polyline(PackedVector2Array([c + Vector2(-4, 1), c + Vector2(-8, 5), c + Vector2(-4, 9)]), col, w)
+			"bag":
+				draw_rect(Rect2(c + Vector2(-9, -4), Vector2(18, 13)), col, false, w)
+				draw_arc(c + Vector2(0, -4), 5, PI, TAU, 10, col, w)
+			"dots":
+				for k in [-7, 0, 7]: draw_circle(c + Vector2(k, 0), 2.4, col)
 
 func _sepline() -> Control:
 	var c = ColorRect.new(); c.color = Color(1, 1, 1, 0.25); c.custom_minimum_size = Vector2(1, 30); return c
@@ -676,6 +734,7 @@ func cloud_btn() -> Button:
 	return b
 
 func sub_shell(title: String, subtitle := "Ultimate XI", gold := false) -> Dictionary:
+	if mobile and Save.data != null: return _sub_shell_mobile(title, subtitle)
 	var top = hb(14)
 	top.add_child(icon("badge", Sys.D().profile.badge, Vector2(44, 48)))
 	top.add_child(vb(0, [caps(subtitle, 12), bold(title, 24)]))
@@ -871,8 +930,13 @@ var _reflow_pending = false
 
 func _mobile_setup() -> void:
 	if not Cloud.companion(): return
-	var win: Vector2i = DisplayServer.window_get_size()
-	var portrait: bool = win.y > win.x * 1.1
+	var win: Vector2 = Vector2(DisplayServer.window_get_size())
+	if OS.has_feature("web"):
+		# ask the browser directly: the canvas can report its size late on iPhone
+		var js = JavaScriptBridge.eval("[window.innerWidth, window.innerHeight].join(',')", true)
+		if typeof(js) == TYPE_STRING and js.contains(","):
+			var parts = js.split(","); win = Vector2(float(parts[0]), float(parts[1]))
+	var portrait: bool = win.y > win.x * 1.1 or (OS.has_feature("web") and win.x > 0 and win.x < 700)
 	var want: bool = portrait
 	var r = get_tree().root
 	if want:
@@ -885,7 +949,9 @@ func _mobile_setup() -> void:
 		if cur_name != "": rerender.call_deferred()
 	toasts.position = Vector2(10, 70) if mobile else Vector2(root.size.x - 430, 80)
 	toasts.custom_minimum_size.x = (MOBILE_W - 20) if mobile else 400
-	if not get_viewport().size_changed.is_connected(_mobile_setup): get_viewport().size_changed.connect(_mobile_setup)
+	if not get_viewport().size_changed.is_connected(_mobile_setup):
+		get_viewport().size_changed.connect(_mobile_setup)
+		for d in [0.3, 1.0, 2.5]: get_tree().create_timer(d).timeout.connect(_mobile_setup)
 
 func _on_node_added(n: Node) -> void:
 	if not mobile or _reflow_pending or not (n is Control): return
