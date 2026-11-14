@@ -954,6 +954,7 @@ func _mobile_setup() -> void:
 		for d in [0.3, 1.0, 2.5]: get_tree().create_timer(d).timeout.connect(_mobile_setup)
 
 func _on_node_added(n: Node) -> void:
+	if n is LineEdit and OS.has_feature("web"): _hook_web_input(n)
 	if not mobile or _reflow_pending or not (n is Control): return
 	_reflow_pending = true
 	_reflow_all.call_deferred()
@@ -1025,3 +1026,65 @@ func _reflow(n: Node, avail: float) -> void:
 		if not (ctl is Container) and hgt > 0 and ctl.custom_minimum_size.x > 0 and not (ctl is BaseButton):
 			ctl.custom_minimum_size.y = hgt * leaf / ctl.custom_minimum_size.x   # keep art proportions
 		ctl.custom_minimum_size.x = leaf
+
+
+# ------------------------------------------------------------------ WEB TEXT INPUT (phones)
+## Godot's canvas can't reliably raise the iPhone keyboard, so on the web every text field opens a
+## native HTML input box over the game instead. The answer is written back into the LineEdit.
+const _JS_ASK := """
+window.pfAsk = function(title, value, secret, numeric, maxlen) {
+  window.pfAns = null;
+  var old = document.getElementById('pf-ask'); if (old) old.remove();
+  var bg = document.createElement('div'); bg.id = 'pf-ask';
+  bg.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(5,8,14,.82);display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;font-family:-apple-system,Segoe UI,Arial,sans-serif';
+  var box = document.createElement('div');
+  box.style.cssText = 'width:86vw;max-width:420px;background:#141c27;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,.6)';
+  var t = document.createElement('div'); t.textContent = title; t.style.cssText = 'color:#eef2f6;font-weight:800;font-size:17px;margin-bottom:12px';
+  var inp = document.createElement('input'); inp.value = value || '';
+  inp.type = secret ? 'password' : 'text'; if (numeric) { inp.inputMode = 'numeric'; inp.pattern = '[0-9]*'; }
+  if (maxlen > 0) inp.maxLength = maxlen;
+  inp.autocapitalize = 'off'; inp.autocomplete = 'off'; inp.spellcheck = false;
+  inp.style.cssText = 'width:100%;box-sizing:border-box;font-size:18px;padding:12px 14px;border-radius:10px;border:2px solid #3fe0c5;background:#0b1018;color:#fff;outline:none';
+  var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:10px;margin-top:14px;justify-content:flex-end';
+  function mk(label, primary) { var b = document.createElement('button'); b.textContent = label;
+    b.style.cssText = 'font-size:16px;font-weight:700;padding:10px 18px;border-radius:10px;border:0;' + (primary ? 'background:#eef2f6;color:#111' : 'background:#2a3442;color:#eef2f6'); return b; }
+  var cancel = mk('Cancel', false), ok = mk('OK', true);
+  function done(v) { window.pfAns = v; bg.remove(); }
+  cancel.onclick = function(){ done('__pf_cancel__'); };
+  ok.onclick = function(){ done(inp.value); };
+  inp.onkeydown = function(e){ if (e.key === 'Enter') done(inp.value); };
+  bg.onclick = function(e){ if (e.target === bg) done('__pf_cancel__'); };
+  row.appendChild(cancel); row.appendChild(ok); box.appendChild(t); box.appendChild(inp); box.appendChild(row); bg.appendChild(box);
+  document.body.appendChild(bg); setTimeout(function(){ inp.focus(); }, 30);
+};
+"""
+var _js_ready = false
+var _asking = false
+
+func _hook_web_input(le: LineEdit) -> void:
+	if le.has_meta("web_input"): return
+	le.set_meta("web_input", true)
+	le.virtual_keyboard_enabled = false
+	le.gui_input.connect(func(e):
+		if (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT) or (e is InputEventScreenTouch and e.pressed):
+			le.accept_event(); _web_ask(le))
+	le.focus_entered.connect(func(): if not mouse_recent(): _web_ask(le))
+
+func _web_ask(le: LineEdit) -> void:
+	if _asking or not is_instance_valid(le) or not le.editable: return
+	_asking = true
+	if not _js_ready: JavaScriptBridge.eval(_JS_ASK, true); _js_ready = true
+	var title: String = le.placeholder_text if le.placeholder_text != "" else "Type here"
+	var p = le.get_parent()
+	if p is VBoxContainer and p.get_child_count() > 0 and p.get_child(0) is Label and p.get_child(0) != le: title = (p.get_child(0) as Label).text.capitalize()
+	JavaScriptBridge.eval("pfAsk(%s, %s, %s, %s, %d)" % [JSON.stringify(title), JSON.stringify(le.text), "true" if le.secret else "false", "true" if le.secret and le.max_length > 0 and le.max_length <= 8 else "false", le.max_length], true)
+	var ans = null
+	while ans == null:
+		await get_tree().process_frame
+		ans = JavaScriptBridge.eval("window.pfAns", true)
+	_asking = false
+	le.release_focus()
+	if not is_instance_valid(le) or typeof(ans) != TYPE_STRING or ans == "__pf_cancel__": return
+	le.text = ans
+	le.text_changed.emit(ans)
+	le.text_submitted.emit(ans)
