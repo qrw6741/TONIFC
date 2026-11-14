@@ -58,7 +58,9 @@ func s_season(p) -> Dictionary:
 	row.add_child(end_cap)
 	var sc = UI.scroll(row, true); sc.custom_minimum_size.y = TH + 52; sc.size_flags_vertical = Control.SIZE_FILL
 	f.body.add_child(sc)
-	f.body.add_child(UI.label("1,000 XP per level (the same XP levels your club) · matches 15–70 XP (Rivals/Champs win 70, other wins 50, draw 30, loss 15) up to 850 XP a day · objectives: easy 250 · medium 550 · hard 1,500 · SBCs 50.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
+	f.body.add_child(UI.label("1,000 XP per level (the same XP levels your club) · matches 60–300 XP (Rivals/Champs win 300, other wins 200, draw 120, loss 60) up to 3,000 XP a day · objectives: easy 250 · medium 550 · hard 1,500 · SBCs 50.   %s Claim all" % (Pad.glyph("Y") if Pad.style != "" else "[C]"), 12, UI.DIM))
+	if Sys.extreme():
+		f.body.add_child(UI.pill("⚠ EXTREME MODE is ON for this save — all XP is divided by 1,000. Turn it off in Settings to level up normally.", UI.RED))
 	_feature(feat, focus_lv, focus_tr)
 	UI.keyhook(f.node, {"j3": func(): _claim_all(), "k%d" % KEY_C: func(): _claim_all()})
 	var jump = func():

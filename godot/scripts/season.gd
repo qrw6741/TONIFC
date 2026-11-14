@@ -11,7 +11,7 @@ const TAGLINE := "Halloween is here — climb 50 levels of Phantom Pass rewards"
 const ID := "s2"
 const LEVELS := 50
 const XP_PER := 1000    # FC 27: every level costs 1,000 Season Points (SP)
-const MATCH_CAP := 850  # FC 27: match play earns at most 850 SP per day
+const MATCH_CAP := 3000  # match play earns at most 3,000 XP a day (objectives & SBCs are uncapped)
 const PREMIUM_COST := 1000
 const LEVEL_COST := 200
 const OVERFLOW_COINS := 3000
@@ -69,11 +69,11 @@ func claim_count() -> int:
 		if can_claim(lv, "prem"): n += 1
 	return n
 
-## SP from a match: 15–100 depending on result and mode, capped at 850 SP a day (like FC 27)
+## XP from a match: 60–300 depending on result and mode, capped at MATCH_CAP a day
 func match_sp(result: String, mode: String) -> int:
-	if result == "W": return 70 if mode in ["rivals", "champs"] else (60 if mode in ["draft", "event"] else 50)
-	if result == "D": return 30
-	return 15
+	if result == "W": return 300 if mode in ["rivals", "champs"] else (250 if mode in ["draft", "event"] else 200)
+	if result == "D": return 120
+	return 60
 func add_match_sp(n: int, why: String) -> void:
 	if Save.data == null: return
 	var s = st()
@@ -84,7 +84,7 @@ func add_match_sp(n: int, why: String) -> void:
 	if g > 0:
 		s.cap_n = int(s.get("cap_n", 0)) + g
 		add_xp(g, why)
-	else: Sys.toast.emit("Daily match XP cap reached (850) — objectives and SBCs still give XP", "info")
+	else: Sys.toast.emit("Daily match XP cap reached (%s) — objectives and SBCs still give XP" % Sys.fmt(MATCH_CAP), "info")
 	s.last_match = {"sp": int(s.xp) - x0, "base": n, "capped": g < n}
 
 ## today's match SP so far (0–850)
