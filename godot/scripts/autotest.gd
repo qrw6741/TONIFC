@@ -226,6 +226,7 @@ func run() -> void:
 			UI.go("promo"); await w(0.8); await shot("pr_new")
 			UI.replace("promo", {"tab": "totw"}); await w(0.8); await shot("pr_totw")
 		if extra == "--spline":
+			if OS.get_cmdline_user_args().has("--ext"): Save.data.settings.extreme = true
 			for i in 3:
 				var c0 = int(Save.data.profile.xp) + int(Save.data.profile.level) * 1000
 				print("SP gained ", _sim_check(), " club gained ", int(Save.data.profile.xp) + int(Save.data.profile.level) * 1000 - c0, " · ", Season.match_line())

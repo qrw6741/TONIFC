@@ -48,7 +48,7 @@ func s_onboard(_p) -> Dictionary:
 	var colors = [["#e8b631", "Gold"], ["#c8102e", "Red"], ["#034694", "Blue"], ["#00954c", "Green"], ["#ffffff", "White"], ["#6b2ea6", "Purple"], ["#14161c", "Black"], ["#ff7f00", "Orange"]]
 	v.add_child(UI.hb(18, [badge, UI.field("Primary", UI.option(colors, st.c1, func(x): st.c1 = x; upd.call())), UI.field("Secondary", UI.option(colors, st.c2, func(x): st.c2 = x; upd.call())),
 		UI.field("Icon", UI.option(["star", "ball", "crown", "bolt", "bird", "flame"].map(func(x): return [x, x.capitalize()]), st.icon, func(x): st.icon = x; upd.call()))]))
-	var ex = CheckBox.new(); ex.text = "EXTREME MODE — XP ÷1000, top pulls 1000× rarer, maxed AI (can be turned off later in Settings)"; ex.focus_mode = Control.FOCUS_ALL
+	var ex = CheckBox.new(); ex.text = "EXTREME MODE — top pulls 1000× rarer, maxed AI (can be turned off later in Settings)"; ex.focus_mode = Control.FOCUS_ALL
 	ex.add_theme_color_override("font_color", Color("#ff5a5a")); ex.toggled.connect(func(x): st.extreme = x)
 	v.add_child(ex)
 	v.add_child(UI.wrapl(UI.label("You'll receive a starter squad of real players, 5,000 coins, 500 Prime Points (free in-game credits) and a Premium Gold Pack.", 13, UI.DIM), 520))
@@ -463,7 +463,7 @@ func s_settings(_p) -> Dictionary:
 	gp.add_child(UI.caps("Extreme mode", 12, Color("#ff5a5a")))
 	var exb = CheckBox.new(); exb.text = "EXTREME (×1000 difficulty)"; exb.button_pressed = s.get("extreme", false); exb.add_theme_color_override("font_color", Color("#ff7a7a"))
 	exb.toggled.connect(func(v):
-		if v and not await UI.modal("Turn on EXTREME?", UI.wrapl(UI.label("For this save only:\n• Season Pass and Club XP are divided by 1,000\n• 84+ and special players from packs are 1,000× rarer\n• every AI opponent is maxed out (Ultimate, elite keepers & defenders, 92+ rated squads)\n\nYou can turn it off again here.", 14), 460), [["Cancel", null, ""], ["Go Extreme", true, "Danger"]]):
+		if v and not await UI.modal("Turn on EXTREME?", UI.wrapl(UI.label("For this save only:\n• 84+ and special players from packs are 1,000× rarer\n• every AI opponent is maxed out (Ultimate, elite keepers & defenders, 92+ rated squads)\n\nYou can turn it off again here.", 14), 460), [["Cancel", null, ""], ["Go Extreme", true, "Danger"]]):
 			exb.set_pressed_no_signal(false); return
 		s.extreme = v; Save.dirty(); UI.toast("Extreme mode " + ("ON" if v else "off"), "bad" if v else "good"))
 	gp.add_child(exb)

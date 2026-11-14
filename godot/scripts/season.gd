@@ -97,7 +97,6 @@ func match_line() -> String:
 	var m: Dictionary = st().get("last_match", {})
 	var txt = "+%d XP" % int(m.get("sp", 0))
 	if m.get("capped", false): txt += " (daily match cap hit)"
-	elif Sys.extreme() and int(m.get("base", 0)) > 0: txt += " (Extreme ÷1000)"
 	if level() >= LEVELS: return txt + " · Season Pass maxed"
 	return txt + " · Season Pass & Club: Lv %d · %s / %s XP · today %d / %d" % [level(), Sys.fmt(level_xp()), Sys.fmt(XP_PER), today_match_sp(), MATCH_CAP]
 

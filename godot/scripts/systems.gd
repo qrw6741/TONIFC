@@ -354,18 +354,12 @@ func tier_pool(tier: String) -> Array:
 			else: pool = Data.players.filter(func(p): return p.type == "base" and Data.rarity_key(p) == tier)
 	_tier_pools[tier] = pool
 	return pool
-## EXTREME MODE (per save): XP ÷1000, high-rated & special pack pulls 1000× rarer, AI maxed in every match
+## EXTREME MODE (per save): high-rated & special pack pulls 1000× rarer, AI maxed in every match
 func extreme() -> bool: return Save.data != null and bool(Save.data.settings.get("extreme", false))
 ## XP after the Extreme divider, with the fractions carried over so nothing is lost
-func xp_scaled(n: int, key: String) -> int:
-	if not extreme(): return n
-	var c: Dictionary = D().get("xp_carry", {})
-	var tot: float = float(c.get(key, 0.0)) + n / 1000.0
-	var whole: int = int(floor(tot))
-	c[key] = tot - whole; D().xp_carry = c
-	return whole
-
-func xp_scaled_preview(n: int) -> int: return n / 1000 if extreme() else n
+## Extreme no longer cuts XP — it only affects pack odds and opponents
+func xp_scaled(n: int, _key: String) -> int: return n
+func xp_scaled_preview(n: int) -> int: return n
 func roll_tier(tier: String) -> Dictionary:
 	var r = _roll_tier(tier)
 	# Extreme: an 84+ or special pull only survives 1 time in 1000 (guaranteed-tier pools are left alone)
