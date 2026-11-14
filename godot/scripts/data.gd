@@ -85,7 +85,7 @@ func _make_asc(b: Dictionary, target: int) -> Dictionary:
 
 func _add_season_content() -> void:
 	card_types["pass"] = {"name": "Ascension", "order": 5}
-	for p in players: preload("res://scripts/faces.gd").apply(p)   # real-player looks (cards created below copy them)
+	for p in players: preload("res://scripts/faces.gd").apply(p)   # real-player looks for stars, nationality-based looks for everyone else (cards created below copy them)
 	for a in ASCENSION:
 		var b: Dictionary = by_id.get(a[0], {})
 		if b.is_empty(): continue

@@ -101,8 +101,11 @@ func run() -> void:
 			UI.inspect(Data.P("ph_p19")); await w(0.4); await shot("g205_hw_phantom"); UI.close_top(null)
 			UI.reset("main"); await w(0.6); await shot("g206_hw_main")
 		if extra == "--faces":
-			var g = GridContainer.new(); g.columns = 9; g.add_theme_constant_override("h_separation", 6); g.add_theme_constant_override("v_separation", 6)
-			for pid in ["p256", "p420", "p443", "p230", "p1194", "p417", "p421", "p14", "p130", "p217", "p1185", "p1188", "p834", "p871", "p1233", "p227", "p827", "p1522", "i3", "i4", "i5", "i16", "i19", "p251", "p226", "p1523", "p404"]:
+			var g = GridContainer.new(); g.columns = 12; g.add_theme_constant_override("h_separation", 6); g.add_theme_constant_override("v_separation", 6)
+			var ids = ["p416", "p125", "p876", "p853", "p929", "p1533", "p60", "p169", "p5"]
+			var rest = Data.players.filter(func(x): return x.type == "base" and int(x.ovr) < 76)
+			for k in 27: ids.append(rest[(k * 61) % rest.size()].id)
+			for pid in ids:
 				var c = UI.card(Data.P(pid), 7.0); c.focus_mode = Control.FOCUS_NONE; g.add_child(c)
 			UI.modal("Faces", g, [["OK", true, "Primary"]], true); await w(0.8); await shot("g210_faces"); UI.close_top(null)
 		if extra == "--consum":
