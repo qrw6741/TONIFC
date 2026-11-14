@@ -33,7 +33,10 @@ func _load_config() -> void:
 				url = str(c.url).strip_edges().trim_suffix("/"); key = str(c.get("key", "")).strip_edges(); return
 func configured() -> bool: return url != "" and key != ""
 func set_server(u: String, k: String) -> void:
-	url = u.strip_edges().trim_suffix("/"); key = k.strip_edges()
+	url = u.strip_edges().replace(" ", "").trim_suffix("/"); key = k.strip_edges().replace(" ", "")
+	# a pasted dashboard link (supabase.com/dashboard/project/<id>) becomes the project URL
+	if url.contains("supabase.com/dashboard/project/"): url = "https://" + url.get_slice("/project/", 1).get_slice("/", 0) + ".supabase.co"
+	if url.ends_with("/rest/v1"): url = url.trim_suffix("/rest/v1")
 	var f = FileAccess.open(CONFIG_USER, FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify({"url": url, "key": key}))
 
@@ -65,7 +68,9 @@ func _rpc(fn: String, body: Dictionary) -> Dictionary:
 	h.queue_free()
 	var code: int = res[1]
 	var txt: String = (res[3] as PackedByteArray).get_string_from_utf8()
-	if res[0] != HTTPRequest.RESULT_SUCCESS: return {"ok": false, "error": "No internet connection to the cloud"}
+	if res[0] != HTTPRequest.RESULT_SUCCESS:
+		var why = {HTTPRequest.RESULT_CANT_RESOLVE: "server address not found — check the Project URL", HTTPRequest.RESULT_CANT_CONNECT: "couldn't connect", HTTPRequest.RESULT_CONNECTION_ERROR: "connection error", HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR: "secure connection failed", HTTPRequest.RESULT_TIMEOUT: "timed out"}.get(res[0], "network error %d" % res[0])
+		return {"ok": false, "error": "Can't reach the cloud: %s (%s)" % [why, url]}
 	var d = JSON.parse_string(txt)
 	if code >= 300 or typeof(d) != TYPE_DICTIONARY:
 		var msg = d.get("message", txt) if typeof(d) == TYPE_DICTIONARY else txt

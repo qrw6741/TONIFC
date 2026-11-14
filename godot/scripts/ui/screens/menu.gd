@@ -601,12 +601,15 @@ func s_cloud(_p) -> Dictionary:
 	Cloud.status_changed.connect(upd)
 	f.body.add_child(UI.panel(UI.hb(10, [UI.caps("Status", 11), st]), "Glass"))
 	var row = UI.hb(20)
-	if not Cloud.configured():
-		var S = {"u": "", "k": ""}
+	var edit_server: bool = not Cloud.configured() or _p.get("server", false)
+	if Cloud.configured() and not edit_server:
+		f.body.add_child(UI.hb(8, [UI.label("Server: " + Cloud.url, 12, UI.DIM), UI.btn("Change server", func(): UI.replace("cloud", {"server": true}), "Small")]))
+	if edit_server:
+		var S = {"u": Cloud.url, "k": Cloud.key}
 		row.add_child(UI.panel(UI.vb(10, [UI.caps("Server setup (one time)", 12, UI.GOLD2),
 			UI.wrapl(UI.label("Paste your Supabase Project URL and the Publishable key (sb_publishable_…, or the legacy anon key). Never the Secret key.", 13, UI.DIM), 440),
-			UI.field("Project URL", UI.line("", func(t): S.u = t, "https://xxxx.supabase.co", 440)),
-			UI.field("Publishable key", UI.line("", func(t): S.k = t, "sb_publishable_…", 440)),
+			UI.field("Project URL", UI.line(S.u, func(t): S.u = t, "https://xxxx.supabase.co", 440)),
+			UI.field("Publishable key", UI.line(S.k, func(t): S.k = t, "sb_publishable_…", 440)),
 			UI.btn("Save server", func():
 				if not S.u.strip_edges().begins_with("https://") or S.k.strip_edges().length() < 20: UI.toast("Check the URL and key", "bad"); return
 				if S.k.strip_edges().begins_with("sb_secret"): UI.toast("That's the Secret key — use the Publishable key", "bad"); return
