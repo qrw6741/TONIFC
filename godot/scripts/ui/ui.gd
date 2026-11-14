@@ -52,7 +52,9 @@ func _ready() -> void:
 	Sys.currency_changed.connect(refresh_currency)
 	Pad.style_changed.connect(func(): if not in_match and modals.is_empty() and cur_name != "" and cur_name != "results": rerender())
 	Sys.toast.connect(toast)
-	get_viewport().size_changed.connect(func(): toasts.position = Vector2(root.size.x - 430, 80))
+	get_viewport().size_changed.connect(func(): toasts.position = Vector2(root.size.x - 430, 80) if not mobile else Vector2(10, 70))
+	_mobile_setup()
+	get_tree().node_added.connect(_on_node_added)
 
 func _fonts() -> void:
 	var h = SystemFont.new(); h.font_names = PackedStringArray(["Arial Black", "Segoe UI Black", "Impact", "Helvetica Neue", "Arial", "Liberation Sans", "DejaVu Sans"]); h.font_weight = 900
@@ -572,7 +574,7 @@ func currency_bar() -> HBoxContainer:
 	lvi.prog = float(Sys.D().profile.xp) / max(1, Sys.xp_need(Sys.D().profile.level))
 	h.add_child(_cur_pill(_coin_icon(), c, Color("#ffd86b")))
 	h.add_child(_cur_pill(_pts_icon(), p, Color("#5ff2e0")))
-	h.add_child(_cur_pill(lvi, lv, Color(1, 1, 1)))
+	if not mobile: h.add_child(_cur_pill(lvi, lv, Color(1, 1, 1)))
 	currency_labels.append_array([c, p, lv])
 	return h
 func _coin_icon() -> Control:
@@ -613,11 +615,20 @@ func frame(top: Control, hint_extra := "", bg_style := "") -> Dictionary:
 	tm.add_child(top); v.add_child(tm)
 	var bm = MarginContainer.new(); bm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	bm.add_theme_constant_override("margin_left", 36); bm.add_theme_constant_override("margin_right", 36); bm.add_theme_constant_override("margin_top", 14); bm.add_theme_constant_override("margin_bottom", 10)
-	var body = vb(14); bm.add_child(body); v.add_child(bm)
-	v.add_child(hints(hint_extra))
+	var body = vb(14); bm.add_child(body)
+	if mobile:
+		for s in ["left", "right"]: tm.add_theme_constant_override("margin_" + s, 12); bm.add_theme_constant_override("margin_" + s, 12)
+		tm.add_theme_constant_override("margin_top", 8); bm.add_theme_constant_override("margin_top", 8); bm.add_theme_constant_override("margin_bottom", 24)
+		var ps = ScrollContainer.new(); ps.size_flags_vertical = Control.SIZE_EXPAND_FILL; ps.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		ps.follow_focus = false; ps.set_meta("page_scroll", true)
+		bm.size_flags_horizontal = Control.SIZE_EXPAND_FILL; ps.add_child(bm); v.add_child(ps)
+	else:
+		v.add_child(bm)
+		v.add_child(hints(hint_extra))
 	return {"node": page, "body": body}
 
 func hub_shell(tab: String) -> Dictionary:
+	if mobile: return _hub_shell_mobile(tab)
 	var top = hb(14)
 	top.add_child(icon("badge", Sys.D().profile.badge, Vector2(50, 54)))
 	top.add_child(_sepline())
@@ -634,6 +645,23 @@ func hub_shell(tab: String) -> Dictionary:
 	top.add_child(spacer()); top.add_child(cloud_btn()); top.add_child(currency_bar())
 	var f = frame(top, ("L1 / R1  tabs  ·  L2 / R2  sub-tabs  ·  R-stick scroll" if Pad.style == "ps" else ("LB / RB  tabs  ·  LT / RT  sub-tabs  ·  R-stick scroll" if Pad.style == "xbox" else "Q / E  switch tab")))
 	return f
+func _hub_shell_mobile(tab: String) -> Dictionary:
+	var row1 = hb(8, [icon("badge", Sys.D().profile.badge, Vector2(34, 38)), spacer(), cloud_btn(), currency_bar()])
+	var tabs = hb(4)
+	var cur_btn = null
+	for t in HUB_TABS:
+		var b = btn(t[1], func(): if t[0] != tab: Sfx.play("tab"); replace(t[0]), "Tab")
+		if t[0] == tab:
+			b.add_theme_color_override("font_color", Color.WHITE)
+			b.add_theme_stylebox_override("normal", _underline()); cur_btn = b
+		if t[0] == "objectives" and Sys.obj_claimable() > 0: b.text += " •"
+		if t[0] == "season" and Season.claim_count() > 0: b.text += " •"
+		tabs.add_child(b)
+	var ts = ScrollContainer.new(); ts.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; ts.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	ts.follow_focus = false; ts.custom_minimum_size.y = 44; ts.add_child(tabs)
+	if cur_btn: (func(): await get_tree().process_frame; if is_instance_valid(ts) and is_instance_valid(cur_btn): ts.scroll_horizontal = int(max(0, cur_btn.position.x - 60))).call()
+	return frame(vb(4, [row1, ts]))
+
 func _sepline() -> Control:
 	var c = ColorRect.new(); c.color = Color(1, 1, 1, 0.25); c.custom_minimum_size = Vector2(1, 30); return c
 func _underline() -> StyleBoxFlat:
@@ -695,6 +723,7 @@ func modal(title: String, body, buttons := [["OK", true, "Primary"]], wide := fa
 	var center = CenterContainer.new(); center.set_anchors_preset(Control.PRESET_FULL_RECT); back.add_child(center)
 	var pnl = PanelContainer.new(); pnl.add_theme_stylebox_override("panel", _sb(Color("#141c26"), Color(1, 1, 1, 0.12), 1, 18, Vector4(26, 22, 26, 22)))
 	pnl.custom_minimum_size = Vector2(1100 if wide else 420, 0)
+	if mobile: pnl.custom_minimum_size.x = min(pnl.custom_minimum_size.x, root.size.x - 16)
 	center.add_child(pnl)
 	var v = vb(14); pnl.add_child(v)
 	if title != "": v.add_child(head(title.to_upper(), 22))
@@ -830,3 +859,103 @@ func pick_player(title: String, pos := "", filter = null, allow_untr := true):
 func run_match(cfg: Dictionary, cb: Callable) -> void: modules[2].run_match(cfg, cb)
 func compare_price(p: Dictionary) -> void: await modules[7].compare_price(p)
 func show_results(res: Dictionary, title: String, rewards: String, cb: Callable) -> void: modules[2].show_results(res, title, rewards, cb)
+
+
+# ------------------------------------------------------------------ MOBILE (companion on a phone)
+## On a portrait phone the companion renders on a phone-sized canvas (440 px wide), so everything is
+## readable. Pages scroll vertically, the hub tabs become a swipeable strip, and any row that is wider
+## than the screen wraps onto the next line (a pass over every new screen, modal and list).
+const MOBILE_W := 440
+var mobile = false
+var _reflow_pending = false
+
+func _mobile_setup() -> void:
+	if not Cloud.companion(): return
+	var win: Vector2i = DisplayServer.window_get_size()
+	var portrait: bool = win.y > win.x * 1.1
+	var want: bool = portrait
+	var r = get_tree().root
+	if want:
+		r.content_scale_size = Vector2i(MOBILE_W, 780)
+		r.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	else:
+		r.content_scale_size = Vector2i(1440, 860)
+	if want != mobile:
+		mobile = want
+		if cur_name != "": rerender.call_deferred()
+	toasts.position = Vector2(10, 70) if mobile else Vector2(root.size.x - 430, 80)
+	toasts.custom_minimum_size.x = (MOBILE_W - 20) if mobile else 400
+	if not get_viewport().size_changed.is_connected(_mobile_setup): get_viewport().size_changed.connect(_mobile_setup)
+
+func _on_node_added(n: Node) -> void:
+	if not mobile or _reflow_pending or not (n is Control): return
+	_reflow_pending = true
+	_reflow_all.call_deferred()
+
+func _reflow_all() -> void:
+	_reflow_pending = false
+	if not mobile: return
+	await get_tree().process_frame
+	var avail: float = root.size.x - 24.0
+	if is_instance_valid(cur): _wrap_custom_page(cur); _reflow(cur, avail)
+	for m in modals: if is_instance_valid(m.node): _reflow(m.node, avail)
+
+## screens that don't use frame() (Rivals, Champions…) still get a vertical page scroll
+func _wrap_custom_page(page: Control) -> void:
+	if page.has_meta("mobile_wrapped"): return
+	page.set_meta("mobile_wrapped", true)
+	for c in page.get_children():
+		if c is MarginContainer and c.anchor_right == 1.0 and c.anchor_bottom == 1.0 and not (c.get_parent() is ScrollContainer):
+			var idx = c.get_index()
+			var ps = ScrollContainer.new(); ps.set_anchors_preset(Control.PRESET_FULL_RECT); ps.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			ps.follow_focus = false; ps.set_meta("page_scroll", true)
+			page.remove_child(c); c.set_anchors_preset(Control.PRESET_TOP_LEFT); c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for s in ["left", "right"]: c.add_theme_constant_override("margin_" + s, 12)
+			ps.add_child(c); page.add_child(ps); page.move_child(ps, idx)
+
+func _h_scroll_ancestor(n: Node) -> bool:
+	var p = n.get_parent()
+	while p != null:
+		if p is ScrollContainer and p.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED and not p.has_meta("page_scroll"): return true
+		p = p.get_parent()
+	return false
+
+func _reflow(n: Node, avail: float) -> void:
+	for c in n.get_children(): _reflow(c, avail)
+	if not (n is Control): return
+	var ctl: Control = n
+	var leaf: float = avail - 56.0   # room left inside padded panels
+	if ctl is PitchView:
+		if ctl.custom_minimum_size.x > leaf: ctl.custom_minimum_size = Vector2(leaf, leaf * 1.05)
+		return
+	if ctl is Label:
+		var lb: Label = ctl
+		if lb.get_combined_minimum_size().x > leaf:
+			if lb.autowrap_mode == TextServer.AUTOWRAP_OFF: lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			lb.custom_minimum_size.x = leaf
+		return
+	if ctl is ScrollContainer:
+		# inner scrolls grow to their content; the page itself scrolls
+		if not ctl.has_meta("page_scroll") and not ctl.has_meta("keep_scroll") and ctl.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED: ctl.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		return
+	if _h_scroll_ancestor(ctl): return
+	if ctl is GridContainer:
+		while ctl.columns > 1 and ctl.get_combined_minimum_size().x > avail: ctl.columns -= 1
+		return
+	if ctl is HBoxContainer and not ctl.has_meta("flowed") and ctl.get_child_count() > 1 and ctl.get_combined_minimum_size().x > avail:
+		# wrap: move the row's children into a flow container that breaks onto new lines
+		var fl = HFlowContainer.new(); fl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var sep = ctl.get_theme_constant("separation")
+		fl.add_theme_constant_override("h_separation", sep); fl.add_theme_constant_override("v_separation", max(6, sep))
+		fl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		for c in ctl.get_children():
+			if c is Control and c.size_flags_horizontal & Control.SIZE_EXPAND and c.get_combined_minimum_size().x < 40: continue   # spacers would eat a line
+			ctl.remove_child(c); fl.add_child(c)
+		for c in ctl.get_children(): ctl.remove_child(c); c.queue_free()
+		ctl.add_child(fl); ctl.set_meta("flowed", true)
+		return
+	if ctl.custom_minimum_size.x > leaf:
+		var hgt: float = ctl.custom_minimum_size.y
+		if not (ctl is Container) and hgt > 0 and ctl.custom_minimum_size.x > 0 and not (ctl is BaseButton):
+			ctl.custom_minimum_size.y = hgt * leaf / ctl.custom_minimum_size.x   # keep art proportions
+		ctl.custom_minimum_size.x = leaf

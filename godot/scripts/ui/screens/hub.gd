@@ -468,10 +468,11 @@ class SquadEditor extends RefCounted:
 			var nml = UI.label("%s" % nm, 13); nml.clip_text = true; nml.size_flags_horizontal = Control.SIZE_EXPAND_FILL; nml.custom_minimum_size.x = 120
 			list.add_child(UI.hb(8, [hold, nml, UI.label("%d" % r[2], 13, UI.DIM), pips]))
 		var lsc = UI.scroll(list); UI.grow(lsc)
+		if UI.mobile: lsc.custom_minimum_size.y = 190; lsc.set_meta("keep_scroll", true)
 		var cp = UI.panel(UI.vb(6, [UI.caps("Chemistry", 11), lsc]), "Glass"); UI.grow(cp)
 		side.add_child(cp)
 		# ---------- centre: the pitch
-		pitch = PitchView.new(); pitch.persp = true; pitch.card_cs = 8.4
+		pitch = PitchView.new(); pitch.persp = true; pitch.card_cs = 6.0 if UI.mobile else 8.4
 		pitch.setup(sq.formation, info.players, info.chem, cap_idx, sel if sel < 11 else -1)
 		pitch.custom_minimum_size = Vector2(520, 480)
 		pitch.slot_pressed.connect(click)
@@ -480,7 +481,7 @@ class SquadEditor extends RefCounted:
 			_hook(pitch.cards[i], func(): return get_u(i), i)
 		# ---------- right: hovered player
 		detail = UI.vb(6); detail.custom_minimum_size.x = 210
-		var top = UI.hb(18, [side, pitch, detail]); UI.grow(top)
+		var top = UI.hb(18, [pitch, detail, side] if UI.mobile else [side, pitch, detail]); UI.grow(top)
 		holder.add_child(top)
 		# ---------- bottom: SUB + RES strip
 		bench_row = UI.hb(8)

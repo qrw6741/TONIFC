@@ -122,6 +122,14 @@ func run() -> void:
 			UI.reset("main"); await w(0.8); print("COMPANION main -> ", UI.cur_name); await shot("g222_companion_home")
 			var mm = await _sim_check(); print("SP after rivals win: ", mm)
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(Cloud.CONFIG_USER))
+		if extra == "--mobile":
+			print("MOBILE ", UI.mobile, " root ", UI.root.size)
+			for scr in ["home", "season", "store", "sbc", "transfers", "objectives", "play", "squad", "club"]:
+				UI.reset(scr); await w(1.0); await shot("m_" + scr)
+			UI.go("rivals"); await w(1.0); await shot("m_rivals")
+			var fl = UI.cur.find_children("*", "HFlowContainer", true, false).size(); var wide = UI.cur.find_children("*", "HBoxContainer", true, false).filter(func(x): return x.get_combined_minimum_size().x > 420).map(func(x): return [x.get_child_count(), x.get_combined_minimum_size().x, x.has_meta("flowed"), UI._h_scroll_ancestor(x)])
+			print("RIVALS flows ", fl, " wide hboxes ", wide)
+			UI.modules[1].item_actions(Save.data.club[0].uid, func(): pass); await w(0.8); await shot("m_inspect"); UI.close_top(null)
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

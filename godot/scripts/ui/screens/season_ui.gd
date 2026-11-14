@@ -107,10 +107,10 @@ func _info_panel(lv: int, maxed: bool) -> Control:
 
 func _big_visual(r: Dictionary) -> Control:
 	if r.has("player"):
-		var c = UI.card(Data.P(r.player), 22.0); c.mouse_filter = Control.MOUSE_FILTER_IGNORE; c.focus_mode = Control.FOCUS_NONE
+		var c = UI.card(Data.P(r.player), 13.0 if UI.mobile else 22.0); c.mouse_filter = Control.MOUSE_FILTER_IGNORE; c.focus_mode = Control.FOCUS_NONE
 		return c
 	if r.has("pack"):
-		var ic = UI.icon("pack", r.pack, Vector2(230, 320)); return ic
+		var ic = UI.icon("pack", r.pack, Vector2(150, 210) if UI.mobile else Vector2(230, 320)); return ic
 	var co = CoinArt.new(); co.gem = not r.get("coins", 0); co.custom_minimum_size = Vector2(260, 260)
 	return co
 
