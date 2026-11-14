@@ -358,7 +358,7 @@ func _choose(pl: Dictionary) -> void:
 	var cur = Save.data.get("pick_cur")
 	if cur == null: return
 	Save.data.pick_cur = null
-	Sys.club_add(pl.id, true, "pick")
+	Sys.club_add(pl.id, false, "pick")
 	Sys.history("Picked %d %s from %s" % [pl.ovr, pl.name, Data.packs[cur.pack].name])
 	Save.write_now()
 	Sfx.play("bigreveal"); UI.toast("%d %s joined your club" % [pl.ovr, pl.name], "good")

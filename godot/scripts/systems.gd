@@ -152,8 +152,12 @@ func item(u: String) -> Dictionary:
 	return {}
 func item_player(u: String) -> Dictionary:
 	var it = item(u); return {} if it.is_empty() else Cons.item_view(it)
-func club_add(pid: String, untr := true, src := "") -> Dictionary:
-	var it = {"uid": uid(), "pid": pid, "untr": untr, "at": now(), "src": src}
+## only exclusive rarities are untradeable (Season Pass, Gallery, POTM, Evolutions) — everything else can be sold
+const UNTRADEABLE_TYPES := ["pass", "gallery", "potm"]
+func exclusive(pid: String) -> bool:
+	return UNTRADEABLE_TYPES.has(Data.P(pid).get("type", "")) or pid.begins_with("ev")
+func club_add(pid: String, untr := false, src := "") -> Dictionary:
+	var it = {"uid": uid(), "pid": pid, "untr": untr or exclusive(pid), "at": now(), "src": src}
 	D().club.append(it); Gallery.record(pid, src); Save.dirty(); return it
 func club_remove(u: String) -> void:
 	D().club = D().club.filter(func(i): return i.uid != u)
@@ -729,7 +733,7 @@ func grant(r: Dictionary, src: String) -> void:
 	if r.has("pack"):
 		D().unopened.append(r.pack); toast.emit(Data.packs[r.pack].name + " added to My Packs", "good")
 	if r.has("player"):
-		club_add(r.player, true, "reward"); var p = Data.P(r.player)
+		club_add(r.player, false, "reward"); var p = Data.P(r.player)
 		toast.emit("%d %s sent to your club" % [p.ovr, p.name], "good")
 	if r.get("xp", 0): add_xp(int(r.xp))
 	if r.get("tokens", 0): Event.add_tokens(int(r.tokens))

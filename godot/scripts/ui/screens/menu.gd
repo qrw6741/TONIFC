@@ -64,7 +64,7 @@ func grant_starter() -> void:
 			var target = Sys.rint(73, 77) if i == 0 else Sys.rint(67, 73)
 			var pool = base.filter(func(p): return p.pos == pos and abs(p.ovr - target) <= 3 and (p.lg == lg if i == 0 else true) and not Sys.owns_pid(p.id))
 			if pool.is_empty(): pool = base.filter(func(p): return p.pos == pos and not Sys.owns_pid(p.id))
-			Sys.club_add(Sys.pick(pool).id, true, "starter")
+			Sys.club_add(Sys.pick(pool).id, false, "starter")
 	var s = Sys.squad_create("Starter XI", "4-3-3"); Sys.auto_build(s)
 	Save.data.unopened.append("premium")
 	Sys.history(Save.data.profile.club_name + " joined Ultimate XI")

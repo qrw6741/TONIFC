@@ -41,6 +41,13 @@ func run() -> void:
 				await w(1.0); await shot("g22_items_" + pk)
 				print("CUR ", UI.cur_name)
 				UI.modules[1].s_packresult  # noop
+		if extra == "--trade":
+			print("TRADE starter untr count ", Save.data.club.filter(func(x): return x.untr).size(), " / ", Save.data.club.size())
+			UI.modules[1].open_pack("rare", false); await w(1.5)
+			print("TRADE reward pack pending untr ", Save.data.pending.map(func(x): return x.untr))
+			Sys.apply_pending()
+			var a1 = Sys.club_add("asc_p13", false, "reward"); var a2 = Sys.club_add("gal_carrick", false, "reward"); var a3 = Sys.club_add("p13", false, "reward")
+			print("TRADE asc ", a1.untr, " gallery ", a2.untr, " base reward ", a3.untr)
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

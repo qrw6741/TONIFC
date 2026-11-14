@@ -574,8 +574,7 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 		UI.modules[3].start_pick(id); return
 	if not Save.data.pending.is_empty(): Sys.apply_pending()
 	var items = preset if not preset.is_empty() else Sys.generate_pack(id)
-	var untr: bool = (not tradeable) or Data.packs[id].get("reward", false)
-	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": untr, "dest": "keep"})
+	Save.data.pending = items.map(func(p): return {"pid": p.id, "untr": Sys.exclusive(p.id), "dest": "keep"})
 	for p in items: Gallery.record(p.id, "pack", true)
 	Save.data.stats.packs += 1; Sys.track("pack"); Sys.add_xp(50)
 	Save.write_now()

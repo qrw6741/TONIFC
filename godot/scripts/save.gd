@@ -69,6 +69,19 @@ func _migrate(d: Dictionary) -> Dictionary:
 	for k in base.settings: if not d.settings.has(k): d.settings[k] = base.settings[k]
 	for k in base.modes: if not d.modes.has(k): d.modes[k] = base.modes[k]
 	for k in base.stats: if not d.stats.has(k): d.stats[k] = base.stats[k]
+	# v2: only exclusive cards stay untradeable (and players currently in an Evolution)
+	if not d.get("trade_v2", false):
+		var locked = {}
+		if typeof(d.get("evos")) == TYPE_DICTIONARY: for e in d.evos.get("active", []): locked[e.uid] = true
+		if typeof(d.get("event")) == TYPE_DICTIONARY: for e in d.event.get("evos", []): locked[e.uid] = true
+		for it in d.club:
+			var pid: String = str(it.pid)
+			var excl: bool = ["pass", "gallery", "potm"].has(Data.P(pid).get("type", "")) or pid.begins_with("ev")
+			if not excl and not locked.has(it.uid): it.untr = false
+		for x in d.get("pending", []):
+			var px: String = str(x.pid)
+			if not (["pass", "gallery", "potm"].has(Data.P(px).get("type", "")) or px.begins_with("ev")): x.untr = false
+		d.trade_v2 = true
 	return d
 
 func create(name: String) -> void:
