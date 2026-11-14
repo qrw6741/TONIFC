@@ -251,7 +251,35 @@ static func pack(ci: CanvasItem, r: Rect2, id: String, t := 0.0) -> void:
 
 # ------------------------------------------------------------------ portrait
 ## special cards strike a celebration pose instead of the standard bust (picked per player, always the same)
-const POSES := ["point", "fist", "arms", "shush", "celebrate", "point_up"]
+## generic poses: each arm is [shoulder x,y, elbow x,y, hand x,y, hand type, finger direction°] on the 100×100 portrait grid
+const POSE_DEF := {
+	"thumbs_up": {"m": "smile", "arms": [[84, 104, 80, 90, 70, 74, "thumb", -90]]},
+	"double_thumbs": {"m": "smile", "arms": [[16, 104, 20, 90, 32, 76, "thumb", -90], [84, 104, 80, 90, 68, 76, "thumb", -90]]},
+	"peace": {"m": "smile", "arms": [[86, 104, 88, 82, 74, 56, "peace", -80]]},
+	"ear_cup": {"m": "open", "arms": [[88, 104, 92, 76, 73, 46, "open", -100]]},
+	"salute": {"m": "normal", "arms": [[86, 104, 90, 70, 70, 32, "flat", 200]]},
+	"heart_hands": {"m": "smile", "arms": [[14, 104, 24, 92, 45, 80, "open", -60], [86, 104, 76, 92, 55, 80, "open", -120]], "fx": "heart"},
+	"badge_kiss": {"m": "pucker", "arms": [[84, 104, 70, 96, 38, 84, "flat", 180]]},
+	"calm_down": {"m": "normal", "arms": [[14, 104, 16, 96, 30, 88, "flat", 180], [86, 104, 84, 96, 70, 88, "flat", 0]]},
+	"arms_wide": {"m": "open", "arms": [[18, 86, 8, 76, 3, 66, "open", 200], [82, 86, 92, 76, 97, 66, "open", -20]]},
+	"hands_on_head": {"m": "o", "arms": [[18, 86, 8, 56, 33, 23, "open", -20], [82, 86, 92, 56, 67, 23, "open", 200]]},
+	"chest_beat": {"m": "open", "arms": [[86, 104, 82, 96, 42, 84, "fist", 0]]},
+	"point_both": {"m": "smile", "arms": [[14, 104, 22, 90, 31, 73, "point", -55], [86, 104, 78, 90, 69, 73, "point", -125]]},
+	"finger_wag": {"m": "smile", "arms": [[86, 104, 88, 78, 80, 50, "point", -100]]},
+	"goggles": {"m": "smile", "arms": [[14, 104, 12, 72, 43.5, 47, "ring", 0], [86, 104, 88, 72, 56.5, 47, "ring", 0]]},
+	"flex": {"m": "open", "arms": [[80, 84, 96, 72, 88, 48, "fist", 0]], "fx": "bicep_r"},
+	"double_flex": {"m": "open", "arms": [[20, 84, 4, 72, 12, 48, "fist", 0], [80, 84, 96, 72, 88, 48, "fist", 0]], "fx": "bicep_lr"},
+	"phone_call": {"m": "smile", "arms": [[86, 104, 90, 74, 70, 48, "phone", -90]]},
+	"prayer": {"m": "normal", "arms": [[14, 104, 32, 96, 48, 72, "open", -80], [86, 104, 68, 96, 52, 72, "open", -100]]},
+	"victory_v": {"m": "open", "arms": [[18, 86, 8, 60, 5, 32, "open", -110], [82, 86, 92, 60, 95, 32, "open", -70]]},
+	"thumb_back": {"m": "smile", "arms": [[86, 104, 94, 82, 84, 62, "thumb", -55]]},
+	"shrug": {"m": "normal", "arms": [[12, 104, 8, 96, 22, 90, "open", 200], [88, 104, 92, 96, 78, 90, "open", -20]]},
+	"wave": {"m": "smile", "arms": [[86, 104, 94, 72, 88, 40, "open", -90]]},
+	"clap": {"m": "open", "arms": [[14, 104, 26, 94, 47, 78, "open", -70], [86, 104, 74, 94, 53, 78, "open", -110]], "fx": "clap"},
+	"fists_high": {"m": "open", "arms": [[20, 86, 14, 40, 56, 11, "fist", 0], [80, 86, 86, 40, 44, 11, "fist", 0]]},
+	"come_on": {"m": "open", "arms": [[14, 104, 18, 94, 30, 84, "fist", 0], [86, 104, 82, 94, 70, 84, "fist", 0]]},
+}
+const POSES := ["point", "fist", "arms", "shush", "celebrate", "point_up", "thumbs_up", "double_thumbs", "peace", "ear_cup", "salute", "heart_hands", "badge_kiss", "calm_down", "arms_wide", "hands_on_head", "chest_beat", "point_both", "finger_wag", "goggles", "flex", "double_flex", "phone_call", "prayer", "victory_v", "thumb_back", "shrug", "wave", "clap", "fists_high", "come_on"]
 static func pose_for(p: Dictionary) -> String:
 	var t: String = str(p.get("type", "base"))
 	if t == "base" or t == "found": return ""
@@ -262,11 +290,58 @@ static func _limb(ci: CanvasItem, a: Vector2, b: Vector2, wd: float, c: Color) -
 	ci.draw_line(a, b, c, wd); ci.draw_circle(a, wd * 0.5, c); ci.draw_circle(b, wd * 0.5, c)
 
 ## arms & hands for a pose, drawn over the bust (P maps the 100×100 portrait grid)
+static func _hand(ci: CanvasItem, P: Callable, s: float, h: Vector2, kind: String, deg: float, c: Color, dk: Color) -> void:
+	var hp: Vector2 = P.call(h.x, h.y); var r = 5.2 * s
+	var d = Vector2.from_angle(deg_to_rad(deg))
+	var finger = func(a: float, ln: float, wd := 2.5):
+		var v = Vector2.from_angle(deg_to_rad(deg + a))
+		_limb(ci, hp + v * r * 0.6, hp + v * (r * 0.6 + ln * s), wd * s, c)
+	match kind:
+		"fist":
+			ci.draw_circle(hp, r * 1.12, c)
+			for k in 3: ci.draw_line(hp + Vector2(-r * 0.6 + k * r * 0.6, -r * 0.55), hp + Vector2(-r * 0.6 + k * r * 0.6, -r * 0.05), dk, 1.0 * s)
+		"open":
+			for a in [-26, -9, 9, 26]: finger.call(a, 5.0, 2.3)
+			finger.call(62, 3.6, 2.4)
+			ci.draw_circle(hp, r, c)
+		"point": ci.draw_circle(hp, r, c); ci.draw_circle(hp, r * 0.5, dk); finger.call(0, 6.5, 2.6)
+		"thumb": ci.draw_circle(hp, r * 1.1, c); ci.draw_line(hp + Vector2(-r * 0.5, 0), hp + Vector2(r * 0.5, 0), dk, 1.0 * s); finger.call(0, 5.0, 2.8)
+		"peace": ci.draw_circle(hp, r, c); finger.call(-14, 6.5, 2.4); finger.call(14, 6.5, 2.4)
+		"phone": ci.draw_circle(hp, r, c); finger.call(0, 4.5, 2.4); finger.call(180, 4.5, 2.2)
+		"flat":
+			var n = Vector2(-d.y, d.x)
+			ci.draw_colored_polygon(PackedVector2Array([hp - d * r * 0.6 + n * r * 0.75, hp + d * r * 2.0 + n * r * 0.55, hp + d * r * 2.2 - n * r * 0.4, hp - d * r * 0.6 - n * r * 0.75]), c)
+		"ring":
+			ci.draw_arc(hp, r * 1.0, 0, TAU, 18, c, 2.6 * s)
+			ci.draw_circle(hp + Vector2(0, r * 1.25), r * 0.55, c)
+
 static func _pose(ci: CanvasItem, pose: String, P: Callable, s: float, skin: Color, A: Color, B: Color, gk := false) -> void:
 	var sl = 11.0 * s; var fa = 8.0 * s; var hand = 5.2 * s
 	var arm = skin
 	if gk: skin = Color("#c6f24a")    # keepers wear their gloves
 	var dk = skin.darkened(0.18); var trim = Color(B, 0.9)
+	if POSE_DEF.has(pose):
+		var D: Dictionary = POSE_DEF[pose]
+		for a in D.arms:
+			var sh: Vector2 = P.call(a[0], a[1]); var el: Vector2 = P.call(a[2], a[3])
+			_limb(ci, sh, el, sl, A)
+			var cuff = sh.lerp(el, 0.82); var nn = (el - sh).normalized().orthogonal() * sl * 0.5
+			ci.draw_line(cuff - nn, cuff + nn, trim, 1.6 * s)
+			_limb(ci, el, P.call(a[4], a[5]), fa, arm)
+			_hand(ci, P, s, Vector2(a[4], a[5]), a[6], a[7], skin, dk)
+		match D.get("fx", ""):
+			"heart":
+				var hc = P.call(50, 70)
+				var pts = PackedVector2Array()
+				for k in 25:
+					var t = TAU * k / 24.0
+					pts.append(hc + Vector2(16 * pow(sin(t), 3), -(13 * cos(t) - 5 * cos(2 * t) - 2 * cos(3 * t) - cos(4 * t))) * s * 0.42)
+				ci.draw_polyline(pts, Color("#ff4d6d"), 2.0 * s, true)
+			"clap":
+				for k in 3: ci.draw_line(P.call(42 - k * 2, 68 - k * 3), P.call(38 - k * 2, 64 - k * 3), Color(1, 1, 1, 0.7), 1.2 * s); ci.draw_line(P.call(58 + k * 2, 68 - k * 3), P.call(62 + k * 2, 64 - k * 3), Color(1, 1, 1, 0.7), 1.2 * s)
+			"bicep_r": ellipse(ci, P.call(89, 76), 6 * s, 4.2 * s, A)
+			"bicep_lr": ellipse(ci, P.call(89, 76), 6 * s, 4.2 * s, A); ellipse(ci, P.call(11, 76), 6 * s, 4.2 * s, A)
+		return
 	match pose:
 		"point":
 			# arm comes up from the bottom-left, finger pointing straight at you
@@ -332,9 +407,12 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 	ellipse(ci, P.call(40, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35)); ellipse(ci, P.call(60, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35))
 	ci.draw_polyline(PackedVector2Array([P.call(50, 46), P.call(48.5, 53), P.call(52, 54)]), shade, 1.4 * s)
 	var pose: String = pose_for(p)
-	if pose in ["celebrate", "fist"]:
+	var mo: String = POSE_DEF[pose].m if POSE_DEF.has(pose) else ("open" if pose in ["celebrate", "fist"] else ("smile" if pose in ["point", "point_up"] else "normal"))
+	if mo == "o": ellipse(ci, P.call(50, 60), 2.6 * s, 3.2 * s, Color("#4a1f1a"))
+	elif mo == "pucker": ellipse(ci, P.call(50, 60), 2.2 * s, 1.8 * s, Color("#a0463c")); ellipse(ci, P.call(50, 60), 1.0 * s, 0.8 * s, Color("#4a1f1a"))
+	elif mo == "open":
 		ellipse(ci, P.call(50, 60), 4.2 * s, 3.4 * s, Color("#4a1f1a")); ci.draw_rect(Rect2(P.call(46.5, 57.4), Vector2(7, 1.4) * s), Color(1, 1, 1, 0.85))
-	elif pose == "point" or pose == "point_up":
+	elif mo == "smile":
 		ci.draw_polyline(PackedVector2Array([P.call(44, 58.5), P.call(50, 62), P.call(56, 58.5)]), Color("#7a3d33"), 1.8 * s)
 	else: ci.draw_polyline(PackedVector2Array([P.call(45, 59), P.call(50, 61), P.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
 	# beard: 1 stubble · 2 full · 3 moustache · 4 goatee · 5 trimmed beard

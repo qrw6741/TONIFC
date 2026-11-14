@@ -213,14 +213,14 @@ func run() -> void:
 			S.click(6); await w(0.3); await shot("g05e_squad_selected")
 			S.team_mgmt(); await w(0.5); await shot("g05f_team_mgmt"); UI.close_top(null)
 		if extra == "--poses":
-			var row = UI.hb(14); var row2 = UI.hb(14)
-			var base = Data.P("p14")
-			row.add_child(UI.card(base, 15.0))
-			for i in Gfx.POSES.size():
-				var q: Dictionary = Fright.totw_latest[i % Fright.totw_latest.size()].duplicate(); q.pose = Gfx.POSES[i]
-				(row if i < 3 else row2).add_child(UI.card(q, 15.0))
-			var box = UI.vb(14, [row, row2]); box.position = Vector2(20, 20)
-			UI.overlay.add_child(box); await shot("poses"); box.queue_free()
+			var pool: Array = Fright.totw_latest + Fright.fright
+			for page in 2:
+				var g = GridContainer.new(); g.columns = 8; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 8)
+				var bg = ColorRect.new(); bg.color = Color("#0b0d14"); bg.size = Vector2(1440, 900); UI.overlay.add_child(bg)
+				for i in range(page * 16, min(Gfx.POSES.size(), page * 16 + 16)):
+					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
+					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
+				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
 		if extra == "--promo":
 			UI.go("home"); await w(0.5); await shot("pr_home")
 			UI.go("promo"); await w(0.8); await shot("pr_new")
