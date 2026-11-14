@@ -15,7 +15,7 @@ const CLUB_SLOTS := 11
 const LEAGUE_SLOTS := 15
 const CLUB_TOKENS := [10, 20, 35, 60, 100]
 const LEAGUE_TOKENS := [25, 50, 90, 150, 250]
-const LEVEL_PTS := 800000
+const LEVEL_PTS := 40000
 const MAX_LEVEL := 25
 const RARITY_MULT := {"base": 1.0, "found": 1.5, "totw": 2.0, "promo": 2.5, "hero": 3.0, "pass": 3.0, "rising": 2.5, "icon": 4.0, "gallery": 3.5}
 
@@ -72,20 +72,19 @@ func _club_strength(c: String) -> float:
 	return s
 
 # ------------------------------------------------------------------ gems
-## how many Gems a player item is worth in the Gallery
-## how many Gems a player item is worth (FC-style item score — used by Gem SBCs and the Gallery)
-## bronze ~10k–15k · silver ~22k–26k · gold ~34k–69k · special cards 80k+ (×100 scale)
+## FC 27 Item Score ("gems"): one value per overall rating, shared by Gem SBCs and the Gallery.
+## Bronze 20 · Silver 35 · Gold 75 = 90 … 84 = 830 (83 is only 410 — the big cliff) … 99 = 100,000.
+## Rare/common doesn't matter (FC 27 dropped the split). Special items get a rarity bonus on top:
+## TOTW / Hero / Season Pass +25%, promos +30%, Gallery +40%, Icons +50%. First Owner never changes a card's gems.
+const ITEM_SCORE := {99: 100000, 98: 90000, 97: 85000, 96: 55000, 95: 40000, 94: 30000, 93: 25000, 92: 20000, 91: 19000, 90: 14000,
+	89: 11000, 88: 8300, 87: 5500, 86: 4100, 85: 2100, 84: 830, 83: 410, 82: 340, 81: 280, 80: 180, 79: 160, 78: 140, 77: 120, 76: 100, 75: 90}
+const SPECIAL_BONUS := {"base": 1.0, "found": 1.2, "totw": 1.25, "hero": 1.25, "pass": 1.25, "promo": 1.3, "rising": 1.3, "potm": 1.3, "gallery": 1.4, "icon": 1.5}
+
 func gems(p: Dictionary) -> int:
 	if p.is_empty(): return 0
-	var o: int = int(p.ovr)
-	if p.type != "base": return max(800, 860 + (o - 85) * 30) * 100
-	var g = 0
-	match Data.tier_of(o):
-		"bronze": g = 100 + max(0, o - 55) * 5
-		"silver": g = 220 + (o - 71) * 8
-		_: g = 340 + (o - 76) * 22
-	if p.rare: g += 20
-	return g * 100
+	var o: int = clamp(int(p.ovr), 1, 99)
+	var g: int = ITEM_SCORE.get(o, 35 if o >= 65 else 20)
+	return int(round(g * float(SPECIAL_BONUS.get(p.type, 1.2))))
 
 # ------------------------------------------------------------------ state
 func st() -> Dictionary:

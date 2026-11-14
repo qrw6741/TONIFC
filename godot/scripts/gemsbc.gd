@@ -5,21 +5,21 @@ extends Node
 const MAX_ITEMS := 0   # 0 = no limit: submit as many players as you like
 
 ## Player of the Month — SBC-only cards. [base id, boost, league label, gem target]
-const POTM := [["p230", 4, "Premier League", 1500000], ["p444", 4, "LaLiga", 1500000], ["p1523", 4, "Ligue 1", 1200000], ["p1189", 4, "Bundesliga", 1200000], ["p807", 4, "Serie A", 750000]]
+const POTM := [["p230", 4, "Premier League", 25000], ["p444", 4, "LaLiga", 25000], ["p1523", 4, "Ligue 1", 20000], ["p1189", 4, "Bundesliga", 20000], ["p807", 4, "Serie A", 12500]]
 
 func _ready() -> void:
 	Data.packs["pp76"] = {"name": "76+ Gold Player Pack", "items": 1, "coins": 0, "points": 0, "art": "gold", "guar": [["ovr76", 1]], "w": {"ovr76": 1}, "desc": "1 gold player rated 76+.", "reward": true}
 	var defs = [
-		["ex_intro", "Exchanges", "Intro to Streamlined SBCs", "Submit any players worth 150,000 gems.", 150000, {}, {"coins": 2500}, 1],
-		["ex_bronze", "Exchanges", "Bronze Exchange", "Bronze players only.", 180000, {"tiers": ["bronze"]}, {"pack": "silver"}, 99],
-		["ex_silver", "Exchanges", "Silver Exchange", "Silver players only.", 360000, {"tiers": ["silver"]}, {"pack": "gold"}, 99],
-		["ex_reroll", "Exchanges", "Bronze and Silver Re-roll", "Bronze and silver players only.", 450000, {"tiers": ["bronze", "silver"]}, {"pack": "pp76"}, 99],
-		["ex_gold", "Exchanges", "Gold Exchange", "Regular gold players only.", 750000, {"tiers": ["gold"], "base_only": true}, {"pack": "premium"}, 99],
-		["ex_rare", "Exchanges", "Rare Exchange", "Any players.", 1200000, {}, {"pack": "rare"}, 10],
-		["ex_83", "Exchanges", "83+ x2 Upgrade", "Any players.", 1500000, {}, {"pack": "pp83x2"}, 5],
-		["ex_82", "Exchanges", "82+ x5 Upgrade", "Any players.", 1800000, {}, {"pack": "pp82x5"}, 3],
-		["ex_special", "Exchanges", "Special Exchange", "You'll need special cards to hit this score.", 2500000, {}, {"pack": "pick84"}, 2],
-		["ex_rs", "Rising Stars", "Rising Stars Exchange", "Any players — streamlined.", 1200000, {}, {"pack": "rspack"}, 3]]
+		["ex_intro", "Exchanges", "Intro to Streamlined SBCs", "Submit any players worth 400 gems.", 400, {}, {"coins": 2500}, 1],
+		["ex_bronze", "Exchanges", "Bronze Exchange", "Bronze players only.", 280, {"tiers": ["bronze"]}, {"pack": "silver"}, 99],
+		["ex_silver", "Exchanges", "Silver Exchange", "Silver players only.", 525, {"tiers": ["silver"]}, {"pack": "gold"}, 99],
+		["ex_reroll", "Exchanges", "Bronze and Silver Re-roll", "Bronze and silver players only.", 560, {"tiers": ["bronze", "silver"]}, {"pack": "pp76"}, 99],
+		["ex_gold", "Exchanges", "Gold Exchange", "Regular gold players only.", 2500, {"tiers": ["gold"], "base_only": true}, {"pack": "premium"}, 99],
+		["ex_rare", "Exchanges", "Rare Exchange", "Any players.", 4000, {}, {"pack": "rare"}, 10],
+		["ex_83", "Exchanges", "83+ x2 Upgrade", "Any players.", 6000, {}, {"pack": "pp83x2"}, 5],
+		["ex_82", "Exchanges", "82+ x5 Upgrade", "Any players.", 8000, {}, {"pack": "pp82x5"}, 3],
+		["ex_special", "Exchanges", "Special Exchange", "You'll need special cards to hit this score.", 20000, {}, {"pack": "pick84"}, 2],
+		["ex_rs", "Rising Stars", "Rising Stars Exchange", "Any players — streamlined.", 4000, {}, {"pack": "rspack"}, 3]]
 	# POTM cards + their SBCs
 	Data.card_types["potm"] = {"name": "Player of the Month", "order": 4}
 	Data.tier_label["potm"] = "Player of the Month"

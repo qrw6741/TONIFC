@@ -5,7 +5,7 @@ extends RefCounted
 const GEM := Color("#5fe3c8")
 const CATS := ["Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
 
-func gem_text(n: int) -> String: return "◆ " + Sys.fmt(n)
+func gem_text(n: int) -> String: return "✦ " + Sys.fmt(n)
 
 func _glass(focused := false) -> StyleBoxFlat:
 	var sb = StyleBoxFlat.new()
@@ -41,7 +41,7 @@ func s_sbc(p) -> Dictionary:
 	if cat == "Exchanges" and not Save.data.sbc.get("intro_seen", false):
 		Save.data.sbc.intro_seen = true; Save.dirty()
 		UI.go.call_deferred("sbcintro")
-	var segs = CATS.map(func(c): return [c, c + (" ◆" if c == "Exchanges" else "")])
+	var segs = CATS.map(func(c): return [c, c + (" ✦" if c == "Exchanges" else "")])
 	f.body.add_child(UI.hb(10, [UI.head("SBC", 38), UI.label("Exchange players to upgrade your squad", 15, UI.DIM), UI.spacer(), UI.btn("How it works", func(): UI.go("sbcintro"), "Small"), UI.seg(segs, cat, func(v): UI.replace("sbc", {"cat": v}))]))
 	var row = HBoxContainer.new(); row.add_theme_constant_override("separation", 14)
 	var first = true
@@ -152,7 +152,7 @@ func s_gemsbc(p) -> Dictionary:
 	return {"node": f.node, "bg": "hub", "back": func(): UI.replace("sbc", {"cat": p.get("cat", "Exchanges")})}
 
 func _gem_lab(pl: Dictionary) -> Label:
-	var l = UI.bold("◆ " + Sys.fmt(Gallery.gems(pl)), 12, GEM); l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; return l
+	var l = UI.bold("✦ " + Sys.fmt(Gallery.gems(pl)), 12, GEM); l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; return l
 
 # ------------------------------------------------------------------ intro (3 steps)
 func s_sbcintro(_p) -> Dictionary:
@@ -173,9 +173,9 @@ func s_sbcintro(_p) -> Dictionary:
 		c.draw.connect(func(): var r = Rect2(Vector2(2, 2), c.size - Vector2(4, 4)); c.draw_colored_polygon(Gfx.shield(r), col)); return c
 	# step 1: items with scores
 	var s1 = UI.hb(-18)
-	var vals = [["silver", Color("#cfd6de"), 24000], ["gold", Color("#f0c94e"), 36000], ["special", Color("#2a2a2a"), 86000]]
+	var vals = [["silver", Color("#cfd6de"), 35], ["gold", Color("#f0c94e"), 830], ["special", Color("#2a2a2a"), 1038]]
 	var s1v = UI.vb(8, [s1]); var s1n = UI.hb(30)
-	for x in vals: s1.add_child(silhouette.call(x[1], 92.0)); s1n.add_child(UI.bold("◆ " + Sys.fmt(x[2]), 18, GEM))
+	for x in vals: s1.add_child(silhouette.call(x[1], 92.0)); s1n.add_child(UI.bold("✦ " + Sys.fmt(x[2]), 18, GEM))
 	s1v.add_child(s1n)
 	# step 2: select & submit
 	var g2 = GridContainer.new(); g2.columns = 5; g2.add_theme_constant_override("h_separation", 6); g2.add_theme_constant_override("v_separation", 6)
