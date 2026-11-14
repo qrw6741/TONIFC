@@ -102,6 +102,7 @@ func _fmt_long(sec: float) -> String:
 	return "%d Hours %d Mins" % [h, m]
 
 func s_champions(_p) -> Dictionary:
+	if UI.mobile: return _champs_mobile()
 	var fin = Champs.check_week()
 	var C = Champs.st(); var run = C.run
 	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -407,3 +408,69 @@ func s_champsstore(_p) -> Dictionary:
 func _back_or_play() -> void:
 	if UI.stack.is_empty(): UI.reset("play")
 	else: UI.back()
+
+
+# ------------------------------------------------------------------ PHONE LAYOUT (companion)
+func _champs_mobile() -> Dictionary:
+	var fin = Champs.check_week()
+	var C = Champs.st(); var run = C.run
+	var f = UI.sub_shell("Champions", "Play")
+	var b: VBoxContainer = f.body
+	var pts: int = int(run.pts) if run != null else 0
+	var reached: int = Champs.rank_for(pts)
+	var ends = UI.label("", 12, UI.DIM)
+	var cd = UI.bold("", 16, GOLD)
+	var tick = func():
+		if is_instance_valid(ends): ends.text = "Weekly event ends in " + _fmt_long(Champs.event_left())
+		if is_instance_valid(cd) and run == null and Champs.cooldown_left() > 0: cd.text = "⏱ Next run in " + Sys.fmt_time(Champs.cooldown_left())
+	# status card
+	var st = UI.vb(8)
+	if run != null:
+		var nxt: int = min(14, reached + 1)
+		st.add_child(UI.hb(10, [Token.make(54), UI.vb(0, [UI.head("%d PTS" % pts, 30, GOLD), UI.bold(Champs.rank_name(reached), 15)])]))
+		st.add_child(UI.label("%dW · %dL · match %d of %d" % [int(run.w), int(run.l), min(Champs.MATCHES, int(run.played) + (0 if run.done else 1)), Champs.MATCHES], 13, UI.DIM))
+		if reached < 14:
+			st.add_child(UI.bar(pts, Champs.RANK_PTS[nxt], "GoldBar"))
+			st.add_child(UI.label("%s at %d pts · win +%d, loss +%d" % [Champs.rank_name(nxt), Champs.RANK_PTS[nxt], Champs.WIN_PTS, Champs.LOSS_PTS], 12, UI.DIM))
+	elif Champs.cooldown_left() > 0:
+		st.add_child(UI.head("RUN FINISHED", 26, GOLD)); st.add_child(cd)
+		st.add_child(UI.label("There's a 5-minute break after every Champions run.", 12, UI.DIM))
+	else:
+		var qp: int = int(C.qp)
+		st.add_child(UI.head("QUALIFY", 26, GOLD))
+		st.add_child(UI.hb(8, [UI.label("Qualification Points", 13), UI.spacer(), UI.bold("%s/%s" % [Sys.fmt(qp), Sys.fmt(Champs.QP_NEED)], 13, UI.GREEN if Champs.qualified() else UI.TEXT)]))
+		st.add_child(UI.bar(min(qp, Champs.QP_NEED), Champs.QP_NEED, "GoldBar"))
+		st.add_child(UI.hb(8, [UI.label("Rivals Division %d or better" % Champs.MIN_DIV, 13), UI.spacer(), UI.bold("✓" if Champs.div_ok() else "✗", 16, UI.GREEN if Champs.div_ok() else UI.RED)]))
+		st.add_child(UI.label("Earn QP in Division Rivals: win +200 · draw +100 · loss +50", 12, UI.DIM))
+	st.add_child(ends)
+	b.add_child(UI.m_card(st, GOLD))
+	# main action
+	var label = "Enter Champions"
+	if run != null: label = "Claim Rewards" if run.done else "Simulate Match %d/%d" % [int(run.played) + 1, Champs.MATCHES]
+	elif Champs.cooldown_left() > 0: label = "Cooling down…"
+	elif not Champs.qualified(): label = "Earn QP in Rivals"
+	var cta = UI.m_cta(label, func(): _play_pressed())
+	cta.disabled = run == null and Champs.cooldown_left() > 0
+	b.add_child(cta)
+	b.add_child(UI.hb(8, [UI.m_chip(Sys.fmt(Champs.tokens()), "Champs Tokens", GOLD), UI.m_chip("%d" % Champs.MATCHES, "Matches / run")]))
+	b.add_child(UI.btn("Token Store", func(): UI.go("champsstore"), ""))
+	# ranks & rewards (top rank first)
+	b.add_child(UI.caps("Ranks & rewards — you get the highest rank you reach", 11, Color("#8a93a3")))
+	var list = UI.vb(6)
+	for i in range(14, -1, -1):
+		var got: bool = pts >= Champs.RANK_PTS[i]
+		var tcol: Color = GOLD if i >= 10 else (UI.TEAL if i >= 5 else UI.TEXT)
+		var t = UI.vb(1, [UI.bold(Champs.rank_name(i), 14, tcol), UI.label(Champs.reward_text(Champs.REWARDS[i]), 11, UI.DIM)])
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; t.get_child(1).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var row = UI.hb(10, [t, UI.bold("%d pts" % Champs.RANK_PTS[i], 13, UI.GREEN if got else UI.DIM), UI.bold("✓" if got else "", 16, UI.GREEN)])
+		var pn = PanelContainer.new()
+		pn.add_theme_stylebox_override("panel", UI._sb(Color(0.9, 0.7, 0.2, 0.12) if i == reached else Color("#121924"), GOLD if i == reached else Color(1, 1, 1, 0.05), 1, 10, Vector4(12, 8, 12, 8)))
+		pn.add_child(row); list.add_child(pn)
+	b.add_child(list)
+	tick.call()
+	var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm)
+	tm.timeout.connect(func():
+		tick.call()
+		if run == null and Champs.cooldown_left() <= 0 and is_instance_valid(cta) and cta.disabled and UI.modals.is_empty() and UI.cur_name == "champions": UI.replace("champions"))
+	if not fin.is_empty(): UI.go.call_deferred("champsreward", {"res": fin})
+	return {"node": f.node, "bg": "hub", "back": _back_or_play}

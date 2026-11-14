@@ -157,6 +157,14 @@ func run() -> void:
 			print("TAP modals after tap ", UI.modals.size()); await shot("mst_tap"); UI.close_top(null); await w(0.3)
 			UI.reset("store", {"tab": "mine"}); await w(0.8); await shot("mst_mine")
 			UI.reset("store", {"tab": "browse", "cat": "preview"}); await w(0.8); await shot("mst_preview")
+		if extra == "--mmodes":
+			UI.reset("rivals"); await w(1.0); await shot("mm_rivals")
+			UI.reset("champions"); await w(1.0); await shot("mm_champs_qualify")
+			Champs.st().next_at = 0; Champs.st().qp = 1000; Champs.start()
+			for k in 6: Champs.record(k % 3 != 0, "2-1", "x")
+			UI.reset("champions"); await w(1.0); await shot("mm_champs_run")
+			UI.reset("play"); await w(1.0); await shot("mm_play")
+			UI.go("squadbattles"); await w(1.0); await shot("mm_sb")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

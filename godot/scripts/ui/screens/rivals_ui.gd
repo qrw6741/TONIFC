@@ -65,6 +65,7 @@ func _mmss(sec: float) -> String:
 	var s = int(sec); return "%d:%02d" % [s / 60, s % 60]
 
 func s_rivals(p) -> Dictionary:
+	if UI.mobile: return _rivals_mobile()
 	Rivals.tick()
 	var R = Rivals.st(); var d: int = Rivals.div(); var step: int = int(R.step)
 	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -184,3 +185,65 @@ func play_match() -> void:
 func _back_or_play() -> void:
 	if UI.stack.is_empty(): UI.reset("play")
 	else: UI.back()
+
+
+# ------------------------------------------------------------------ PHONE LAYOUT (companion)
+class RankStrip extends Control:
+	## 12 rank segments, checkpoints marked, filled up to the current rank
+	var step = 0; var col = Color.WHITE; var cp = 0
+	func _init() -> void: custom_minimum_size = Vector2(0, 30)
+	func _draw() -> void:
+		var n = Rivals.STEPS; var gap = 4.0; var w = (size.x - gap * (n - 1)) / n
+		for i in n:
+			var r = Rect2(i * (w + gap), 8, w, 12)
+			draw_rect(r, col if i < step else Color(1, 1, 1, 0.12))
+			if Rivals.CHECKPOINTS.has(i + 1):
+				draw_circle(Vector2(r.end.x, 4), 4, Color("#3fe0a0") if cp >= i + 1 else Color("#6f7682"))
+		var fnt = UI.font_bold
+		for k in [0, 3, 7, 11]:
+			var x = k * (w + gap) + w / 2
+			var t = Rivals.ROMAN[k]; var tw = fnt.get_string_size(t, HORIZONTAL_ALIGNMENT_LEFT, -1, 9).x
+			draw_string(fnt, Vector2(x - tw / 2, 30), t, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
+
+func _rivals_mobile() -> Dictionary:
+	Rivals.tick()
+	var R = Rivals.st(); var d: int = Rivals.div(); var step: int = int(R.step)
+	var DC: Color = Rivals.div_color(d)
+	var f = UI.sub_shell("Division Rivals", "Play")
+	var b: VBoxContainer = f.body
+	# division hero
+	var badge = DivBadge.new(); badge.txt = "E" if d == 1 else str(d); badge.col = DC; badge.custom_minimum_size = Vector2(78, 78)
+	var rank_txt = ("Rank %s of XII" % Rivals.ROMAN[step - 1]) if step > 0 else "Rank 0 · win to reach I"
+	var hero = UI.vb(10, [UI.hb(12, [badge, UI.vb(2, [UI.head(Rivals.div_name(d).to_upper(), 28, DC), UI.label(rank_txt, 14), UI.label("Safe division — no relegation" if Rivals.safe(d) else "Relegation possible at rank 0", 12, UI.GREEN if Rivals.safe(d) else Color("#ff9a3c"))])])])
+	var strip = RankStrip.new(); strip.step = step; strip.col = DC; strip.cp = int(R.cp)
+	hero.add_child(strip)
+	b.add_child(UI.m_card(hero, DC))
+	b.add_child(UI.hb(8, [UI.m_chip("%d" % int(R.streak), "Win streak", UI.GREEN if int(R.streak) >= 3 else UI.TEXT), UI.m_chip("%d-%d-%d" % [R.wins, R.draws, R.losses], "W-D-L"), UI.m_chip(("E" if int(R.best) == 1 else str(R.best)), "Best div")]))
+	# claim + play
+	var un: Array = R.unclaimed
+	if not un.is_empty():
+		b.add_child(UI.m_cta("Claim Rivals Rewards (%d)" % un.size(), func():
+			var n = Rivals.claim_all(); Sfx.play("bigreveal"); UI.toast("Claimed %d Rivals reward%s" % [n, "" if n == 1 else "s"], "good"); UI.replace("rivals")))
+	b.add_child(UI.m_cta("Simulate Rivals Match", func(): play_match(), "Primary" if un.is_empty() else ""))
+	b.add_child(UI.label("Next opponent ~%d rated · AI %s · Win = 3 pts, draw = 1" % [int(Sys.rivals_strength(d)), Sys.ai_label(Sys.rivals_ai(d))], 12, UI.DIM))
+	# 15-minute rewards
+	var cyc_pts: int = int(R.cycle.pts)
+	var cd = UI.bold("", 16, DC)
+	var upd = func(): if is_instance_valid(cd): cd.text = "⏱ " + _mmss(Rivals.cycle_left())
+	upd.call()
+	var rw = UI.vb(8, [UI.hb(8, [UI.bold("Rewards every 15 minutes", 16), UI.spacer(), cd]), UI.label("This window: %d pts" % cyc_pts, 13, UI.DIM)])
+	for l in [1, 2, 3]:
+		var need: int = Rivals.LEVEL_PTS[l - 1]; var got: bool = cyc_pts >= need
+		var rr = Rivals.reward(d, l)
+		var art = UI.icon("pack", rr.packs[0] if rr.has("packs") else rr.get("pack", "gold"), Vector2(40, 56)); art.animate = false
+		var t = UI.vb(1, [UI.bold("Level %d · %d pt%s" % [l, need, "" if need == 1 else "s"], 14, UI.GREEN if got else UI.TEXT), UI.label(Rivals.reward_text(rr), 12, UI.DIM)])
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL; t.get_child(1).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rw.add_child(UI.hb(10, [art, t, UI.bold("✓" if got else "", 20, UI.GREEN)]))
+	b.add_child(UI.m_card(rw))
+	b.add_child(UI.btn("All division rewards", func(): _preview(d), "Small"))
+	var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm)
+	var last_un = {"n": un.size()}
+	tm.timeout.connect(func():
+		upd.call()
+		if Rivals.st().unclaimed.size() != last_un.n and UI.modals.is_empty() and UI.cur_name == "rivals": UI.replace("rivals"))
+	return {"node": f.node, "bg": "hub", "back": _back_or_play}

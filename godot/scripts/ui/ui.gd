@@ -1117,6 +1117,8 @@ func _reflow(n: Node, avail: float) -> void:
 		if not ctl.has_meta("page_scroll") and not ctl.has_meta("keep_scroll") and ctl.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED: ctl.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		return
 	if _h_scroll_ancestor(ctl): return
+	# menu tiles use the full width of the phone
+	if ctl is Button and ctl.theme_type_variation == "Tile" and not (ctl.get_parent() is GridContainer): ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if ctl is GridContainer:
 		while ctl.columns > 1 and ctl.get_combined_minimum_size().x > avail: ctl.columns -= 1
 		return
@@ -1199,3 +1201,23 @@ func _web_ask(le: LineEdit) -> void:
 	le.text = ans
 	le.text_changed.emit(ans)
 	le.text_submitted.emit(ans)
+
+
+# ------------------------------------------------------------------ phone widgets
+## dark rounded card with an optional coloured top edge
+func m_card(child: Control, accent := Color(0, 0, 0, 0), pad := 14) -> PanelContainer:
+	var pn = PanelContainer.new()
+	var sb = _sb(Color("#141c27"), Color(1, 1, 1, 0.07), 1, 14, Vector4(pad, pad - 2, pad, pad))
+	if accent.a > 0: sb.border_width_top = 3; sb.border_color = accent
+	pn.add_theme_stylebox_override("panel", sb); pn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pn.add_child(child); return pn
+## small stat chip: big value + caption
+func m_chip(val: String, cap: String, col := TEXT) -> PanelContainer:
+	var v = vb(0, [head(val, 20, col), caps(cap, 9, Color("#8a93a3"))])
+	for c in v.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var pn = PanelContainer.new(); pn.add_theme_stylebox_override("panel", _sb(Color("#141c27"), Color(1, 1, 1, 0.07), 1, 12, Vector4(8, 6, 8, 6)))
+	pn.size_flags_horizontal = Control.SIZE_EXPAND_FILL; pn.add_child(v); return pn
+## big full-width call-to-action button
+func m_cta(text: String, cb: Callable, variant := "Primary") -> Button:
+	var b = btn(text, cb, variant, true); b.custom_minimum_size.y = 54; b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", 18); return b
