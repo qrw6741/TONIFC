@@ -41,6 +41,21 @@ func run() -> void:
 				await w(1.0); await shot("g22_items_" + pk)
 				print("CUR ", UI.cur_name)
 				UI.modules[1].s_packresult  # noop
+		if extra == "--consum":
+			var sq = Sys.active_squad(); Sys.auto_build(sq)
+			var u: String = sq.slots[9]; var before = Sys.item_player(u)
+			print("CONS start ", Cons.st())
+			var inf0 = Sys.squad_info(sq); print("BEFORE ", before.name, " ", before.pos, " stats ", inf0.players[9].stats, " chem ", inf0.chem.per[9])
+			print("APPLY Shadow ", Cons.apply_style(u, "Shadow"))
+			var inf1 = Sys.squad_info(sq); print("AFTER  stats ", inf1.players[9].stats, " style ", inf1.players[9].get("style"))
+			var cb_u: String = sq.slots[2]
+			print("POS ", Sys.item_player(cb_u).pos, " -> RB ", Cons.change_pos(cb_u, "RB"), " now ", Sys.item_player(cb_u).pos, " alt ", Sys.item_player(cb_u).alt)
+			print("POS card left ", Cons.pos_owned(), " coins ", Save.data.coins)
+			UI.go("squad"); await w(0.6); await shot("g06_squad_cons")
+			UI.modules[1].item_actions(u, func(): pass); await w(0.6); await shot("g06b_inspect_style"); UI.close_top(null); await w(0.4)
+			UI.modules[1].style_dialog(u); await w(0.6); await shot("g06c_style_dialog"); UI.close_top(null); await w(0.4)
+			UI.modules[1].pos_dialog(sq.slots[6]); await w(0.6); await shot("g06d_pos_dialog"); UI.close_top(null); await w(0.4)
+			var gk: String = sq.slots[0]; print("GK Wall ", Cons.apply_style(gk, "Wall"), " ", Sys.squad_info(sq).players[0].stats)
 		if extra == "--squad":
 			Sys.auto_build(Sys.active_squad()); UI.replace("squad"); await w(0.6); await shot("g05b_squad_built")
 			var hh = UI.cur.find_children("*", "VBoxContainer", true, false).filter(func(n): return n.has_meta("editor"))

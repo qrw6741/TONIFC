@@ -151,7 +151,7 @@ func item(u: String) -> Dictionary:
 	for it in D().club: if it.uid == u: return it
 	return {}
 func item_player(u: String) -> Dictionary:
-	var it = item(u); return {} if it.is_empty() else Data.P(it.pid)
+	var it = item(u); return {} if it.is_empty() else Cons.item_view(it)
 func club_add(pid: String, untr := true, src := "") -> Dictionary:
 	var it = {"uid": uid(), "pid": pid, "untr": untr, "at": now(), "src": src}
 	D().club.append(it); Gallery.record(pid, src); Save.dirty(); return it
@@ -194,7 +194,11 @@ func squad_info(s: Dictionary) -> Dictionary:
 	var ps = squad_players(s)
 	var filled = 0
 	for p in ps: if not p.is_empty(): filled += 1
-	return {"players": ps, "chem": chemistry(s.formation, ps), "rating": squad_rating(ps), "filled": filled}
+	var ch = chemistry(s.formation, ps)
+	# chemistry styles boost stats according to each player's chem
+	var boosted = []
+	for i in ps.size(): boosted.append(Cons.styled(ps[i], int(ch.per[i]) if i < ch.per.size() else 0))
+	return {"players": boosted, "chem": ch, "rating": squad_rating(ps), "filled": filled}
 func squad_complete(s: Dictionary) -> bool:
 	for u in s.slots: if u == "": return false
 	return true
@@ -211,7 +215,7 @@ func auto_build(s: Dictionary) -> void:
 		var best = null; var bs = -9999.0
 		for it in items:
 			if used.has(it.uid) or used_pids.has(it.pid): continue
-			var p = Data.P(it.pid)
+			var p = Cons.item_view(it)
 			var sc: float = p.ovr + (12 if p.pos == pos else (8 if Data.fits_pos(p, pos) else (-99 if (pos == "GK" or p.pos == "GK") else -10)))
 			if sc > bs: bs = sc; best = it
 		if best != null:
@@ -274,7 +278,8 @@ func user_team() -> Dictionary:
 	var s = active_squad(); var pr: Dictionary = D().profile
 	var subs = []
 	for u in s.subs: if u != "": subs.append(item_player(u))
-	return {"name": pr.club_name, "short": pr.club_name.substr(0, 3).to_upper(), "kit": pr.kit.home, "formation": s.formation, "players": squad_players(s), "subs": subs, "badge": pr.badge, "chem": squad_info(s).chem, "is_user": true}
+	var inf = squad_info(s)
+	return {"name": pr.club_name, "short": pr.club_name.substr(0, 3).to_upper(), "kit": pr.kit.home, "formation": s.formation, "players": inf.players, "subs": subs, "badge": pr.badge, "chem": inf.chem, "is_user": true}
 
 func ai_team(name: String, strength: float) -> Dictionary:
 	var s = build_ai_squad(strength)

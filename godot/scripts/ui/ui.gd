@@ -766,6 +766,8 @@ func inspect(p: Dictionary, actions := [], item := {}):
 	kv.call("Work rates", label("Att %s / Def %s" % [p.wr[0], p.wr[1]], 14))
 	kv.call("Market value", label("● " + Sys.fmt(Sys.value(p)), 14, GOLD2))
 	kv.call("Gems (SBC & Gallery)", label("✦ %s%s" % [Sys.fmt(Gallery.gems(p)), ("  · in your Gallery" if Gallery.seen(p.id) else "")], 14, Color("#ff6fd8")))
+	if p.has("orig_pos"): kv.call("Position change", label("%s → %s (original %s)" % [p.orig_pos, p.pos, p.orig_pos], 14, TEAL))
+	if p.has("style"): kv.call("Chemistry style", label("%s  ·  %s at 3 chem" % [p.style, Cons.boost_text(p.style, p.pos == "GK")], 14, Color("#7fd4ff")))
 	if not item.is_empty(): kv.call("Status", label("Untradeable" if item.get("untr", false) else "Tradeable", 14, RED if item.get("untr", false) else GREEN))
 	right.add_child(g)
 	var sg = GridContainer.new(); sg.columns = 3; sg.add_theme_constant_override("h_separation", 26)
@@ -796,7 +798,7 @@ func pick_player(title: String, pos := "", filter = null, allow_untr := true):
 	var list = vb(6)
 	var render = func():
 		for c in list.get_children(): c.queue_free()
-		var arr = items.map(func(it): return [it, Data.P(it.pid)]).filter(func(x): return (state.q == "" or x[1].name.to_lower().contains(state.q)) and (state.pos == "" or Data.fits_pos(x[1], state.pos)))
+		var arr = items.map(func(it): return [it, Cons.item_view(it)]).filter(func(x): return (state.q == "" or x[1].name.to_lower().contains(state.q)) and (state.pos == "" or Data.fits_pos(x[1], state.pos)))
 		if state.sort == "fit" and pos != "":
 			arr.sort_custom(func(a, b): return (int(b[1].pos == pos) * 20 + int(Data.fits_pos(b[1], pos)) * 10 + b[1].ovr) < (int(a[1].pos == pos) * 20 + int(Data.fits_pos(a[1], pos)) * 10 + a[1].ovr))
 		elif state.sort == "new": arr.sort_custom(func(a, b): return a[0].at > b[0].at)

@@ -24,6 +24,7 @@ Evo="*res://scripts/evo.gd"
 Champs="*res://scripts/champs.gd"
 GemSBC="*res://scripts/gemsbc.gd"
 Rivals="*res://scripts/rivals.gd"
+Cons="*res://scripts/consum.gd"
 UI="*res://scripts/ui/ui.gd"
 AutoTest="*res://scripts/autotest.gd"
 

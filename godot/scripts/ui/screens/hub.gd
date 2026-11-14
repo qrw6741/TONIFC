@@ -180,8 +180,10 @@ func rename_squad(s: Dictionary) -> void:
 func item_actions(u: String, after: Callable) -> void:
 	var it = Sys.item(u)
 	if it.is_empty(): return
-	var p = Data.P(it.pid)
+	var p = Sys.item_player(u)
 	var acts = []
+	acts.append(["Apply Chemistry Style", "style", "Primary"])
+	if Data.P(it.pid).pos != "GK": acts.append(["Change Position", "pos", ""])
 	if not Sys.in_market(u) and not it.untr: acts.append(["List on Transfer Market", "list", ""])
 	if not Sys.in_market(u): acts.append(["Quick sell (%s)" % Sys.fmt(Data.quick_sell_value(p)), "qs", "Danger"])
 	var best = best_owned(p.pos, u)
@@ -192,7 +194,47 @@ func item_actions(u: String, after: Callable) -> void:
 		Sys.club_remove(u); Sys.add("coins", Data.quick_sell_value(p), "Quick sold " + p.name, "quicksell"); Sys.track("quicksell"); UI.toast("Quick sold " + p.name, "good")
 	elif v == "list": await list_dialog(u)
 	elif v == "cmp": await UI.compare(p, best)
+	elif v == "style": await style_dialog(u)
+	elif v == "pos": await pos_dialog(u)
 	after.call()
+
+## Chemistry Style picker: every style with its boosts, how many you own, or the coin price
+func style_dialog(u: String) -> void:
+	var p: Dictionary = Sys.item_player(u)
+	var gk: bool = p.pos == "GK"
+	var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 10); g.add_theme_constant_override("v_separation", 10)
+	var first = true
+	for sname in Cons.styles_for(p):
+		var cur: bool = p.get("style", "") == sname
+		var own: int = Cons.owned(sname)
+		var cost = ("✓ Applied" if cur else ("Owned x%d" % own if own > 0 else "● %s coins" % Sys.fmt(Cons.price(sname))))
+		var t = UI.tile([UI.bold(sname.to_upper(), 17, Color("#7fd4ff") if not cur else UI.GREEN), UI.label(Cons.boost_text(sname, gk), 13, UI.DIM), UI.caps(cost, 11, UI.GREEN if own > 0 or cur else UI.GOLD2)],
+			func(): UI.close_top(sname), Vector2(250, 92), first)
+		first = false
+		g.add_child(t)
+	var body = UI.vb(8, [UI.label("%s · %s%s" % [p.name, p.pos, ("  ·  current style: " + p.style) if p.has("style") else ""], 14, UI.DIM),
+		UI.wrapl(UI.label("Boosts apply in your squad: 1 chem = ⅓, 2 chem = ⅔, 3 chem = full boost. Owned cards are used first, otherwise you pay coins.", 13, UI.DIM), 780), g])
+	var sc = UI.scroll(body); sc.custom_minimum_size = Vector2(800, 460)
+	var r = await UI.modal("Apply Chemistry Style", sc, [["Cancel", null, ""]], true)
+	if r == null: return
+	if Cons.apply_style(u, str(r)): Sfx.play("reveal"); UI.toast("%s applied to %s" % [r, p.name], "good")
+
+## Position Change: any outfield position; going back to the original position is free
+func pos_dialog(u: String) -> void:
+	var p: Dictionary = Sys.item_player(u)
+	var orig: String = p.get("orig_pos", p.pos)
+	var row = HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 8); row.custom_minimum_size.x = 620
+	var first = true
+	for pos in Cons.OUTFIELD:
+		if pos == p.pos: continue
+		var b = UI.btn(pos + ("  (original · free)" if pos == orig else ""), func(): UI.close_top(pos), "Primary" if pos == orig else "", first)
+		b.custom_minimum_size = Vector2(96, 44); first = false
+		row.add_child(b)
+	var payl = ("You own %d Position Change card%s." % [Cons.pos_owned(), "" if Cons.pos_owned() == 1 else "s"]) if Cons.pos_owned() > 0 else "No Position Change cards — costs %s coins." % Sys.fmt(Cons.POS_PRICE)
+	var body = UI.vb(10, [UI.label("%s · currently %s%s" % [p.name, p.pos, ("  (original %s)" % orig) if orig != p.pos else ""], 15), UI.label(payl, 13, UI.DIM), row])
+	var r = await UI.modal("Change Position", body, [["Cancel", null, ""]])
+	if r == null: return
+	if Cons.change_pos(u, str(r)): Sfx.play("reveal"); UI.toast("%s is now a %s" % [p.name, r], "good")
 
 func best_owned(pos: String, exclude := "") -> Dictionary:
 	var best = {}
@@ -319,7 +361,8 @@ class SquadEditor extends RefCounted:
 	func details() -> void:
 		if hov.u == "": UI.toast("Hover a player to see their details"); return
 		Sfx.play("select")
-		await UI.inspect(Sys.item_player(hov.u), [], Sys.item(hov.u))
+		var keep = hov.i
+		await UI.modules[1].item_actions(hov.u, func(): draw(keep))
 	func search() -> void:
 		if hov.i >= 0: pick(hov.i)
 	func team_mgmt() -> void:
@@ -350,6 +393,8 @@ class SquadEditor extends RefCounted:
 			return
 		detail.add_child(UI.wrapl(UI.bold(Data.short_name(pl.name), 26), 210))
 		detail.add_child(UI.label("%s · %s" % [Data.rarity_name(pl), pl.pos], 14, UI.DIM))
+		if pl.has("style"): detail.add_child(UI.bold("◈ " + pl.style, 15, Color("#7fd4ff")))
+		if pl.has("orig_pos"): detail.add_child(UI.label("Position changed from " + pl.orig_pos, 12, UI.TEAL))
 		detail.add_child(Control.new())
 		var lab: Array = Data.GK_LABELS if pl.pos == "GK" else Data.STAT_LABELS
 		var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 18); g.add_theme_constant_override("v_separation", 8)
@@ -487,7 +532,9 @@ class SquadEditor extends RefCounted:
 			"replace": pick(i); return
 			"move": moving = i; sel = -1; UI.toast("Now select the card to swap with"); draw(i); return
 			"view":
-				await UI.inspect(Sys.item_player(u), [], Sys.item(u))
+				sel = -1
+				await UI.modules[1].item_actions(u, func(): draw(i))
+				return
 			"cap":
 				sq.captain = u; Save.dirty(); UI.toast("Captain set", "good"); sel = -1
 			"remove":
