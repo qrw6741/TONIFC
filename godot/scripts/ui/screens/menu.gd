@@ -604,11 +604,12 @@ func s_cloud(_p) -> Dictionary:
 	if not Cloud.configured():
 		var S = {"u": "", "k": ""}
 		row.add_child(UI.panel(UI.vb(10, [UI.caps("Server setup (one time)", 12, UI.GOLD2),
-			UI.wrapl(UI.label("Paste your Supabase Project URL and anon public key (Supabase → Project Settings → API).", 13, UI.DIM), 440),
+			UI.wrapl(UI.label("Paste your Supabase Project URL and the Publishable key (sb_publishable_…, or the legacy anon key). Never the Secret key.", 13, UI.DIM), 440),
 			UI.field("Project URL", UI.line("", func(t): S.u = t, "https://xxxx.supabase.co", 440)),
-			UI.field("anon public key", UI.line("", func(t): S.k = t, "eyJ…", 440)),
+			UI.field("Publishable key", UI.line("", func(t): S.k = t, "sb_publishable_…", 440)),
 			UI.btn("Save server", func():
-				if not S.u.begins_with("https://") or S.k.length() < 20: UI.toast("Check the URL and key", "bad"); return
+				if not S.u.strip_edges().begins_with("https://") or S.k.strip_edges().length() < 20: UI.toast("Check the URL and key", "bad"); return
+				if S.k.strip_edges().begins_with("sb_secret"): UI.toast("That's the Secret key — use the Publishable key", "bad"); return
 				Cloud.set_server(S.u, S.k); UI.toast("Server saved", "good"); UI.replace("cloud"), "Primary")])))
 	elif not Cloud.signed_in():
 		var A = {"u": "", "p": ""}

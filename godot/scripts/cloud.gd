@@ -56,7 +56,9 @@ func _rpc(fn: String, body: Dictionary) -> Dictionary:
 	if not configured(): return {"ok": false, "error": "Cloud server not set up yet"}
 	var h = HTTPRequest.new(); h.timeout = 25.0
 	add_child(h)
-	var headers = ["apikey: " + key, "Authorization: Bearer " + key, "Content-Type: application/json"]
+	# new Supabase publishable keys (sb_publishable_…) go in apikey only; legacy anon JWT keys (eyJ…) also as Bearer
+	var headers = ["apikey: " + key, "Content-Type: application/json"]
+	if key.begins_with("eyJ"): headers.append("Authorization: Bearer " + key)
 	var err = h.request(url + "/rest/v1/rpc/" + fn, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK: h.queue_free(); return {"ok": false, "error": "Couldn't reach the cloud (error %d)" % err}
 	var res = await h.request_completed
