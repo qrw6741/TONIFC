@@ -130,6 +130,14 @@ func run() -> void:
 			var fl = UI.cur.find_children("*", "HFlowContainer", true, false).size(); var wide = UI.cur.find_children("*", "HBoxContainer", true, false).filter(func(x): return x.get_combined_minimum_size().x > 420).map(func(x): return [x.get_child_count(), x.get_combined_minimum_size().x, x.has_meta("flowed"), UI._h_scroll_ancestor(x)])
 			print("RIVALS flows ", fl, " wide hboxes ", wide)
 			UI.modules[1].item_actions(Save.data.club[0].uid, func(): pass); await w(0.8); await shot("m_inspect"); UI.close_top(null)
+		if extra == "--msquad":
+			Sys.auto_build(Sys.active_squad()); UI.reset("squad"); await w(1.0); await shot("ms_squad")
+			var ed = UI.cur.find_children("*", "VBoxContainer", true, false).filter(func(n): return n.has_meta("editor"))[0].get_meta("editor")
+			ed.tap(9); await w(0.8); await shot("ms_sheet")
+			UI.close_top("swap"); await w(0.6); await shot("ms_swapping")
+			ed.formation_sheet(); await w(0.7); await shot("ms_formation"); UI.close_top(null); await w(0.4)
+			UI.cur.get_child(0); var sc = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(x): return x.has_meta("page_scroll"))
+			if not sc.is_empty(): sc[0].scroll_vertical = 2000; await w(0.4); await shot("ms_squad_bottom")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

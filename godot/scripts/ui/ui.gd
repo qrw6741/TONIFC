@@ -821,6 +821,45 @@ func modal(title: String, body, buttons := [["OK", true, "Primary"]], wide := fa
 			if f: f.grab_focus()
 	return await h.closed
 
+## phone-style bottom sheet: slides up from the bottom; actions are full-width rows.
+## actions: [[label, value, variant], ...] — returns the chosen value (null = dismissed)
+func sheet(title: String, body: Control, actions: Array):
+	var h = ModalHandle.new()
+	var back = ColorRect.new(); back.color = Color(0.01, 0.015, 0.03, 0.6); back.set_anchors_preset(Control.PRESET_FULL_RECT); back.mouse_filter = Control.MOUSE_FILTER_STOP
+	var pnl = PanelContainer.new()
+	var sb = _sb(Color("#121a25"), Color(1, 1, 1, 0.1), 1, 0, Vector4(16, 10, 16, 22)); sb.corner_radius_top_left = 20; sb.corner_radius_top_right = 20; sb.border_width_bottom = 0
+	pnl.add_theme_stylebox_override("panel", sb)
+	pnl.set_anchors_preset(Control.PRESET_BOTTOM_WIDE); pnl.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	back.add_child(pnl)
+	var v = vb(10); pnl.add_child(v)
+	var grip = ColorRect.new(); grip.color = Color(1, 1, 1, 0.25); grip.custom_minimum_size = Vector2(44, 4); grip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(grip)
+	if title != "": v.add_child(bold(title, 17))
+	if body: v.add_child(body)
+	var done = [false]
+	var close = func(val):
+		if done[0]: return
+		done[0] = true
+		for i in modals.size():
+			if modals[i].node == back: modals.remove_at(i); break
+		var tw = pnl.create_tween(); tw.tween_property(pnl, "position:y", pnl.position.y + pnl.size.y, 0.16)
+		tw.tween_callback(back.queue_free)
+		h.closed.emit(val)
+	for a in actions:
+		var val = a[1]
+		var bb = btn(a[0], func(): close.call(val), a[2] if a.size() > 2 else "")
+		bb.custom_minimum_size.y = 46; bb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		v.add_child(bb)
+	back.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed and not pnl.get_global_rect().has_point(e.global_position): close.call(null))
+	modals.append({"node": back, "cancel": func(): Sfx.play("back"); close.call(null)})
+	back.set_meta("close", close)
+	overlay.add_child(back)
+	await get_tree().process_frame
+	if is_instance_valid(pnl):
+		var y0 = pnl.position.y; pnl.position.y = y0 + pnl.size.y
+		pnl.create_tween().tween_property(pnl, "position:y", y0, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	return await h.closed
+
 ## close the top-most modal with a value (used by pickers whose body has its own buttons)
 func close_top(val) -> void:
 	if modals.is_empty(): return

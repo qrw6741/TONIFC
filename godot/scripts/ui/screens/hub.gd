@@ -410,7 +410,117 @@ class SquadEditor extends RefCounted:
 	func _hook(c: Control, u_fn: Callable, i: int) -> void:
 		c.focus_entered.connect(func(): hover(u_fn.call(), i))
 		c.mouse_entered.connect(func(): hover(u_fn.call(), i))
+	# ------------------------------------------------------------ phone layout (companion)
+	func draw_mobile() -> void:
+		for c in holder.get_children(): c.queue_free()
+		var info = Sys.squad_info(sq)
+		var cap_idx: int = sq.slots.find(sq.captain) if sq.captain != "" else -1
+		# header: name + stars, then Rating · Chemistry · Formation
+		var stars: float = 5.0 if info.rating >= 85 else (4.5 if info.rating >= 82 else (4.0 if info.rating >= 79 else (3.5 if info.rating >= 76 else (3.0 if info.rating >= 72 else 2.5))))
+		var stw = Stars.new(); stw.v = stars
+		holder.add_child(UI.hb(10, [UI.icon("badge", Sys.D().profile.badge, Vector2(40, 44)), UI.vb(2, [UI.bold(sq.name, 19), stw]), UI.spacer(),
+			UI.btn("⋯", func(): team_mgmt(), "Small")]))
+		var chem_col = UI.GREEN if info.chem.total >= 24 else (UI.YELLOW if info.chem.total >= 12 else UI.RED)
+		var stat = func(val: String, cap: String, col: Color, cb = null) -> Control:
+			var pn = PanelContainer.new(); pn.add_theme_stylebox_override("panel", UI._sb(Color("#141c27"), Color(1, 1, 1, 0.08), 1, 12, Vector4(10, 6, 10, 6)))
+			pn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var vv = UI.vb(0, [UI.head(val, 22, col), UI.caps(cap, 9, Color("#8a93a3"))])
+			for c in vv.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			pn.add_child(vv)
+			if cb is Callable:
+				var b = Button.new(); b.flat = true; b.set_anchors_preset(Control.PRESET_FULL_RECT); b.focus_mode = Control.FOCUS_NONE
+				for st in ["normal", "hover", "pressed"]: b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+				b.pressed.connect(cb); pn.add_child(b)
+			return pn
+		var sr = UI.hb(8, [stat.call(str(info.rating), "Rating", UI.TEXT), stat.call("%d/33" % info.chem.total, "Chemistry", chem_col), stat.call(sq.formation, "Formation ▾", UI.TEAL, func(): formation_sheet())])
+		holder.add_child(sr)
+		if moving >= 0:
+			var mu = get_u(moving); var mp: Dictionary = Sys.item_player(mu) if mu != "" else {}
+			var ban = PanelContainer.new(); ban.add_theme_stylebox_override("panel", UI._sb(Color(0.25, 0.88, 0.77, 0.15), UI.TEAL, 1, 10, Vector4(12, 8, 8, 8)))
+			ban.add_child(UI.hb(8, [UI.wrapl(UI.bold("Tap a player, sub or reserve to swap with %s" % (Data.short_name(mp.name) if not mp.is_empty() else "this slot"), 13, UI.TEAL), 300), UI.spacer(), UI.btn("Cancel", func(): moving = -1; draw_mobile(), "Small")]))
+			holder.add_child(ban)
+		# pitch
+		pitch = PitchView.new(); pitch.card_cs = 6.0
+		pitch.setup(sq.formation, info.players, info.chem, cap_idx, moving if moving >= 0 and moving < 11 else -1)
+		pitch.custom_minimum_size = Vector2(UI.root.size.x - 24, (UI.root.size.x - 24) * 1.18)
+		pitch.slot_pressed.connect(func(i): tap(i))
+		pitch.slot_drop.connect(func(a, b): swap(a, b); moving = -1; draw_mobile())
+		holder.add_child(pitch)
+		# substitutes & reserves: swipe strips
+		holder.add_child(UI.caps("Substitutes", 11, Color("#8a93a3")))
+		var subs = UI.hb(6)
+		for k in 7:
+			var u: String = sq.subs[k]
+			var c = PlayerCard.make(Sys.item_player(u) if u != "" else {}, 6.0, true); c.empty_pos = "SUB"
+			if moving == 11 + k: c.modulate = Color(1.3, 1.3, 1.3)
+			c.pressed.connect(func(): Sfx.play("select"); tap(11 + k))
+			subs.add_child(c)
+		holder.add_child(_strip(subs))
+		holder.add_child(UI.caps("Reserves", 11, Color("#8a93a3")))
+		var res = UI.hb(6)
+		for u in _reserve_uids(30):
+			var c = PlayerCard.make(Sys.item_player(u), 6.0, true)
+			c.pressed.connect(func(): Sfx.play("select"); reserve_tap(u))
+			res.add_child(c)
+		holder.add_child(_strip(res))
+		holder.add_child(UI.hb(8, [UI.btn("Auto-build best XI", func(): Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good"); draw_mobile(), "Primary"), UI.btn("Team Management", func(): team_mgmt(), "")]))
+	func _strip(row: Control) -> Control:
+		var sc = ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		sc.follow_focus = false; sc.custom_minimum_size.y = 6.0 * 12.0 + 8; sc.add_child(row); return sc
+	func _reserve_uids(n: int) -> Array:
+		var used = {}
+		for k in 18:
+			var u = get_u(k)
+			if u != "": used[Sys.item(u).pid] = true
+		var res = Sys.club_items().filter(func(it): return not used.has(it.pid) and not Data.P(it.pid).is_empty())
+		res.sort_custom(func(a, b): return int(Data.P(a.pid).ovr) > int(Data.P(b.pid).ovr))
+		var seen = {}; var out = []
+		for it in res:
+			if seen.has(it.pid): continue
+			seen[it.pid] = true; out.append(it.uid)
+			if out.size() >= n: break
+		return out
+	## tap on a pitch slot or sub: swap target while swapping, otherwise the player sheet
+	func tap(i: int) -> void:
+		if moving >= 0:
+			if moving != i: swap(moving, i)
+			moving = -1; draw_mobile(); return
+		var u = get_u(i)
+		if u == "": await pick(i); draw_mobile(); return
+		var pl: Dictionary = Sys.item_player(u)
+		var pos: String = Data.formations[sq.formation][i][0] if i < 11 else "SUB"
+		var row = UI.hb(12, [UI.card(pl, 6.0, true), UI.vb(2, [UI.bold(pl.name, 17), UI.label("%s · %s · in %s" % [Data.rarity_name(pl), pl.pos, pos], 12, UI.DIM),
+			UI.label(("◈ " + pl.style) if pl.has("style") else "No chemistry style", 12, Color("#7fd4ff") if pl.has("style") else UI.DIM)])])
+		var acts = [["Swap", "swap", "Primary"], ["Replace from club", "replace", ""], ["Player details & items", "view", ""]]
+		if i < 11 and sq.captain != u: acts.append(["Make captain", "cap", ""])
+		acts.append(["Remove from squad", "remove", "Danger"])
+		var v = await UI.sheet("", row, acts)
+		match v:
+			"swap": moving = i; draw_mobile()
+			"replace": await pick(i); draw_mobile()
+			"view": await UI.modules[1].item_actions(u, func(): pass); draw_mobile()
+			"cap": sq.captain = u; Save.dirty(); UI.toast("Captain set", "good"); draw_mobile()
+			"remove":
+				set_u(i, "")
+				if sq.captain == u: sq.captain = ""
+				Save.dirty(); draw_mobile()
+	func reserve_tap(u: String) -> void:
+		if moving >= 0:
+			sel = moving; reserve_pressed(u); moving = -1; sel = -1; draw_mobile(); return
+		var pl: Dictionary = Sys.item_player(u)
+		var v = await UI.sheet("", UI.hb(12, [UI.card(pl, 6.0, true), UI.vb(2, [UI.bold(pl.name, 17), UI.label("%s · %s · in your club" % [Data.rarity_name(pl), pl.pos], 12, UI.DIM)])]),
+			[["Player details & items", "view", ""]])
+		if v == "view": await UI.modules[1].item_actions(u, func(): pass); draw_mobile()
+	func formation_sheet() -> void:
+		var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 8)
+		for fm in Data.formation_names:
+			var b = UI.btn(fm, func(): UI.close_top(fm), "Primary" if fm == sq.formation else "")
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; g.add_child(b)
+		var v = await UI.sheet("Formation", g, [["Cancel", null, ""]])
+		if v != null and v != sq.formation: sq.formation = v; Save.dirty(); Sfx.play("select"); draw_mobile()
+
 	func draw(focus_i: int) -> void:
+		if UI.mobile: draw_mobile(); return
 		for c in holder.get_children(): c.queue_free()
 		var info = Sys.squad_info(sq)
 		var cap_idx: int = sq.slots.find(sq.captain) if sq.captain != "" else -1
