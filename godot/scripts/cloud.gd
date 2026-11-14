@@ -57,20 +57,30 @@ func username() -> String: return str(auth().get("user", ""))
 # ------------------------------------------------------------------ HTTP
 func _rpc(fn: String, body: Dictionary) -> Dictionary:
 	if not configured(): return {"ok": false, "error": "Cloud server not set up yet"}
+	var r = await _rpc_once(fn, body)
+	# one quick retry for a dropped connection / DNS hiccup
+	if not r.get("ok", false) and r.get("net", false):
+		await get_tree().create_timer(1.5).timeout
+		r = await _rpc_once(fn, body)
+	return r
+
+func _rpc_once(fn: String, body: Dictionary) -> Dictionary:
 	var h = HTTPRequest.new(); h.timeout = 25.0
+	# the browser already un-gzips responses on the web; letting Godot do it again fails (error 8)
+	h.accept_gzip = not OS.has_feature("web")
 	add_child(h)
 	# new Supabase publishable keys (sb_publishable_…) go in apikey only; legacy anon JWT keys (eyJ…) also as Bearer
 	var headers = ["apikey: " + key, "Content-Type: application/json"]
 	if key.begins_with("eyJ"): headers.append("Authorization: Bearer " + key)
 	var err = h.request(url + "/rest/v1/rpc/" + fn, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
-	if err != OK: h.queue_free(); return {"ok": false, "error": "Couldn't reach the cloud (error %d)" % err}
+	if err != OK: h.queue_free(); return {"ok": false, "net": true, "error": "Couldn't reach the cloud (error %d)" % err}
 	var res = await h.request_completed
 	h.queue_free()
 	var code: int = res[1]
 	var txt: String = (res[3] as PackedByteArray).get_string_from_utf8()
 	if res[0] != HTTPRequest.RESULT_SUCCESS:
-		var why = {HTTPRequest.RESULT_CANT_RESOLVE: "server address not found — check the Project URL", HTTPRequest.RESULT_CANT_CONNECT: "couldn't connect", HTTPRequest.RESULT_CONNECTION_ERROR: "connection error", HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR: "secure connection failed", HTTPRequest.RESULT_TIMEOUT: "timed out"}.get(res[0], "network error %d" % res[0])
-		return {"ok": false, "error": "Can't reach the cloud: %s (%s)" % [why, url]}
+		var why = {HTTPRequest.RESULT_CANT_RESOLVE: "server address not found — check the Project URL", HTTPRequest.RESULT_CANT_CONNECT: "couldn't connect", HTTPRequest.RESULT_CONNECTION_ERROR: "connection error", HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR: "secure connection failed", HTTPRequest.RESULT_TIMEOUT: "timed out", HTTPRequest.RESULT_BODY_DECOMPRESS_FAILED: "couldn't read the reply"}.get(res[0], "network error %d" % res[0])
+		return {"ok": false, "net": true, "error": "Can't reach the cloud: %s (%s)" % [why, url]}
 	var d = JSON.parse_string(txt)
 	if code >= 300 or typeof(d) != TYPE_DICTIONARY:
 		var msg = d.get("message", txt) if typeof(d) == TYPE_DICTIONARY else txt
