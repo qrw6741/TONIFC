@@ -379,7 +379,26 @@ static func _pose(ci: CanvasItem, pose: String, P: Callable, s: float, skin: Col
 			_limb(ci, P.call(8, 66), P.call(12, 40), fa, arm); _limb(ci, P.call(92, 66), P.call(88, 40), fa, arm)
 			ci.draw_circle(P.call(12, 36), hand * 1.1, skin); ci.draw_circle(P.call(88, 36), hand * 1.1, skin)
 
+## camera for special cards: mirrored, tilted, zoomed in and the head turned (same for a player every time)
+static func cam_for(p: Dictionary) -> Dictionary:
+	if pose_for(p) == "": return {}
+	if p.has("cam"): return p.cam
+	var h: int = hash_s(str(p.get("id", "")) + "cam")
+	return {"mirror": (h & 1) == 1, "tilt": [-8.0, -4.0, 0.0, 4.0, 8.0][(h >> 1) % 5], "zoom": [1.0, 1.06, 1.12][(h >> 4) % 3], "turn": [-1, 0, 1][(h >> 6) % 3]}
+
 static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = null) -> void:
+	var cam: Dictionary = cam_for(p)
+	if cam.is_empty(): _portrait(ci, r, p, kc1, kc2, 0); return
+	var s0: float = min(r.size.x, r.size.y) / 100.0
+	var piv = r.position + Vector2(r.size.x / 2, r.size.y - 4 * s0)   # anchor at the chest line so the bust never drops into the name
+	var sc = Vector2(-1 if cam.get("mirror", false) else 1, 1) * float(cam.get("zoom", 1.0))
+	var tf = Transform2D(deg_to_rad(float(cam.get("tilt", 0.0))), Vector2.ZERO).scaled(sc)
+	tf.origin = piv - tf.basis_xform(piv)
+	ci.draw_set_transform_matrix(tf)
+	_portrait(ci, r, p, kc1, kc2, int(cam.get("turn", 0)))
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+static func _portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1, kc2, turn: int) -> void:
 	var f: Dictionary = p.get("face", {"skin": 2, "hair": 0, "hairC": 0, "beard": 0, "brow": 0})
 	var skin = Color(Data.SKINS[int(f.skin)]); var hair = Color(Data.HAIRC[int(f.hairC)])
 	var cl: Dictionary = Data.clubs.get(p.club, {"c": ["#333333", "#dddddd"]})
@@ -388,6 +407,7 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 	var s: float = min(r.size.x, r.size.y) / 100.0
 	var o = r.position + Vector2((r.size.x - 100 * s) / 2, r.size.y - 100 * s)
 	var P = func(x, y): return o + Vector2(x, y) * s
+	var F = func(x, y): return o + Vector2(x + turn * 3.5, y) * s    # facial features follow the head turn
 	var shade = Color(0, 0, 0, 0.18)
 	# shirt
 	ci.draw_colored_polygon(PackedVector2Array([P.call(8, 100), P.call(12, 82), P.call(32, 72), P.call(42, 68), P.call(58, 68), P.call(68, 72), P.call(88, 82), P.call(92, 100)]), A)
@@ -397,35 +417,36 @@ static func portrait(ci: CanvasItem, r: Rect2, p: Dictionary, kc1 = null, kc2 = 
 	# neck & head
 	ci.draw_rect(Rect2(P.call(43, 58), Vector2(14, 14) * s), skin)
 	ci.draw_rect(Rect2(P.call(43, 62), Vector2(14, 6) * s), shade)
-	ellipse(ci, P.call(32.5, 45), 3.2 * s, 5 * s, skin); ellipse(ci, P.call(67.5, 45), 3.2 * s, 5 * s, skin)
+	if turn <= 0: ellipse(ci, P.call(67.5, 45), 3.2 * s, 5 * s, skin)
+	if turn >= 0: ellipse(ci, P.call(32.5, 45), 3.2 * s, 5 * s, skin)
 	ellipse(ci, P.call(50, 43), 18 * s, 22 * s, skin)
-	ellipse(ci, P.call(56, 45), 11 * s, 19 * s, Color(0, 0, 0, 0.07))
+	ellipse(ci, P.call(56 - turn * 12, 45), 11 * s, 19 * s, Color(0, 0, 0, 0.07))
 	var by = 40.0 + f.get("brow", 0)
-	ci.draw_line(P.call(40, by), P.call(47, by - 1), hair, 2.2 * s); ci.draw_line(P.call(53, by - 1), P.call(60, by), hair, 2.2 * s)
-	ellipse(ci, P.call(43.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85)); ellipse(ci, P.call(56.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85))
-	ellipse(ci, P.call(43.8, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a")); ellipse(ci, P.call(56.2, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a"))
-	ellipse(ci, P.call(40, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35)); ellipse(ci, P.call(60, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35))
-	ci.draw_polyline(PackedVector2Array([P.call(50, 46), P.call(48.5, 53), P.call(52, 54)]), shade, 1.4 * s)
+	ci.draw_line(F.call(40, by), F.call(47, by - 1), hair, 2.2 * s); ci.draw_line(F.call(53, by - 1), F.call(60, by), hair, 2.2 * s)
+	ellipse(ci, F.call(43.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85)); ellipse(ci, F.call(56.5, 45), 3.2 * s, 2.0 * s, Color(1, 1, 1, 0.85))
+	ellipse(ci, F.call(43.8, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a")); ellipse(ci, F.call(56.2, 45), 1.8 * s, 1.8 * s, Color("#1a1a1a"))
+	ellipse(ci, F.call(40, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35)); ellipse(ci, F.call(60, 53), 4 * s, 2.5 * s, Color(skin.darkened(0.12), 0.35))
+	ci.draw_polyline(PackedVector2Array([F.call(50, 46), F.call(48.5, 53), F.call(52, 54)]), shade, 1.4 * s)
 	var pose: String = pose_for(p)
 	var mo: String = POSE_DEF[pose].m if POSE_DEF.has(pose) else ("open" if pose in ["celebrate", "fist"] else ("smile" if pose in ["point", "point_up"] else "normal"))
-	if mo == "o": ellipse(ci, P.call(50, 60), 2.6 * s, 3.2 * s, Color("#4a1f1a"))
-	elif mo == "pucker": ellipse(ci, P.call(50, 60), 2.2 * s, 1.8 * s, Color("#a0463c")); ellipse(ci, P.call(50, 60), 1.0 * s, 0.8 * s, Color("#4a1f1a"))
+	if mo == "o": ellipse(ci, F.call(50, 60), 2.6 * s, 3.2 * s, Color("#4a1f1a"))
+	elif mo == "pucker": ellipse(ci, F.call(50, 60), 2.2 * s, 1.8 * s, Color("#a0463c")); ellipse(ci, F.call(50, 60), 1.0 * s, 0.8 * s, Color("#4a1f1a"))
 	elif mo == "open":
-		ellipse(ci, P.call(50, 60), 4.2 * s, 3.4 * s, Color("#4a1f1a")); ci.draw_rect(Rect2(P.call(46.5, 57.4), Vector2(7, 1.4) * s), Color(1, 1, 1, 0.85))
+		ellipse(ci, F.call(50, 60), 4.2 * s, 3.4 * s, Color("#4a1f1a")); ci.draw_rect(Rect2(F.call(46.5, 57.4), Vector2(7, 1.4) * s), Color(1, 1, 1, 0.85))
 	elif mo == "smile":
-		ci.draw_polyline(PackedVector2Array([P.call(44, 58.5), P.call(50, 62), P.call(56, 58.5)]), Color("#7a3d33"), 1.8 * s)
-	else: ci.draw_polyline(PackedVector2Array([P.call(45, 59), P.call(50, 61), P.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
+		ci.draw_polyline(PackedVector2Array([F.call(44, 58.5), F.call(50, 62), F.call(56, 58.5)]), Color("#7a3d33"), 1.8 * s)
+	else: ci.draw_polyline(PackedVector2Array([F.call(45, 59), F.call(50, 61), F.call(55, 59)]), Color("#7a3d33"), 1.6 * s)
 	# beard: 1 stubble · 2 full · 3 moustache · 4 goatee · 5 trimmed beard
 	match int(f.get("beard", 0)):
-		1: ci.draw_colored_polygon(PackedVector2Array([P.call(36, 50), P.call(40, 63), P.call(50, 68), P.call(60, 63), P.call(64, 50), P.call(58, 60), P.call(50, 62), P.call(42, 60)]), Color(hair, 0.32))
-		2: ci.draw_colored_polygon(PackedVector2Array([P.call(34, 46), P.call(37, 66), P.call(50, 75), P.call(63, 66), P.call(66, 46), P.call(60, 61), P.call(50, 64), P.call(40, 61)]), Color(hair, 0.95))
-		3: ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56), P.call(57, 58.5), P.call(50, 60)]), hair)
+		1: ci.draw_colored_polygon(PackedVector2Array([F.call(36, 50), F.call(40, 63), F.call(50, 68), F.call(60, 63), F.call(64, 50), F.call(58, 60), F.call(50, 62), F.call(42, 60)]), Color(hair, 0.32))
+		2: ci.draw_colored_polygon(PackedVector2Array([F.call(34, 46), F.call(37, 66), F.call(50, 75), F.call(63, 66), F.call(66, 46), F.call(60, 61), F.call(50, 64), F.call(40, 61)]), Color(hair, 0.95))
+		3: ci.draw_colored_polygon(PackedVector2Array([F.call(43, 58.5), F.call(50, 56), F.call(57, 58.5), F.call(50, 60)]), hair)
 		4:
-			ci.draw_colored_polygon(PackedVector2Array([P.call(44, 61), P.call(50, 60), P.call(56, 61), P.call(54, 68), P.call(50, 70), P.call(46, 68)]), Color(hair, 0.9))
-			ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56.5), P.call(57, 58.5), P.call(50, 59.5)]), Color(hair, 0.9))
+			ci.draw_colored_polygon(PackedVector2Array([F.call(44, 61), F.call(50, 60), F.call(56, 61), F.call(54, 68), F.call(50, 70), F.call(46, 68)]), Color(hair, 0.9))
+			ci.draw_colored_polygon(PackedVector2Array([F.call(43, 58.5), F.call(50, 56.5), F.call(57, 58.5), F.call(50, 59.5)]), Color(hair, 0.9))
 		5:
-			ci.draw_colored_polygon(PackedVector2Array([P.call(35, 48), P.call(38, 63), P.call(50, 70), P.call(62, 63), P.call(65, 48), P.call(59, 60), P.call(50, 62.5), P.call(41, 60)]), Color(hair, 0.75))
-			ci.draw_colored_polygon(PackedVector2Array([P.call(43, 58.5), P.call(50, 56.5), P.call(57, 58.5), P.call(50, 59.5)]), Color(hair, 0.8))
+			ci.draw_colored_polygon(PackedVector2Array([F.call(35, 48), F.call(38, 63), F.call(50, 70), F.call(62, 63), F.call(65, 48), F.call(59, 60), F.call(50, 62.5), F.call(41, 60)]), Color(hair, 0.75))
+			ci.draw_colored_polygon(PackedVector2Array([F.call(43, 58.5), F.call(50, 56.5), F.call(57, 58.5), F.call(50, 59.5)]), Color(hair, 0.8))
 	# hair
 	var hs: int = int(f.get("hair", 0))
 	var hl = hair.lightened(0.18)
