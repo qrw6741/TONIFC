@@ -165,6 +165,13 @@ func run() -> void:
 			UI.reset("champions"); await w(1.0); await shot("mm_champs_run")
 			UI.reset("play"); await w(1.0); await shot("mm_play")
 			UI.go("squadbattles"); await w(1.0); await shot("mm_sb")
+		if extra == "--mtransfers":
+			for it in Save.data.club.slice(0, 3): Sys.tl_add(it.pid, false, "test")
+			UI.reset("transfers"); await w(1.0); await shot("mt_overview")
+			UI.replace("transfers", {"tab": "search", "filter": {"min": 82}, "run": true}); await w(1.0); await shot("mt_search")
+			UI.replace("transfers", {"tab": "search", "filter": {}, "filters": true}); await w(1.0); await shot("mt_filters")
+			UI.replace("transfers", {"tab": "list"}); await w(1.0); await shot("mt_list")
+			UI.replace("transfers", {"tab": "targets"}); await w(1.0); await shot("mt_targets")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

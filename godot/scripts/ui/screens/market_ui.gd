@@ -46,10 +46,11 @@ func s_transfers(p) -> Dictionary:
 		"targets": _targets(body)
 		"history": _history(body)
 		_: _overview(body)
-	return {"node": f.node, "bg": "hub", "tab": "transfers", "back": func(): UI.reset("main")}
+	return {"node": f.node, "bg": "hub", "tab": "transfers", "back": func(): UI.reset("home" if UI.mobile else "main")}
 
 # ------------------------------------------------------------------ overview
 func _overview(body: VBoxContainer) -> void:
+	if UI.mobile: _overview_mobile(body); return
 	var M = Sys.M()
 	var row = UI.hb(16)
 	var mine: Array = M.mine
@@ -91,6 +92,7 @@ func _stepper(st: Dictionary, key: String, caption: String) -> Control:
 	return UI.field(caption, UI.hb(4, [UI.btn("–", func(): move.call(-1), "Small"), lab, UI.btn("+", func(): move.call(1), "Small")]))
 
 func _search(body: VBoxContainer, f0: Dictionary, page: int) -> void:
+	if UI.mobile: _search_mobile(body, f0, page); return
 	var st = {"name": "", "pos": "", "lg": "", "nat": "", "club": "", "rar": "", "min": 0, "max": 0, "min_bid": 0, "max_bid": 0, "min_bin": 0, "max_bin": 0, "sort": "ends"}
 	for k in f0: st[k] = f0[k]
 	var opts = func(arr: Array, first: String) -> Array: return [["", first]] + arr
@@ -201,6 +203,7 @@ func _section(title: String, sub: String, btns := []) -> Control:
 	return UI.hb(10, [UI.bold(title, 18), UI.label(sub, 13, UI.DIM), UI.spacer()] + btns)
 
 func _card_cell(pl: Dictionary, lines: Array, cb: Callable, dim := false) -> Control:
+	if UI.mobile: return m_row(pl, lines, cb, dim)
 	var c = UI.card(pl, 6.4, false, cb)
 	if dim: c.modulate.a = 0.55
 	var v = UI.vb(1, [c])
@@ -363,3 +366,125 @@ func _history(body: VBoxContainer) -> void:
 		var pl = Data.P(x.pid)
 		list.add_child(UI.panel(UI.hb(14, [UI.label(Time.get_datetime_string_from_unix_time(int(x.t)).replace("T", " "), 13, UI.DIM), UI.bold("Bought" if x.kind == "buy" else "Sold", 13, UI.TEXT if x.kind == "buy" else UI.GREEN), UI.label("%d %s" % [pl.ovr, pl.name], 14), UI.spacer(), UI.bold("● " + Sys.fmt(x.price), 14, UI.GOLD2)]), "Glass"))
 	body.add_child(UI.scroll(list))
+
+
+# ------------------------------------------------------------------ PHONE LAYOUT (companion)
+## one player per full-width row: mini card · name & rating · status lines on the right
+func m_row(pl: Dictionary, lines: Array, cb: Callable, dim := false) -> Button:
+	var b = Button.new(); b.focus_mode = Control.FOCUS_ALL; b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.custom_minimum_size = Vector2(UI.root.size.x - 24, 84)   # one row per line, even inside flow sections
+	var n = StyleBoxFlat.new(); n.bg_color = Color("#141c27"); n.set_corner_radius_all(12)
+	var h = n.duplicate(); h.bg_color = Color("#1b2633")
+	for st in ["normal", "focus"]: b.add_theme_stylebox_override(st, n)
+	for st in ["hover", "pressed"]: b.add_theme_stylebox_override(st, h)
+	var c = UI.card(pl, 5.2, true); c.focus_mode = Control.FOCUS_NONE
+	var info = UI.vb(1, [UI.bold(pl.name, 15), UI.label("%d · %s · %s" % [pl.ovr, pl.pos, Data.rarity_name(pl)], 12, UI.DIM)])
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL; info.alignment = BoxContainer.ALIGNMENT_CENTER
+	info.get_child(0).clip_text = true
+	var right = UI.vb(1); right.alignment = BoxContainer.ALIGNMENT_CENTER
+	for l in lines:
+		if l is Label: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		right.add_child(l)
+	var row = UI.hb(10, [c, info, right]); row.set_anchors_preset(Control.PRESET_FULL_RECT); row.offset_left = 10; row.offset_right = -12; row.offset_top = 6; row.offset_bottom = -6
+	b.add_child(row)
+	for x in b.find_children("*", "Control", true, false): x.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if dim: b.modulate.a = 0.6
+	b.pressed.connect(func(): Sfx.play("select"); cb.call())
+	return b
+
+func _overview_mobile(body: VBoxContainer) -> void:
+	var M = Sys.M(); var mine: Array = M.mine
+	var cnt = func(s: String) -> int: return mine.filter(func(l): return l.status == s).size()
+	var bcnt = func(s: String) -> int: return M.bids.filter(func(b): return b.status == s).size()
+	var live: int = M.pool.filter(func(l): return not l.get("gone", false)).size()
+	body.add_child(UI.m_cta("⌕  Search the Transfer Market", func(): UI.replace("transfers", {"tab": "search"})))
+	body.add_child(UI.label("%d live listings · prices move every hour · 5%% tax on sales" % live, 12, UI.DIM))
+	var tl = UI.vb(8, [UI.hb(8, [UI.bold("Transfer List", 18), UI.spacer(), UI.label("%d / %d" % [M.tl.size() + mine.size(), Sys.TL_MAX], 12, UI.DIM)]),
+		UI.hb(8, [UI.m_chip(str(M.tl.size()), "Available"), UI.m_chip(str(cnt.call("active")), "Active"), UI.m_chip(str(cnt.call("expired")), "Unsold", UI.YELLOW if cnt.call("expired") else UI.TEXT), UI.m_chip(str(cnt.call("sold")), "Sold", UI.GREEN if cnt.call("sold") else UI.TEXT)])])
+	body.add_child(_tap(UI.m_card(tl, UI.TEAL), func(): UI.replace("transfers", {"tab": "list"})))
+	var tg = UI.vb(8, [UI.bold("Transfer Targets", 18),
+		UI.hb(8, [UI.m_chip(str(bcnt.call("winning")), "Winning", UI.GREEN if bcnt.call("winning") else UI.TEXT), UI.m_chip(str(bcnt.call("outbid")), "Outbid", UI.RED if bcnt.call("outbid") else UI.TEXT), UI.m_chip(str(M.watch.size()), "Watched"), UI.m_chip(str(bcnt.call("won")), "Won")])])
+	body.add_child(_tap(UI.m_card(tg, Color("#ffd86b")), func(): UI.replace("transfers", {"tab": "targets"})))
+	# market movers
+	var cands: Array = Data.players.filter(func(x): return x.type == "base" and x.ovr >= 83)
+	cands.sort_custom(func(a, b): return Sys.trend_pct(a) > Sys.trend_pct(b))
+	var mv = UI.hb(10)
+	for pl in cands.slice(0, 5) + cands.slice(cands.size() - 5):
+		var c = UI.card(pl, 6.0, true, func(): compare_price(pl))
+		var col = UI.vb(1, [c, pct_label(Sys.trend_pct(pl), 11), UI.label("● " + Sys.fmt(Sys.value(pl)), 11, UI.GOLD2)])
+		for x in col.get_children(): if x is Label: x.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		mv.add_child(col)
+	var sc = ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	sc.custom_minimum_size.y = 6.0 * 10.4 + 46; sc.add_child(mv)
+	body.add_child(UI.m_card(UI.vb(8, [UI.bold("Market movers · 24h", 16), UI.label("Biggest risers and fallers among 83+ players — tap to check prices", 12, UI.DIM), sc])))
+	body.add_child(UI.btn("History", func(): UI.replace("transfers", {"tab": "history"}), "Small"))
+
+## make a whole card tappable
+func _tap(card: Control, cb: Callable) -> Control:
+	var b = Button.new(); b.flat = true; b.set_anchors_preset(Control.PRESET_FULL_RECT); b.focus_mode = Control.FOCUS_NONE
+	for st in ["normal", "hover", "pressed", "focus"]: b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.pressed.connect(func(): Sfx.play("select"); cb.call())
+	card.add_child(b); return card
+
+func _search_mobile(body: VBoxContainer, f0: Dictionary, page: int) -> void:
+	var st = {"name": "", "pos": "", "lg": "", "nat": "", "club": "", "rar": "", "min": 0, "max": 0, "min_bid": 0, "max_bid": 0, "min_bin": 0, "max_bin": 0, "sort": "ends"}
+	for k in f0: st[k] = f0[k]
+	var opts = func(arr: Array, first: String) -> Array: return [["", first]] + arr
+	var go_search = func(): Sys.M().last_filter = st.duplicate(); UI.replace("transfers", {"tab": "search", "filter": st.duplicate(), "page": 0, "run": true})
+	var ran: bool = UI.cur_params.get("run", false)
+	# name + search, then a collapsible filter card
+	var nm = UI.line(st.name, func(t): st.name = t, "Player name", 200); nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nm.text_submitted.connect(func(_t): go_search.call())
+	body.add_child(UI.hb(8, [nm, UI.btn("⌕ Search", go_search, "Primary")]))
+	var active_n = 0
+	for k in ["pos", "lg", "nat", "club", "rar"]: if str(st[k]) != "": active_n += 1
+	for k in ["min", "max", "min_bid", "max_bid", "min_bin", "max_bin"]: if int(st[k]) != 0: active_n += 1
+	var fl = UI.vb(8)
+	var nat_items = Data.nations.keys().map(func(k): return [k, Data.nations[k].name]); nat_items.sort_custom(func(a, b): return a[1] < b[1])
+	var club_items = Data.clubs.keys().filter(func(k): return not Data.clubs[k].get("special", false) and (st.lg == "" or Data.clubs[k].lg == st.lg)).map(func(k): return [k, Data.clubs[k].name]); club_items.sort_custom(func(a, b): return a[1] < b[1])
+	var ovrs = [[0, "Any"]] + range(99, 44, -1).map(func(x): return [x, str(x)])
+	var full = func(c: Control) -> Control: c.size_flags_horizontal = Control.SIZE_EXPAND_FILL; return c
+	fl.add_child(UI.hb(8, [full.call(UI.field("Position", UI.option(opts.call(Data.positions.map(func(x): return [x, x]), "Any"), st.pos, func(v): st.pos = v))),
+		full.call(UI.field("Rarity", UI.option(opts.call([["bronze", "Bronze"], ["silver", "Silver"], ["gold", "Gold"], ["gold-rare", "Rare Gold"], ["rare", "Any rare"], ["special", "Special"]], "Any"), st.rar, func(v): st.rar = v)))]))
+	fl.add_child(UI.field("League", UI.option(opts.call(["ENG1", "ESP1", "ITA1", "GER1", "FRA1", "LEG"].map(func(k): return [k, Data.leagues[k].name]), "Any"), st.lg, func(v): st.lg = v; st.club = ""; UI.replace("transfers", {"tab": "search", "filter": st.duplicate(), "filters": true}))))
+	fl.add_child(UI.field("Club", UI.option(opts.call(club_items, "Any"), st.club, func(v): st.club = v)))
+	fl.add_child(UI.field("Nation", UI.option(opts.call(nat_items, "Any"), st.nat, func(v): st.nat = v)))
+	fl.add_child(UI.hb(8, [full.call(UI.field("Min OVR", UI.option(ovrs, st.min, func(v): st.min = int(v)))), full.call(UI.field("Max OVR", UI.option(ovrs, st.max, func(v): st.max = int(v)))),
+		full.call(UI.field("Sort", UI.option([["ends", "Time left"], ["bin-asc", "Price ↑"], ["bin-desc", "Price ↓"], ["ovr", "Rating"]], st.sort, func(v): st.sort = v)))]))
+	fl.add_child(_stepper(st, "min_bin", "Buy Now min")); fl.add_child(_stepper(st, "max_bin", "Buy Now max"))
+	fl.add_child(_stepper(st, "min_bid", "Bid min")); fl.add_child(_stepper(st, "max_bid", "Bid max"))
+	fl.add_child(UI.hb(8, [UI.btn("Reset", func(): UI.replace("transfers", {"tab": "search", "filter": {}, "filters": true}), "Small"), UI.spacer(), UI.btn("⌕ Search", go_search, "Primary")]))
+	var open: bool = UI.cur_params.get("filters", not ran)
+	var card = UI.m_card(fl); card.visible = open
+	var tog = UI.btn(("▴ Hide filters" if open else "▾ Filters") + ((" (%d)" % active_n) if active_n else ""), func(): card.visible = not card.visible, "Small")
+	body.add_child(tog); body.add_child(card)
+	# results as rows
+	var res: Array = Sys.M().listings.filter(func(l): return l.ends > Sys.now() and not l.get("gone", false))
+	if ran or res.is_empty(): res = Sys.market_search(st)
+	var pages: int = max(1, int(ceil(res.size() / float(PER_PAGE))))
+	page = clamp(page, 0, pages - 1)
+	body.add_child(UI.hb(8, [UI.bold("%d results" % res.size(), 15), UI.spacer(), UI.label("Page %d / %d" % [page + 1, pages], 12, UI.DIM), UI.btn("⟳", go_search, "Small")]))
+	var labels = []
+	for l in res.slice(page * PER_PAGE, (page + 1) * PER_PAGE):
+		var pl = Data.P(l.pid)
+		var tl = UI.label("", 11, UI.DIM); var bl = UI.label("", 12); var nl = UI.bold("● " + Sys.fmt(l.bin), 14, UI.GOLD2)
+		labels.append([l, tl, bl])
+		var lines = [nl, bl, tl]
+		if Sys.is_watched(l): lines.append(UI.label("★ watching", 10, UI.TEAL))
+		body.add_child(m_row(pl, lines, func(): await listing_actions(l); UI.replace("transfers", {"tab": "search", "filter": st, "page": page})))
+	if res.is_empty(): body.add_child(UI.label("No listings match. Widen your filters and search again.", 14, UI.DIM))
+	if pages > 1:
+		var pp = UI.btn("‹ Prev", func(): UI.replace("transfers", {"tab": "search", "filter": st, "page": page - 1}), "")
+		var nx = UI.btn("Next ›", func(): UI.replace("transfers", {"tab": "search", "filter": st, "page": page + 1}), "Primary")
+		pp.disabled = page == 0; nx.disabled = page >= pages - 1
+		pp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; nx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		body.add_child(UI.hb(8, [pp, nx]))
+	var tick = func():
+		var now = Sys.now()
+		for x in labels:
+			var l: Dictionary = x[0]
+			x[1].text = "Expired" if l.ends <= now or l.get("gone", false) else "⏱ " + Sys.fmt_time(l.ends - now)
+			x[2].text = ("Bid %s%s" % [Sys.fmt(l.bid), " (you)" if l.bidder == "me" else ""]) if l.bid > 0 else "Start %s" % Sys.fmt(l.start)
+			x[2].add_theme_color_override("font_color", UI.GREEN if l.bidder == "me" else UI.TEXT)
+	tick.call()
+	var t = Timer.new(); t.wait_time = 1.0; t.autostart = true; body.add_child(t); t.timeout.connect(tick)
