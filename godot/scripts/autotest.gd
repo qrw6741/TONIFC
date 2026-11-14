@@ -173,7 +173,7 @@ func run() -> void:
 			UI.replace("transfers", {"tab": "list"}); await w(1.0); await shot("mt_list")
 			UI.replace("transfers", {"tab": "targets"}); await w(1.0); await shot("mt_targets")
 		if extra == "--munassigned":
-			UI.modules[1].open_pack("rare", true); await w(0.9); await shot("mu_opening")
+			UI.modules[1].open_pack("rare", true); await w(0.4); await shot("mu_opening")
 			var tap = InputEventMouseButton.new(); tap.button_index = MOUSE_BUTTON_LEFT; tap.pressed = true; tap.position = Vector2(200, 400); tap.global_position = tap.position
 			var fx = UI.overlay.get_children().filter(func(n): return n.has_method("skip"))
 			print("BEFORE TAP fx ", fx.size(), " revealed ", fx[0].revealed if not fx.is_empty() else "-")
@@ -182,7 +182,6 @@ func run() -> void:
 			await shot("mu_reveal_a")
 			await w(0.3)
 			print("FX valid ", is_instance_valid(fx[0]))
-			if is_instance_valid(fx[0]): print("FX vis ", fx[0].is_visible_in_tree(), " size ", fx[0].size, " pos ", fx[0].position, " mod ", fx[0].modulate, " parent ", fx[0].get_parent(), " idx ", fx[0].get_index(), " overlay kids ", UI.overlay.get_child_count())
 			await shot("mu_reveal")
 			var t2 = tap.duplicate(); Input.parse_input_event(t2); await w(1.0); print("AFTER TAPS cur ", UI.cur_name, " pending ", Save.data.pending.size())
 			await shot("mu_list")
