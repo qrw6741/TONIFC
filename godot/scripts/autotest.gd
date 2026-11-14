@@ -138,6 +138,25 @@ func run() -> void:
 			ed.formation_sheet(); await w(0.7); await shot("ms_formation"); UI.close_top(null); await w(0.4)
 			UI.cur.get_child(0); var sc = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(x): return x.has_meta("page_scroll"))
 			if not sc.is_empty(): sc[0].scroll_vertical = 2000; await w(0.4); await shot("ms_squad_bottom")
+		if extra == "--mstore":
+			UI.reset("store", {"tab": "browse", "cat": "classic"}); await w(1.0); await shot("mst_browse")
+			var ps = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(x): return x.has_meta("page_scroll"))[0]
+			var p0 = Vector2(200, 420)
+			var send = func(ev): Input.parse_input_event(ev); await w(0.03)
+			var dn = InputEventMouseButton.new(); dn.button_index = MOUSE_BUTTON_LEFT; dn.pressed = true; dn.position = p0; dn.global_position = p0
+			await send.call(dn)
+			for k in 8:
+				var mv = InputEventMouseMotion.new(); mv.position = p0 - Vector2(0, 30 * (k + 1)); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_LEFT
+				await send.call(mv)
+			var up = InputEventMouseButton.new(); up.button_index = MOUSE_BUTTON_LEFT; up.pressed = false; up.position = p0 - Vector2(0, 240); up.global_position = up.position
+			await send.call(up); await w(0.8)
+			print("SWIPE page scroll ", ps.scroll_vertical, " modals after swipe ", UI.modals.size())
+			await shot("mst_after_swipe")
+			var dn2 = dn.duplicate(); dn2.position = Vector2(200, 300); dn2.global_position = dn2.position; await send.call(dn2)
+			var up2 = up.duplicate(); up2.position = Vector2(200, 300); up2.global_position = up2.position; await send.call(up2); await w(0.6)
+			print("TAP modals after tap ", UI.modals.size()); await shot("mst_tap"); UI.close_top(null); await w(0.3)
+			UI.reset("store", {"tab": "mine"}); await w(0.8); await shot("mst_mine")
+			UI.reset("store", {"tab": "browse", "cat": "preview"}); await w(0.8); await shot("mst_preview")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)

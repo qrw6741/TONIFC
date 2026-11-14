@@ -243,7 +243,79 @@ var _last_mouse = -10.0
 
 func mouse_recent() -> bool: return Time.get_ticks_msec() / 1000.0 - _last_mouse < 0.6
 
+## TOUCH SCROLLING (companion): once a finger moves past a few pixels it becomes a scroll of the
+## list under it in that direction (sideways strips or the page), and the tap is cancelled.
+var _tp = {"down": false, "drag": false, "pos": Vector2.ZERO, "last": Vector2.ZERO, "sc": null, "axis": 0, "vel": 0.0, "t": 0.0}
+const DRAG_START := 12.0
+func _touch_scroll(event: InputEvent) -> bool:
+	if in_match or not Cloud.companion(): return false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_tp.down = true; _tp.drag = false; _tp.pos = event.position; _tp.last = event.position; _tp.sc = null; _tp.vel = 0.0; _tp.t = Time.get_ticks_msec() / 1000.0
+			var old = _tp.get("fling")
+			if old is Tween and old.is_valid(): old.kill()
+			return false
+		var was: bool = _tp.drag
+		_tp.down = false; _tp.drag = false
+		if was:
+			_fling()
+			# let the release through at a far-away point so the pressed button sees "released outside"
+			var up = event.duplicate(); up.position = Vector2(-9999, -9999); up.global_position = up.position
+			get_viewport().set_input_as_handled(); Input.parse_input_event(up)
+			return true
+		return false
+	if event is InputEventMouseMotion and _tp.down:
+		if event.position.x < -9000: return false
+		var d: Vector2 = event.position - _tp.pos
+		if not _tp.drag:
+			if d.length() < DRAG_START: return false
+			_tp.drag = true
+			_tp.axis = 0 if abs(d.x) > abs(d.y) else 1
+			_tp.sc = _scroll_under(_tp.pos, _tp.axis)
+			if _tp.sc == null: _tp.sc = _scroll_under(_tp.pos, 1 - _tp.axis); _tp.axis = 1 - _tp.axis
+			# move the "mouse" off the button so it won't fire on release
+			var mv = InputEventMouseMotion.new(); mv.position = Vector2(-9999, -9999); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_LEFT
+			Input.parse_input_event(mv)
+		var step: Vector2 = event.position - _tp.last
+		_tp.last = event.position
+		var now = Time.get_ticks_msec() / 1000.0; var dt = max(0.001, now - _tp.t); _tp.t = now
+		if is_instance_valid(_tp.sc):
+			var amt: float = step.x if _tp.axis == 0 else step.y
+			_tp.vel = lerp(_tp.vel, -amt / dt, 0.35)
+			if _tp.axis == 0: _tp.sc.scroll_horizontal -= int(round(amt))
+			else: _tp.sc.scroll_vertical -= int(round(amt))
+		get_viewport().set_input_as_handled()
+		return true
+	if (event is InputEventScreenDrag or event is InputEventScreenTouch) and _tp.drag:
+		get_viewport().set_input_as_handled(); return true
+	return false
+
+func _fling() -> void:
+	var sc = _tp.sc
+	if not is_instance_valid(sc) or abs(_tp.vel) < 250.0: return
+	var prop: String = "scroll_horizontal" if _tp.axis == 0 else "scroll_vertical"
+	var target: int = int(sc.get(prop) + clamp(_tp.vel, -4000.0, 4000.0) * 0.28)
+	var tw = sc.create_tween(); tw.tween_property(sc, prop, max(0, target), 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_tp.fling = tw
+
+## deepest visible ScrollContainer under the point that can scroll on that axis (0 = sideways, 1 = up/down)
+func _scroll_under(p: Vector2, axis: int) -> ScrollContainer:
+	var best: ScrollContainer = null
+	var roots = [cur] if modals.is_empty() else [modals[-1].node]
+	for r in roots:
+		if not is_instance_valid(r): continue
+		for n in r.find_children("*", "ScrollContainer", true, false):
+			var sc: ScrollContainer = n
+			if not sc.is_visible_in_tree() or not sc.get_global_rect().has_point(p): continue
+			var mode = sc.horizontal_scroll_mode if axis == 0 else sc.vertical_scroll_mode
+			if mode == ScrollContainer.SCROLL_MODE_DISABLED: continue
+			var bar = sc.get_h_scroll_bar() if axis == 0 else sc.get_v_scroll_bar()
+			if bar.max_value - bar.page <= 1: continue
+			if best == null or best.is_ancestor_of(sc): best = sc
+	return best
+
 func _input(event: InputEvent) -> void:
+	if _touch_scroll(event): return
 	if event is InputEventMouseMotion and event.relative.length() > 1.5:
 		_last_mouse = Time.get_ticks_msec() / 1000.0
 		if Input.mouse_mode == Input.MOUSE_MODE_HIDDEN: Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

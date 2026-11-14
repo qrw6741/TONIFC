@@ -50,6 +50,12 @@ func s_store(p) -> Dictionary:
 	var cat: String = p.get("cat", "promo" if tab == "promo" else "classic")
 	if tab == "promo": tab = "browse"
 	f.body.add_child(UI.hb(10, [UI.head("STORE", 38), UI.spacer(), UI.seg([["browse", "Browse"], ["mine", "My Packs (%d)" % Save.data.unopened.size()], ["odds", "Pack Probabilities"]], tab, func(v): UI.replace("store", {"tab": v}))]))
+	if UI.mobile:
+		match tab:
+			"mine": _mine_mobile(f.body)
+			"odds": _odds(f.body)
+			_: _browse_mobile(f.body, cat)
+		return {"node": f.node, "bg": "hub", "tab": "store", "back": func(): UI.reset("home")}
 	match tab:
 		"mine": _mine(f.body)
 		"odds": _odds(f.body)
@@ -218,3 +224,83 @@ func _odds(body: VBoxContainer) -> void:
 		g.add_child(pn)
 	content.add_child(g)
 	body.add_child(UI.scroll(content))
+
+
+# ------------------------------------------------------------------ PHONE LAYOUT (companion)
+func _row_btn(kids: Array, cb: Callable, h := 112.0, accent := Color(0, 0, 0, 0)) -> Button:
+	var b = Button.new(); b.focus_mode = Control.FOCUS_ALL; b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; b.custom_minimum_size.y = h
+	var n = StyleBoxFlat.new(); n.bg_color = Color("#141c27"); n.set_corner_radius_all(14)
+	if accent.a > 0: n.border_width_left = 4; n.border_color = accent
+	var hv = n.duplicate(); hv.bg_color = Color("#1b2633")
+	for st in ["normal", "focus"]: b.add_theme_stylebox_override(st, n)
+	for st in ["hover", "pressed"]: b.add_theme_stylebox_override(st, hv)
+	var row = UI.hb(12, kids); row.set_anchors_preset(Control.PRESET_FULL_RECT); row.offset_left = 12; row.offset_right = -12; row.offset_top = 8; row.offset_bottom = -8
+	b.add_child(row)
+	for c in b.find_children("*", "Control", true, false): if not (c is BaseButton): c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.pressed.connect(func(): Sfx.play("select"); cb.call())
+	return b
+
+func _browse_mobile(body: VBoxContainer, cat: String) -> void:
+	var pv = preview()
+	body.add_child(UI.seg([["promo", "Promo"], ["classic", "Classic"], ["preview", "Preview ⏱ " + Sys.fmt_time(preview_left())], ["daily", "Daily Points" + (" •" if Save.data.daily_pts != Sys.day_key() else "")]], cat, func(v): UI.replace("store", {"tab": "browse", "cat": v})))
+	match cat:
+		"preview": _preview_mobile(body, pv); return
+		"daily": _daily(body); return
+	var ids: Array = Data.pack_order.filter(func(id): return Data.packs.has(id) and Data.packs[id].get("promo", false) == (cat == "promo"))
+	if cat == "promo": body.add_child(UI.label("⏱ Promo packs leave in %s · max %d of each per week" % [Sys.fmt_time(Sys.secs_to_reset("weekly")), PROMO_LIMIT], 12, Color("#3fe0c8")))
+	for id in ids:
+		var pk: Dictionary = Data.packs[id]
+		var art = UI.icon("pack", id, Vector2(66, 94)); art.animate = false
+		var left = promo_left(id)
+		var info = UI.vb(3, [UI.bold(pk.name, 16), UI.label(_pack_stats(pk), 12, UI.DIM)])
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var d = UI.label(pk.desc, 11, Color("#8a93a3")); d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; info.add_child(d)
+		if left >= 0: info.add_child(UI.bold(("%d left this week" % left) if left > 0 else "Sold out this week", 11, Color("#ff9a3c") if left > 0 else UI.DIM))
+		var price = UI.vb(2)
+		if pk.coins: price.add_child(UI.bold("● " + Sys.fmt(pk.coins), 14, UI.GOLD2))
+		if pk.points: price.add_child(UI.bold("◆ " + Sys.fmt(pk.points), 13, UI.TEAL))
+		for c in price.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		price.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var pid: String = id
+		body.add_child(_row_btn([art, info, price], func():
+			if promo_left(pid) == 0: UI.toast("You've bought the maximum of this pack this week", "bad"); return
+			UI.modules[1].buy_pack(pid), 116.0, Color("#ff7a1a") if pk.get("promo", false) else Color(0, 0, 0, 0)))
+	body.add_child(UI.btn("Pack probabilities", func(): UI.replace("store", {"tab": "odds"}), "Small"))
+
+func _preview_mobile(body: VBoxContainer, pv: Dictionary) -> void:
+	var pk: Dictionary = Data.packs["preview"]
+	body.add_child(UI.bold(pk.name, 18))
+	body.add_child(UI.label("⏱ New preview in %s · see the players before you buy" % Sys.fmt_time(preview_left()), 12, Color("#3fe0c8")))
+	var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 8)
+	for pid in pv.items:
+		var pl = Data.P(pid)
+		var c = UI.card(pl, 8.0, false, func(): UI.inspect(pl))
+		if pv.bought: c.modulate = Color(1, 1, 1, 0.45)
+		g.add_child(c)
+	body.add_child(g)
+	if pv.bought: body.add_child(UI.bold("Purchased ✓", 16, UI.GREEN))
+	else:
+		var b1 = UI.btn("Buy  ● %s" % Sys.fmt(pk.coins), func(): _buy_preview("coins"), "Primary"); b1.custom_minimum_size.y = 48
+		var b2 = UI.btn("Buy  ◆ %s" % Sys.fmt(pk.points), func(): _buy_preview("points"), ""); b2.custom_minimum_size.y = 48
+		body.add_child(b1); body.add_child(b2)
+
+func _mine_mobile(body: VBoxContainer) -> void:
+	if Save.data.get("pick_cur") != null:
+		body.add_child(_row_btn([UI.vb(2, [UI.bold("Player Pick in progress", 16), UI.label("Tap to finish choosing your player", 12, UI.DIM)])], func(): UI.go("pick"), 70.0, UI.GOLD))
+	if not Save.data.pending.is_empty():
+		body.add_child(_row_btn([UI.vb(2, [UI.bold("%d unassigned items" % Save.data.pending.size(), 16), UI.label("Tap to keep, list or quick sell them", 12, UI.DIM)])], func(): UI.go("packresult"), 70.0, UI.TEAL))
+	if Save.data.unopened.is_empty():
+		body.add_child(UI.label("No unopened packs. Earn them from objectives, SBCs and competitions, or buy them in the Store.", 14, UI.DIM)); return
+	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 10); g.add_theme_constant_override("v_separation", 10)
+	for i in Save.data.unopened.size():
+		var id: String = Save.data.unopened[i]
+		var pk: Dictionary = Data.packs[id]
+		var art = UI.icon("pack", id, Vector2(96, 134)); art.animate = false; art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		var nm = UI.bold(pk.name, 13); nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var op = UI.bold("Open", 14, UI.GREEN); op.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var col = UI.vb(6, [art, nm, op])
+		var idx = i
+		var b = _row_btn([col], func(): Save.data.unopened.remove_at(idx); Save.dirty(); UI.modules[1].open_pack(id, false), 228.0)
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		g.add_child(b)
+	body.add_child(g)
