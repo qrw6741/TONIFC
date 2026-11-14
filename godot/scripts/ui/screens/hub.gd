@@ -404,7 +404,7 @@ class SquadEditor extends RefCounted:
 		for pl in xi:
 			if pl.type != "icon": cnt.lg[pl.lg] = cnt.lg.get(pl.lg, 0) + (2 if pl.type == "hero" else 1)
 			cnt.nat[pl.nat] = cnt.nat.get(pl.nat, 0) + (2 if pl.type == "icon" else 1)
-			if pl.club != "ICN" and pl.club != "HER": cnt.club[pl.club] = cnt.club.get(pl.club, 0) + 1
+			if pl.club != "ICN" and pl.club != "HER" and pl.club != "GAL": cnt.club[pl.club] = cnt.club.get(pl.club, 0) + 1
 		var thr = {"lg": [3, 5, 8], "nat": [2, 5, 8], "club": [2, 5, 7]}
 		var rows = []
 		for kind in ["lg", "nat", "club"]:

@@ -88,7 +88,7 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 	var club = {}; var nat = {}; var lg = {}; var icons = 0
 	for p in players:
 		if p.is_empty(): continue
-		if p.club != "ICN" and p.club != "HER": club[p.club] = club.get(p.club, 0) + 1
+		if p.club != "ICN" and p.club != "HER" and p.club != "GAL": club[p.club] = club.get(p.club, 0) + 1
 		nat[p.nat] = nat.get(p.nat, 0) + (2 if p.type == "icon" else 1)
 		if p.type == "hero": lg[p.lg] = lg.get(p.lg, 0) + 2
 		elif p.type != "icon": lg[p.lg] = lg.get(p.lg, 0) + 1
@@ -101,7 +101,7 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 		if not p.is_empty():
 			var slot_pos: String = Data.formations[formation][i][0]
 			if not Data.fits_pos(p, slot_pos): c = 0
-			elif p.type == "icon" or p.type == "hero": c = 3
+			elif p.type == "icon" or p.type == "hero" or p.type == "gallery": c = 3
 			else:
 				c = _thr(club.get(p.club, 0), [2, 5, 7]) + _thr(nat.get(p.nat, 0), [2, 5, 8]) + _thr(lg.get(p.lg, 0) + icons, [3, 5, 8])
 				c = min(3, c)
@@ -112,7 +112,7 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 		var q = "none"
 		if not A.is_empty() and not B.is_empty():
 			var s = 0
-			if A.club == B.club and A.club != "ICN" and A.club != "HER": s += 2
+			if A.club == B.club and A.club != "ICN" and A.club != "HER" and A.club != "GAL": s += 2
 			if A.nat == B.nat: s += 1
 			if A.lg == B.lg or A.type == "icon" or B.type == "icon": s += 1
 			q = "green" if s >= 2 else ("yellow" if s == 1 else "red")

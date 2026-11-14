@@ -35,11 +35,24 @@ func _ready() -> void:
 	Data.tier_label["hero"] = "Hero"; Data.tier_label["icon"] = "Icon"
 	_make_gallery_cards()
 
-## Gallery-exclusive rarity: 5 untradeable cards bought only with Gallery Tokens
-const GALLERY_CARDS := [["p226", 87, 900], ["p834", 87, 1000], ["p485", 87, 1000], ["p1524", 87, 1100], ["p1233", 88, 1300]]
+## Gallery-exclusive rarity: 5 untradeable cards of retired players who were underrated in their prime,
+## bought only with Gallery Tokens. [id, name, nat, league, pos, alt, ovr, stats, sm, wf, foot, height, age, workrates, face, cost]
+const GALLERY_CARDS := [
+	["gal_carrick", "Michael Carrick", "ENG", "ENG1", "CDM", ["CM", "CB"], 86, [66, 72, 90, 81, 82, 77], 3, 4, "R", 189, 45, ["M", "H"], {"skin": 1, "hair": 1, "hairC": 1, "beard": 0, "brow": 1, "seed": 3101}, 900],
+	["gal_kuyt", "Dirk Kuyt", "NED", "ENG1", "RW", ["ST", "RM"], 85, [80, 82, 79, 81, 56, 86], 3, 4, "R", 183, 46, ["H", "H"], {"skin": 0, "hair": 2, "hairC": 3, "beard": 0, "brow": 0, "seed": 3102}, 1000],
+	["gal_arteta", "Mikel Arteta", "ESP", "ENG1", "CM", ["CDM", "CAM"], 85, [72, 77, 89, 86, 71, 70], 4, 4, "R", 176, 44, ["M", "M"], {"skin": 2, "hair": 1, "hairC": 0, "beard": 1, "brow": 1, "seed": 3103}, 1000],
+	["gal_king", "Ledley King", "ENG", "ENG1", "CB", [], 86, [81, 50, 66, 70, 89, 86], 2, 3, "L", 188, 46, ["M", "H"], {"skin": 6, "hair": 0, "hairC": 0, "beard": 1, "brow": 1, "seed": 3104}, 1100],
+	["gal_sneijder", "Wesley Sneijder", "NED", "ITA1", "CAM", ["CM"], 87, [76, 87, 91, 88, 50, 70], 4, 5, "R", 170, 42, ["H", "M"], {"skin": 0, "hair": 0, "hairC": 3, "beard": 0, "brow": 0, "seed": 3105}, 1300]]
+## first version of the Gallery cards (boosted current players) — kept only so existing saves stay valid
+const GALLERY_LEGACY := [["p226", 87], ["p834", 87], ["p485", 87], ["p1524", 87], ["p1233", 88]]
 func _make_gallery_cards() -> void:
 	Data.card_types["gallery"] = {"name": "Gallery", "order": 5}
+	Data.clubs["GAL"] = {"name": "Gallery Legends", "lg": null, "c": ["#1a1430", "#ff6fd8"], "special": true}
 	for g in GALLERY_CARDS:
+		var p = {"id": g[0], "name": g[1], "nat": g[2], "lg": g[3], "club": "GAL", "pos": g[4], "alt": g[5], "ovr": g[6], "stats": g[7], "sm": g[8], "wf": g[9],
+			"foot": g[10], "height": g[11], "age": g[12], "wr": g[13], "face": g[14], "type": "gallery", "rare": true}
+		Data.players.append(p); Data.by_id[p.id] = p
+	for g in GALLERY_LEGACY:
 		var b: Dictionary = Data.by_id.get(g[0], {})
 		if b.is_empty(): continue
 		var p: Dictionary = b.duplicate(true)
@@ -49,7 +62,7 @@ func _make_gallery_cards() -> void:
 		for i in 6: stt.append(min(99, int(b.stats[i]) + boost + (1 if int(b.stats[i]) >= 80 else 0)))
 		p.stats = stt; p.sm = min(5, int(b.sm) + 1)
 		Data.players.append(p); Data.by_id[p.id] = p
-func gallery_cards() -> Array: return GALLERY_CARDS.map(func(g): return Data.P("gal_" + g[0])).filter(func(p): return not p.is_empty())
+func gallery_cards() -> Array: return GALLERY_CARDS.map(func(g): return Data.P(g[0])).filter(func(p): return not p.is_empty())
 
 func _club_strength(c: String) -> float:
 	var r: Array = Data.by_club[c].filter(func(p): return p.type == "base").map(func(p): return p.ovr)
@@ -286,9 +299,9 @@ const STORE := [
 func store_items() -> Array:
 	var out = []
 	for g in GALLERY_CARDS:
-		var p = Data.P("gal_" + g[0])
+		var p = Data.P(g[0])
 		if p.is_empty(): continue
-		out.append({"id": "gal_" + g[0], "name": "%d %s" % [p.ovr, Data.short_name(p.name)], "cost": int(g[2]), "limit": 1, "reward": {"player": p.id}, "card": true})
+		out.append({"id": g[0], "name": "%d %s" % [p.ovr, Data.short_name(p.name)], "cost": int(g[15]), "limit": 1, "reward": {"player": p.id}, "card": true})
 	return out + STORE
 
 func bought(item_id: String) -> int: return int(st().bought.get(item_id, 0))

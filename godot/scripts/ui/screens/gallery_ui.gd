@@ -182,7 +182,7 @@ func s_gallerystore(_p) -> Dictionary:
 	_header(f, "Token Store")
 	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 16); flow.add_theme_constant_override("v_separation", 16)
 	var first = true
-	flow.add_child(UI.vb(2, [UI.head("GALLERY CARDS", 22, GEM), UI.wrapl(UI.label("Exclusive rarity · untradeable · one of each · never in packs or on the market", 12, UI.DIM), 200)]))
+	flow.add_child(UI.vb(2, [UI.head("GALLERY CARDS", 22, GEM), UI.wrapl(UI.label("Retired players who never got the credit they deserved. Exclusive rarity · untradeable · one of each · never in packs or on the market", 12, UI.DIM), 200)]))
 	for it in Gallery.store_items():
 		var r: Dictionary = it.reward
 		var vis: Control
@@ -193,7 +193,7 @@ func s_gallerystore(_p) -> Dictionary:
 		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(180, 130 if not r.has("player") else 132); hold.add_child(vis)
 		var left = "" if int(it.limit) == 0 else "  ·  %d left" % (int(it.limit) - Gallery.bought(it.id))
 		var ok: bool = Gallery.can_buy(it)
-		var dsc = Data.packs[r.pack].desc if r.has("pack") else ("Gallery card · %s · untradeable" % Data.P(r.player).pos if r.has("player") else "Coins for your club.")
+		var dsc = Data.packs[r.pack].desc if r.has("pack") else ("Gallery Legend · %s · untradeable" % Data.P(r.player).pos if r.has("player") else "Coins for your club.")
 		if r.has("player") and Gallery.bought(it.id) >= 1: dsc = "✓ In your club"
 		var t = UI.tile([hold, UI.bold(it.name, 16), UI.label(dsc, 12, UI.DIM), UI.bold("◈ %s%s" % [Sys.fmt(it.cost), left], 14, TOKEN if ok else UI.DIM)],
 			func():
