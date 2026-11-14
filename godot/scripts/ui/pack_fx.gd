@@ -28,6 +28,9 @@ func _ready() -> void:
 	stage = CenterContainer.new(); stage.set_anchors_preset(Control.PRESET_FULL_RECT); add_child(stage)
 	var skip_b = UI.btn("Skip ▸▸", skip, "Small"); skip_b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT); skip_b.position = Vector2(-120, -60); skip_b.name = "skip"
 	add_child(skip_b)
+	# take focus away from the menu underneath, so ✕ / Enter can't press "Open" on another pack
+	skip_b.focus_mode = Control.FOCUS_ALL
+	skip_b.grab_focus.call_deferred()
 	art = UI.icon("pack", pack_id, Vector2(200, 284))
 	var v = UI.vb(20, [art, UI.bold("Opening %s…" % Data.packs[pack_id].name, 16, UI.DIM)])
 	v.alignment = BoxContainer.ALIGNMENT_CENTER; art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -69,12 +72,24 @@ func _set_stage(n: Control) -> void:
 	stage.add_child(n)
 
 func skip() -> void:
-	if revealed: done(); return
+	if revealed:
+		if t - revealed_at > 0.35: done()   # ignore a double-tap right after the reveal
+		return
 	reveal()
+
+var revealed_at = 0.0
+## the overlay owns every confirm press while it's open (nothing reaches the menu behind it)
+func _input(e: InputEvent) -> void:
+	if finished_called: return
+	if e.is_action_pressed("ui_accept") and not e.is_echo():
+		get_viewport().set_input_as_handled()
+		skip()
+	elif (e is InputEventJoypadButton or e is InputEventKey) and e.is_pressed() and not e.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
 
 func reveal() -> void:
 	if revealed: return
-	revealed = true
+	revealed = true; revealed_at = t
 	flash = 0.7; burst(220 if lvl > 0 else 60); create_tween().tween_property(self, "beams", 1.0, 0.3)
 	Sfx.play("bigreveal" if lvl >= 2 else "reveal")
 	var c = UI.card(best, 22.0); c.focus_mode = Control.FOCUS_NONE; c.mouse_filter = Control.MOUSE_FILTER_IGNORE

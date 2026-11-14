@@ -48,6 +48,21 @@ func run() -> void:
 			Sys.apply_pending()
 			var a1 = Sys.club_add("asc_p13", false, "reward"); var a2 = Sys.club_add("gal_carrick", false, "reward"); var a3 = Sys.club_add("p13", false, "reward")
 			print("TRADE asc ", a1.untr, " gallery ", a2.untr, " base reward ", a3.untr)
+		if extra == "--skip":
+			Save.data.pending = []; Save.data.unopened = ["gold", "gold", "premium", "rare"]
+			UI.go("store", {"tab": "mine"}); await w(0.8)
+			var fo = UI.get_viewport().gui_get_focus_owner(); print("SKIP focus ", fo)
+			var ev0 = InputEventJoypadButton.new(); ev0.button_index = JOY_BUTTON_DPAD_DOWN; ev0.pressed = true; Input.parse_input_event(ev0); await w(0.05)
+			ev0 = InputEventJoypadButton.new(); ev0.button_index = JOY_BUTTON_DPAD_DOWN; ev0.pressed = false; Input.parse_input_event(ev0); await w(0.3)
+			fo = UI.get_viewport().gui_get_focus_owner()
+			fo.emit_signal("pressed"); await w(0.4)
+			print("SKIP opened, unopened left ", Save.data.unopened.size())
+			for k in 6:
+				for pr in [true, false]:
+					var jb = InputEventJoypadButton.new(); jb.button_index = JOY_BUTTON_A; jb.pressed = pr; Input.parse_input_event(jb); await w(0.05)
+				await w(0.3)
+			await w(0.5)
+			print("SKIP after 6 presses: unopened left ", Save.data.unopened.size(), " cur ", UI.cur_name)
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)
