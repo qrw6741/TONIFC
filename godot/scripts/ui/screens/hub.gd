@@ -708,6 +708,7 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 ## New Items screen (FC-style): three bands — Send To Transfer List / Keep Items / Quick Sell Now.
 ## ▲/▼ on a card moves it between bands, ◀/▶ browses. Confirm applies everything at once.
 func s_packresult(p) -> Dictionary:
+	if UI.mobile: return _unassigned_mobile()
 	var pend: Array = Save.data.pending
 	for x in pend: if not x.has("dest"): x.dest = "keep"
 	var page = Control.new(); page.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -939,3 +940,85 @@ func s_more(_p) -> Dictionary:
 			["☁ Cloud Account", Cloud.status, UI.GREEN, func(): UI.go("cloud")]]:
 		b.add_child(m_tile(x[0], x[1], x[2], x[3]))
 	return {"node": f.node, "bg": "hub", "tab": "more", "back": func(): UI.reset("home")}
+
+
+# ------------------------------------------------------------------ PHONE: Unassigned items (after a pack)
+func _unassigned_mobile() -> Dictionary:
+	var f = UI.sub_shell("Unassigned", "New items")
+	var b: VBoxContainer = f.body
+	var pend: Array = Save.data.pending
+	if pend.is_empty():
+		b.add_child(UI.label("All items assigned.", 15, UI.DIM))
+		b.add_child(UI.m_cta("Back to Store", func(): UI.reset("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "browse"})))
+		return {"node": f.node, "bg": "hub", "back": func(): UI.reset("store")}
+	var bar = UI.hb(8, [UI.bold("Items", 20), UI.label("%d" % pend.size(), 14, UI.DIM), UI.spacer(), UI.btn("⋮", func(): _unassigned_menu(), "Small")])
+	bar.get_child(3).custom_minimum_size = Vector2(44, 38); bar.get_child(3).add_theme_font_size_override("font_size", 22)
+	b.add_child(bar)
+	var owned = {}
+	for it in Save.data.club: owned[it.pid] = true
+	for i in pend.size():
+		var x: Dictionary = pend[i]
+		var pl: Dictionary = Data.P(x.pid)
+		var dup: bool = owned.has(x.pid)
+		var lab: Array = Data.GK_LABELS if pl.pos == "GK" else Data.STAT_LABELS
+		var stats = GridContainer.new(); stats.columns = 6; stats.add_theme_constant_override("h_separation", 10); stats.add_theme_constant_override("v_separation", 0)
+		for k in 6: var l = UI.caps(lab[k], 10, Color("#8a93a3")); l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; stats.add_child(l)
+		for k in 6: var v = UI.bold(str(pl.stats[k]), 16); v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; stats.add_child(v)
+		var name_row = UI.hb(6, [UI.bold(Data.short_name(pl.name), 18)])
+		if x.untr: name_row.add_child(UI.bold("⊘", 15, UI.GOLD2))           # untradeable mark
+		if dup: name_row.add_child(UI.caps("Duplicate", 9, Color("#ff9a3c")))
+		var info = UI.vb(4, [name_row, stats]); info.size_flags_horizontal = Control.SIZE_EXPAND_FILL; info.alignment = BoxContainer.ALIGNMENT_CENTER
+		var row = UI.hb(10, [UI.card(pl, 6.2, true), info, UI.bold("›", 26, Color("#8a93a3"))])
+		var idx = i
+		var btn = Button.new(); btn.focus_mode = Control.FOCUS_ALL; btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL; btn.custom_minimum_size = Vector2(UI.root.size.x - 24, 96)
+		var n = StyleBoxFlat.new(); n.bg_color = Color("#141c27"); n.border_width_bottom = 1; n.border_color = Color(1, 1, 1, 0.08)
+		var hv = n.duplicate(); hv.bg_color = Color("#1b2633")
+		for st in ["normal", "focus"]: btn.add_theme_stylebox_override(st, n)
+		for st in ["hover", "pressed"]: btn.add_theme_stylebox_override(st, hv)
+		row.set_anchors_preset(Control.PRESET_FULL_RECT); row.offset_left = 10; row.offset_right = -10; row.offset_top = 6; row.offset_bottom = -6
+		btn.add_child(row)
+		for c in btn.find_children("*", "Control", true, false): c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.pressed.connect(func(): Sfx.play("select"); _unassigned_item(idx))
+		b.add_child(btn)
+	return {"node": f.node, "bg": "hub", "back": func(): UI.reset("store", {"tab": "mine"})}
+
+func _unassigned_item(i: int) -> void:
+	var pend: Array = Save.data.pending
+	if i >= pend.size(): return
+	var x: Dictionary = pend[i]; var pl: Dictionary = Data.P(x.pid)
+	var head = UI.hb(12, [UI.card(pl, 6.2, true), UI.vb(2, [UI.bold(pl.name, 17), UI.label("%s · %s%s" % [Data.rarity_name(pl), pl.pos, " · Untradeable" if x.untr else ""], 12, UI.DIM), UI.label("Value ● %s · Quick sell ● %s" % [Sys.fmt(Sys.value(pl)), Sys.fmt(Data.quick_sell_value(pl))], 12, UI.GOLD2)])])
+	var acts = [["Send to My Club", "keep", "Primary"]]
+	if not x.untr: acts.append(["Send to Transfer List", "tl", ""])
+	acts.append(["Quick sell for ● %s" % Sys.fmt(Data.quick_sell_value(pl)), "qs", "Danger"])
+	acts.append(["Player details", "view", ""])
+	if not x.untr: acts.append(["Compare price", "cmp", ""])
+	var v = await UI.sheet("", head, acts)
+	match v:
+		"keep", "tl", "qs":
+			if v == "tl" and Sys.M().tl.size() >= Sys.TL_MAX: UI.toast("Transfer List is full (%d)" % Sys.TL_MAX, "bad"); return
+			if Sys.apply_one(i, v): Sfx.play("coin" if v == "qs" else "select"); UI.toast({"keep": "Sent to club", "tl": "Sent to Transfer List", "qs": "Quick sold"}[v], "good")
+		"view": await UI.inspect(pl)
+		"cmp": await UI.compare_price(pl)
+	UI.replace("packresult")
+
+## ⋮ menu: act on every item at once
+func _unassigned_menu() -> void:
+	var pend: Array = Save.data.pending
+	var owned = {}
+	for it in Save.data.club: owned[it.pid] = true
+	var dups = 0
+	for x in pend: if owned.has(x.pid): dups += 1
+	var v = await UI.sheet("All items", null, [["Store all in club", "keep", "Primary"], ["Send all tradeable to Transfer List", "tl", ""], ["Quick sell duplicates (%d)" % dups, "dups", ""], ["Quick sell all", "qs", "Danger"]])
+	if v == null: return
+	if v == "qs" and not await UI.modal("Quick sell everything?", "Quick sell all %d items?" % pend.size(), [["Cancel", null, ""], ["Quick sell all", true, "Danger"]]): return
+	var n = 0
+	for i in range(pend.size() - 1, -1, -1):
+		var x = pend[i]
+		match v:
+			"keep": if Sys.apply_one(i, "keep"): n += 1
+			"tl": if not x.untr and Sys.M().tl.size() < Sys.TL_MAX and Sys.apply_one(i, "tl"): n += 1
+			"dups": if owned.has(x.pid) and Sys.apply_one(i, "qs"): n += 1
+			"qs": if Sys.apply_one(i, "qs"): n += 1
+	Sfx.play("coin"); UI.toast("%d items done" % n, "good")
+	if Save.data.pending.is_empty(): UI.reset("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "browse"})
+	else: UI.replace("packresult")

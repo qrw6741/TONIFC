@@ -15,7 +15,7 @@ static func make(k: String, a, size: Vector2) -> Icon:
 
 var _since = 0.0
 func _process(delta: float) -> void:
-	if not animate: return
+	if not animate or (UI.mobile and not has_meta("always_anim")): return   # phones: static pack art (smooth scrolling)
 	t += delta; _since += delta
 	if _since >= 1.0 / 30.0 and is_visible_in_tree(): _since = 0.0; queue_redraw()
 

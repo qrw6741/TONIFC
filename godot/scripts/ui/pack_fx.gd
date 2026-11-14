@@ -31,7 +31,7 @@ func _ready() -> void:
 	# take focus away from the menu underneath, so ✕ / Enter can't press "Open" on another pack
 	skip_b.focus_mode = Control.FOCUS_ALL
 	skip_b.grab_focus.call_deferred()
-	art = UI.icon("pack", pack_id, Vector2(200, 284))
+	art = UI.icon("pack", pack_id, Vector2(200, 284)); art.set_meta("always_anim", true)
 	var v = UI.vb(20, [art, UI.bold("Opening %s…" % Data.packs[pack_id].name, 16, UI.DIM)])
 	v.alignment = BoxContainer.ALIGNMENT_CENTER; art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_set_stage(v)
@@ -62,6 +62,7 @@ func _ready() -> void:
 func _center(l: Label) -> Label: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; return l
 
 func _at(sec: float, cb: Callable) -> void:
+	if UI.mobile: sec *= 0.5    # phones: a snappier reveal
 	var tm = get_tree().create_timer(sec)
 	timers.append(tm)
 	tm.timeout.connect(func():
@@ -81,6 +82,8 @@ var revealed_at = 0.0
 ## the overlay owns every confirm press while it's open (nothing reaches the menu behind it)
 func _input(e: InputEvent) -> void:
 	if finished_called: return
+	if UI.mobile and ((e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT) or (e is InputEventScreenTouch and e.pressed)):
+		get_viewport().set_input_as_handled(); skip(); return
 	if e.is_action_pressed("ui_accept") and not e.is_echo():
 		get_viewport().set_input_as_handled()
 		skip()

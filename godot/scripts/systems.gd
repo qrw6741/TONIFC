@@ -497,6 +497,18 @@ func apply_pending() -> Dictionary:
 	if r.coins: add("coins", r.coins, "Quick sold %d pack items" % r.qs, "quicksell"); track("quicksell", r.qs)
 	D().pending = []; Save.dirty()
 	return r
+## apply one pending item right away (dest: keep / tl / qs). Returns false if it couldn't move.
+func apply_one(i: int, dest: String) -> bool:
+	var pend: Array = D().pending
+	if i < 0 or i >= pend.size(): return false
+	var x: Dictionary = pend[i]
+	if dest == "tl":
+		if x.untr or not tl_add(x.pid, x.untr): return false
+	elif dest == "qs":
+		var v = Data.quick_sell_value(Data.P(x.pid)); add("coins", v, "Quick sold " + Data.P(x.pid).name, "quicksell"); track("quicksell")
+	else: club_add(x.pid, x.untr, "pack")
+	pend.remove_at(i); Save.dirty()
+	return true
 func price_range(p: Dictionary) -> Dictionary:
 	var v = value(p)
 	return {"min": max(150, int(round(v * 0.45 / 50.0)) * 50), "max": int(round(v * 3 / 50.0)) * 50}

@@ -241,7 +241,9 @@ var _trig = {"l": false, "r": false}
 var _scroll_acc = Vector2.ZERO
 var _last_mouse = -10.0
 
-func mouse_recent() -> bool: return Time.get_ticks_msec() / 1000.0 - _last_mouse < 0.6
+func mouse_recent() -> bool:
+	if Cloud.companion(): return false     # touch screens have no hover: never select what the finger passes over
+	return Time.get_ticks_msec() / 1000.0 - _last_mouse < 0.6
 
 ## TOUCH SCROLLING (companion): once a finger moves past a few pixels it becomes a scroll of the
 ## list under it in that direction (sideways strips or the page), and the tap is cancelled.
@@ -286,7 +288,10 @@ func _touch_scroll(event: InputEvent) -> bool:
 			else: _tp.sc.scroll_vertical -= int(round(amt))
 		get_viewport().set_input_as_handled()
 		return true
-	if (event is InputEventScreenDrag or event is InputEventScreenTouch) and _tp.drag:
+	# the engine's own touch-drag would fight ours: we scroll from the emulated mouse only
+	if event is InputEventScreenDrag:
+		get_viewport().set_input_as_handled(); return true
+	if event is InputEventScreenTouch and _tp.drag:
 		get_viewport().set_input_as_handled(); return true
 	return false
 
@@ -411,7 +416,7 @@ func _cycle_seg(d: int) -> void:
 
 ## glide the nearest scroll container so the newly focused control is fully visible
 func _on_focus_changed(c: Control) -> void:
-	if in_match or c == null: return
+	if in_match or c == null or Cloud.companion(): return   # on phones the finger scrolls, not the focus
 	var n: Node = c.get_parent()
 	while n != null and not (n is ScrollContainer): n = n.get_parent()
 	if n == null: return
@@ -1181,7 +1186,7 @@ func _hook_web_input(le: LineEdit) -> void:
 	le.gui_input.connect(func(e):
 		if (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT) or (e is InputEventScreenTouch and e.pressed):
 			le.accept_event(); _web_ask(le))
-	le.focus_entered.connect(func(): if not mouse_recent(): _web_ask(le))
+
 
 func _web_ask(le: LineEdit) -> void:
 	if _asking or not is_instance_valid(le) or not le.editable: return

@@ -28,7 +28,7 @@ func _process(delta: float) -> void:
 	t += delta
 	if mode == "menu": _update(delta)
 	# backgrounds don't need 60+ fps: redraw at ~30 fps (menu) / ~15 fps (hub), or almost never in performance mode
-	var perf: bool = Save.data != null and Save.data.settings.get("perf_mode", false)
+	var perf: bool = (Save.data != null and Save.data.settings.get("perf_mode", false)) or Cloud.companion()
 	var hz: float = (30.0 if mode == "menu" else 15.0) if not perf else (10.0 if mode == "menu" else 0.5)
 	_since += delta
 	if _since >= 1.0 / hz: _since = 0.0; queue_redraw()
