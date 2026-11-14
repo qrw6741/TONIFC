@@ -286,6 +286,7 @@ func user_team() -> Dictionary:
 	return {"name": pr.club_name, "short": pr.club_name.substr(0, 3).to_upper(), "kit": pr.kit.home, "formation": s.formation, "players": inf.players, "subs": subs, "badge": pr.badge, "chem": inf.chem, "is_user": true}
 
 func ai_team(name: String, strength: float) -> Dictionary:
+	if extreme(): strength = max(strength, 92.0)
 	var s = build_ai_squad(strength)
 	var k = {"c1": pick(["#c8102e", "#034694", "#ffffff", "#111111", "#00954c", "#6b2ea6", "#ff7f00", "#12a0d7"]), "c2": pick(["#ffffff", "#111111", "#ffd23f"])}
 	var sh = ""
@@ -316,6 +317,8 @@ func log_tx(kind: String, amount: int, cur: String, desc: String) -> void:
 
 func xp_need(level: int) -> int: return 800 + level * 350
 func add_xp(n: int) -> void:
+	n = xp_scaled(n, "club")
+	if n <= 0: return
 	var pr: Dictionary = D().profile
 	pr.xp += n
 	while pr.xp >= xp_need(pr.level):
@@ -348,7 +351,29 @@ func tier_pool(tier: String) -> Array:
 			else: pool = Data.players.filter(func(p): return p.type == "base" and Data.rarity_key(p) == tier)
 	_tier_pools[tier] = pool
 	return pool
+## EXTREME MODE (per save): XP ÷1000, high-rated & special pack pulls 1000× rarer, AI maxed in every match
+func extreme() -> bool: return Save.data != null and bool(Save.data.settings.get("extreme", false))
+## XP after the Extreme divider, with the fractions carried over so nothing is lost
+func xp_scaled(n: int, key: String) -> int:
+	if not extreme(): return n
+	var c: Dictionary = D().get("xp_carry", {})
+	var tot: float = float(c.get(key, 0.0)) + n / 1000.0
+	var whole: int = int(floor(tot))
+	c[key] = tot - whole; D().xp_carry = c
+	return whole
+
 func roll_tier(tier: String) -> Dictionary:
+	var r = _roll_tier(tier)
+	# Extreme: an 84+ or special pull only survives 1 time in 1000 (guaranteed-tier pools are left alone)
+	if extreme() and not ["legend", "asc_finale", "special", "totw", "promo", "hero", "icon", "found", "rising"].has(tier):
+		var pool = tier_pool(tier)
+		var low = pool.filter(func(p): return p.type == "base" and p.ovr < 84)
+		var tries = 0
+		while not low.is_empty() and (r.ovr >= 84 or r.type != "base") and randf() > 0.001 and tries < 50:
+			r = _roll_tier(tier); tries += 1
+		if (r.ovr >= 84 or r.type != "base") and not low.is_empty() and tries >= 50: r = pick(low)
+	return r
+func _roll_tier(tier: String) -> Dictionary:
 	var pool = tier_pool(tier)
 	if tier == "legend":
 		var t = "icon" if chance(0.25) else "hero"
@@ -379,7 +404,7 @@ func generate_pack(id: String) -> Array:
 	for g in pk.guar:
 		for i in int(g[1]): out.append(roll_tier(g[0]))
 	var ws = []
-	for t in pk.w: ws.append([pk.w[t], t])
+	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising"].has(t) else 1.0), t])
 	while out.size() < int(pk.items): out.append(roll_tier(weighted(ws)))
 	out.sort_custom(func(a, b): return Data.card_value_score(a) > Data.card_value_score(b))
 	return out

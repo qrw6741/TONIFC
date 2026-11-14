@@ -68,7 +68,7 @@ var finished = false
 func _init(c: Dictionary) -> void:
 	cfg = c
 	ai = Data.difficulties[c.get("difficulty", "professional")].ai
-	if c.has("ai"): ai = clamp(float(c.ai), 0.2, 1.3)
+	if c.has("ai"): ai = clamp(float(c.ai), 0.2, 1.5 if c.get("extreme", false) else 1.3)
 	elite = c.get("elite", false)   # dynamic difficulty (Rivals divisions, win streaks, Champions)
 	half_secs = float(c.get("half_len", 3)) * 60.0
 	rules = c.get("rules", "classic")

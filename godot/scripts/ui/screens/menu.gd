@@ -22,6 +22,8 @@ func s_title(_p) -> Dictionary:
 		Sfx.play("boom"); Sfx.music_on()
 		UI.reset("onboard" if Save.data == null else "main"), "Primary", true)
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(b)
+	var sl = UI.btn("Save Slots  ·  Slot %d" % Save.slot, func(): Sfx.play("select"); Sfx.music_on(); UI.go("slots"), "")
+	sl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER; v.add_child(sl)
 	var hint = UI.label("Keyboard, mouse, Xbox or PS5 controller · Top 5 leagues 2025/26", 13, UI.DIM); hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(hint)
 	c.add_child(v)
 	return _ret(page, func(): pass, "menu", {"no_music": true})
@@ -30,7 +32,7 @@ func s_title(_p) -> Dictionary:
 func s_onboard(_p) -> Dictionary:
 	var page = Control.new()
 	var c = CenterContainer.new(); c.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(c)
-	var st = {"name": "Manager", "club": "Phoenix FC", "c1": "#e8b631", "c2": "#14161c", "icon": "star"}
+	var st = {"name": "Manager", "club": "Phoenix FC", "c1": "#e8b631", "c2": "#14161c", "icon": "star", "extreme": false}
 	var badge = UI.icon("badge", {"shape": "shield", "c1": st.c1, "c2": st.c2, "icon": st.icon}, Vector2(70, 74))
 	var upd = func(): badge.arg = {"shape": "shield", "c1": st.c1, "c2": st.c2, "icon": st.icon}; badge.queue_redraw()
 	var v = UI.vb(14)
@@ -41,6 +43,9 @@ func s_onboard(_p) -> Dictionary:
 	var colors = [["#e8b631", "Gold"], ["#c8102e", "Red"], ["#034694", "Blue"], ["#00954c", "Green"], ["#ffffff", "White"], ["#6b2ea6", "Purple"], ["#14161c", "Black"], ["#ff7f00", "Orange"]]
 	v.add_child(UI.hb(18, [badge, UI.field("Primary", UI.option(colors, st.c1, func(x): st.c1 = x; upd.call())), UI.field("Secondary", UI.option(colors, st.c2, func(x): st.c2 = x; upd.call())),
 		UI.field("Icon", UI.option(["star", "ball", "crown", "bolt", "bird", "flame"].map(func(x): return [x, x.capitalize()]), st.icon, func(x): st.icon = x; upd.call()))]))
+	var ex = CheckBox.new(); ex.text = "EXTREME MODE — XP ÷1000, top pulls 1000× rarer, maxed AI (can be turned off later in Settings)"; ex.focus_mode = Control.FOCUS_ALL
+	ex.add_theme_color_override("font_color", Color("#ff5a5a")); ex.toggled.connect(func(x): st.extreme = x)
+	v.add_child(ex)
 	v.add_child(UI.wrapl(UI.label("You'll receive a starter squad of real players, 5,000 coins, 500 Prime Points (free in-game credits) and a Premium Gold Pack.", 13, UI.DIM), 520))
 	var go = UI.btn("Ⓐ  Start Ultimate XI", func():
 		Save.create(st.name.strip_edges() if st.name.strip_edges() != "" else "Manager")
@@ -48,6 +53,7 @@ func s_onboard(_p) -> Dictionary:
 		pr.club_name = st.club.strip_edges() if st.club.strip_edges() != "" else "Phoenix FC"
 		pr.badge = {"shape": "shield", "c1": st.c1, "c2": st.c2, "icon": st.icon}
 		pr.kit.home.c1 = st.c1; pr.kit.home.c2 = st.c2
+		Save.data.settings.extreme = st.extreme
 		grant_starter(); Save.write_now()
 		ut_transition(func(): UI.reset("home")), "Primary", true)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -92,7 +98,7 @@ func ut_transition(cb: Callable) -> void:
 
 # ------------------------------------------------------------------ main menu
 const ITEMS := [["ut", "Ultimate XI", "Build your dream squad"], ["kickoff", "Kick Off", "Quick match with any club"], ["career", "Career Mode", "Manage a club through a season"],
-	["clubs", "Clubs", "Explore every league & club"], ["tourn", "Tournaments", "Knockout cups"], ["customize", "Customize", "Badge, kits & stadium"], ["profile", "Profile", "Stats & history"], ["settings", "Settings", "Audio, gameplay & saves"]]
+	["clubs", "Clubs", "Explore every league & club"], ["tourn", "Tournaments", "Knockout cups"], ["customize", "Customize", "Badge, kits & stadium"], ["profile", "Profile", "Stats & history"], ["slots", "Save Slots", "3 clubs · switch or start new"], ["settings", "Settings", "Audio, gameplay & saves"]]
 
 func s_main(_p) -> Dictionary:
 	var pr: Dictionary = Save.data.profile
@@ -424,24 +430,35 @@ func s_settings(_p) -> Dictionary:
 	row.add_child(UI.panel(a))
 	var pad_name = Input.get_joy_name(Pad.device) if Pad.device >= 0 else "none connected"
 	var c = UI.vb(6, [UI.caps("Controls"), UI.label("Controller: " + pad_name, 12, UI.TEAL if Pad.device >= 0 else UI.DIM)])
-	var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 16)
+	var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 10)
 	for hdr in ["Action", "Keyboard", "Xbox", "PS5 DualSense"]: g.add_child(UI.caps(hdr, 10))
 	for r in CONTROLS: g.add_child(UI.label(r[0], 13, UI.DIM)); g.add_child(UI.bold(r[1], 13)); g.add_child(UI.label(r[2], 13, UI.DIM)); g.add_child(UI.bold(r[3], 13, UI.TEAL if Pad.style == "ps" else UI.TEXT))
-	c.add_child(g); row.add_child(UI.panel(c))
+	c.add_child(g)
+	var csc = UI.scroll(c, true); csc.size_flags_horizontal = Control.SIZE_EXPAND_FILL; csc.custom_minimum_size.x = 380
+	var cpn = UI.panel(csc); cpn.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(cpn)
 	var gp = UI.vb(10, [UI.caps("Graphics & performance")])
 	gp.add_child(UI.field("Frame rate cap", UI.option([[30, "30 FPS (battery saver)"], [60, "60 FPS (recommended)"], [120, "120 FPS"], [0, "Unlimited (not recommended)"]], int(s.get("fps_cap", 60)), func(v): s.fps_cap = int(v); Save.dirty(); UI.apply_display())))
-	var vs = CheckBox.new(); vs.text = "V-Sync (prevents tearing & GPU overload)"; vs.button_pressed = s.get("vsync", true)
+	var vs = CheckBox.new(); vs.text = "V-Sync (no tearing / GPU overload)"; vs.button_pressed = s.get("vsync", true)
 	vs.toggled.connect(func(v): s.vsync = v; Save.dirty(); UI.apply_display()); gp.add_child(vs)
 	var rp = CheckBox.new(); rp.text = "Goal replays"; rp.button_pressed = s.get("replays", true)
 	rp.toggled.connect(func(v): s.replays = v; Save.dirty()); gp.add_child(rp)
-	var pm = CheckBox.new(); pm.text = "Performance mode (lighter crowd & backgrounds)"; pm.button_pressed = s.get("perf_mode", false)
+	var pm = CheckBox.new(); pm.text = "Performance mode"; pm.button_pressed = s.get("perf_mode", false)
 	pm.toggled.connect(func(v): s.perf_mode = v; Save.dirty()); gp.add_child(pm)
 	gp.add_child(UI.field("Match speed", UI.option([["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]], s.get("game_speed", "normal"), func(v): s.game_speed = v; Save.dirty())))
-	var d = UI.vb(12, [gp, UI.caps("Save data"), UI.wrapl(UI.label("Progress saves automatically. The save file lives at:\n" + ProjectSettings.globalize_path(Save.PATH), 13, UI.DIM), 300),
+	gp.add_child(UI.caps("Extreme mode", 12, Color("#ff5a5a")))
+	var exb = CheckBox.new(); exb.text = "EXTREME (×1000 difficulty)"; exb.button_pressed = s.get("extreme", false); exb.add_theme_color_override("font_color", Color("#ff7a7a"))
+	exb.toggled.connect(func(v):
+		if v and not await UI.modal("Turn on EXTREME?", UI.wrapl(UI.label("For this save only:\n• Season Pass and Club XP are divided by 1,000\n• 84+ and special players from packs are 1,000× rarer\n• every AI opponent is maxed out (Ultimate, elite keepers & defenders, 92+ rated squads)\n\nYou can turn it off again here.", 14), 460), [["Cancel", null, ""], ["Go Extreme", true, "Danger"]]):
+			exb.set_pressed_no_signal(false); return
+		s.extreme = v; Save.dirty(); UI.toast("Extreme mode " + ("ON" if v else "off"), "bad" if v else "good"))
+	gp.add_child(exb)
+	var d = UI.vb(12, [gp, UI.caps("Save data"), UI.label("Playing on Slot %d of %d" % [Save.slot, Save.SLOTS], 14, UI.TEAL),
+		UI.btn("Save Slots…", func(): UI.go("slots"), "Primary"),
+		UI.wrapl(UI.label("Progress saves automatically. This slot's file:\n" + ProjectSettings.globalize_path(Save.path()), 13, UI.DIM), 300),
 		UI.btn("Reset all progress", func():
-			if await UI.modal("Reset everything?", "This permanently deletes your club, players, coins and history.", [["Cancel", null, ""], ["Delete all progress", true, "Danger"]]):
+			if await UI.modal("Reset this slot?", "This permanently deletes the club, players, coins and history in Slot %d. Other slots are not touched." % Save.slot, [["Cancel", null, ""], ["Delete Slot %d" % Save.slot, true, "Danger"]]):
 				Save.wipe(); UI.reset("title"), "Danger")])
-	row.add_child(UI.panel(d))
+	var dp = UI.panel(d); dp.custom_minimum_size.x = 340; row.add_child(dp)
 	f.body.add_child(row)
 	return _ret(f.node, to_main)
 
@@ -500,3 +517,63 @@ func s_profile(p) -> Dictionary:
 	var rp = UI.panel(right); UI.grow(rp); row.add_child(rp)
 	f.body.add_child(row)
 	return _ret(f.node, to_main)
+
+# ------------------------------------------------------------------ save slots
+func s_slots(_p) -> Dictionary:
+	var f = UI.sub_shell("Save Slots", "Prime Football 27", true) if Save.data != null else {"node": Control.new(), "body": UI.vb(14)}
+	if Save.data == null:
+		var mg = MarginContainer.new(); mg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		for kv in [["left", 60], ["right", 60], ["top", 40], ["bottom", 30]]: mg.add_theme_constant_override("margin_" + kv[0], kv[1])
+		f.node.add_child(mg); mg.add_child(f.body)
+	f.body.add_child(UI.vb(2, [UI.head("SAVE SLOTS", 40), UI.label("Three separate clubs. Pick a slot to play it, or start a new club in an empty slot. %s on a slot deletes it." % ("□" if Pad.style == "ps" else ("X" if Pad.style == "xbox" else "Delete button")), 14, UI.DIM)]))
+	var row = UI.hb(22); row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var tiles = []
+	for n in range(1, Save.SLOTS + 1):
+		var info = Save.slot_info(n)
+		var cur: bool = n == Save.slot and Save.data != null
+		var kids = [UI.hb(8, [UI.caps("Slot %d" % n, 13, UI.GOLD2), UI.spacer(), UI.caps("● PLAYING" if cur else "", 11, UI.GREEN)])]
+		if info.is_empty():
+			kids.append(UI.head("EMPTY", 34, UI.DIM)); kids.append(UI.label("Start a new club in this slot", 14, UI.DIM))
+		else:
+			kids.append(UI.hb(12, [UI.icon("badge", info.badge, Vector2(54, 58)) if not info.badge.is_empty() else Control.new(), UI.vb(0, [UI.bold(info.club, 22), UI.label(info.name, 14, UI.DIM)])]))
+			kids.append(UI.label("Club Level %d  ·  ● %s coins" % [info.level, Sys.fmt(info.coins)], 14))
+			kids.append(UI.label("%d players  ·  %d matches played" % [info.players, info.played], 13, UI.DIM))
+			if info.saved > 0: kids.append(UI.label("Last saved " + Time.get_datetime_string_from_unix_time(info.saved + Time.get_time_zone_from_system().bias * 60, true), 12, UI.DIM))
+			if info.extreme: kids.append(UI.bold("☠ EXTREME", 15, Color("#ff5a5a")))
+		var t = UI.tile(kids, func(): _open_slot(n), Vector2(330, 270), n == Save.slot)
+		t.set_meta("slot", n)
+		if cur:
+			var sb = StyleBoxFlat.new(); sb.bg_color = Color(0.18, 0.85, 0.5, 0.08); sb.border_color = UI.GREEN; sb.set_border_width_all(2); sb.set_corner_radius_all(10)
+			t.add_theme_stylebox_override("normal", sb)
+		var del = UI.btn("Delete", func(): _delete_slot(n), "Small")
+		del.disabled = info.is_empty()
+		row.add_child(UI.vb(8, [t, del])); tiles.append(t)
+	var cc = CenterContainer.new(); UI.grow(cc); cc.add_child(row)
+	f.body.add_child(cc)
+	var del_focused = func():
+		var fo = UI.get_viewport().gui_get_focus_owner()
+		if fo and fo.has_meta("slot"): _delete_slot(int(fo.get_meta("slot")))
+	UI.keyhook(f.node, {"j%d" % JOY_BUTTON_X: del_focused, "k%d" % KEY_DELETE: del_focused})
+	return _ret(f.node, func(): UI.reset("main" if Save.data != null else "title"), "menu" if Save.data == null else "hub")
+
+func _open_slot(n: int) -> void:
+	if n == Save.slot and Save.data != null: UI.reset("main"); return
+	var info = Save.slot_info(n)
+	var msg = ("Load %s (Slot %d)?" % [info.club, n]) if not info.is_empty() else "Start a new club in Slot %d?" % n
+	if not await UI.modal("Switch save slot", msg + "\nYour current club is saved first.", [["Cancel", null, ""], ["Load" if not info.is_empty() else "New club", true, "Primary"]]): return
+	var has = Save.use_slot(n)
+	Sfx.play("boom")
+	if has:
+		Sys.market_tick()
+		UI.toast("Loaded Slot %d · %s" % [n, info.club], "good"); UI.reset("main")
+	else: UI.reset("onboard")
+
+func _delete_slot(n: int) -> void:
+	var info = Save.slot_info(n)
+	if info.is_empty(): return
+	if not await UI.modal("Delete Slot %d?" % n, "This permanently deletes %s (%d players, ● %s coins). This can't be undone." % [info.club, info.players, Sys.fmt(info.coins)], [["Cancel", null, ""], ["Delete forever", true, "Danger"]]): return
+	var was_cur: bool = n == Save.slot
+	Save.delete_slot(n)
+	UI.toast("Slot %d deleted" % n, "bad")
+	if was_cur: UI.reset("slots")
+	else: UI.replace("slots")

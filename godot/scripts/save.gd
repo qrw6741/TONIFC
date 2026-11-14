@@ -1,7 +1,11 @@
 extends Node
-## SAVE — persistent, versioned save file (user://pf27_save.json), debounced autosave.
+## SAVE — 3 save slots (user://pf27_slot1..3.json), versioned, debounced autosave.
+## The active slot is remembered in user://pf27_meta.json. The old single save becomes Slot 1.
 
-const PATH := "user://pf27_save.json"
+const PATH := "user://pf27_save.json"   # legacy single-save file (migrated to slot 1)
+const META := "user://pf27_meta.json"
+const SLOTS := 3
+var slot = 1
 const VERSION := 1
 var data = null   # Dictionary or null
 var _dirty = false
@@ -41,14 +45,55 @@ func new_save(name: String) -> Dictionary:
 		"settings": default_settings()
 	}
 
+func slot_path(n: int) -> String: return "user://pf27_slot%d.json" % n
+func path() -> String: return slot_path(slot)
+
+func _read_meta() -> void:
+	if FileAccess.file_exists(META):
+		var m = JSON.parse_string(FileAccess.get_file_as_string(META))
+		if typeof(m) == TYPE_DICTIONARY: slot = clamp(int(m.get("slot", 1)), 1, SLOTS)
+	# first run with slots: the old single save becomes Slot 1
+	if FileAccess.file_exists(PATH) and not FileAccess.file_exists(slot_path(1)):
+		DirAccess.rename_absolute(ProjectSettings.globalize_path(PATH), ProjectSettings.globalize_path(slot_path(1)))
+func _write_meta() -> void:
+	var f = FileAccess.open(META, FileAccess.WRITE)
+	if f: f.store_string(JSON.stringify({"slot": slot}))
+
+func _read_file(p: String):
+	if not FileAccess.file_exists(p): return null
+	var d = JSON.parse_string(FileAccess.get_file_as_string(p))
+	if typeof(d) != TYPE_DICTIONARY or int(d.get("v", 0)) != VERSION: return null
+	return d
+
 func load_save() -> bool:
-	if not FileAccess.file_exists(PATH): return false
-	var f = FileAccess.open(PATH, FileAccess.READ)
-	if f == null: return false
-	var d = JSON.parse_string(f.get_as_text())
-	if typeof(d) != TYPE_DICTIONARY or int(d.get("v", 0)) != VERSION: return false
+	_read_meta()
+	var d = _read_file(path())
+	if d == null: return false
 	data = _migrate(_ints(d))
 	return true
+
+## summary of a slot for the Save Slots screen ({} = empty)
+func slot_info(n: int) -> Dictionary:
+	var d = data if n == slot and data != null else _read_file(slot_path(n))
+	if d == null: return {}
+	var pr: Dictionary = d.get("profile", {})
+	return {"name": pr.get("name", "Manager"), "club": pr.get("club_name", "Club"), "level": int(pr.get("level", 1)), "coins": int(d.get("coins", 0)),
+		"played": int(d.get("stats", {}).get("played", 0)), "players": d.get("club", []).size(), "extreme": bool(d.get("settings", {}).get("extreme", false)),
+		"saved": int(d.get("saved_at", 0)), "badge": pr.get("badge", {})}
+
+## switch to another slot (saves the current one first). Returns true if that slot has a club.
+func use_slot(n: int) -> bool:
+	write_now()
+	slot = clamp(n, 1, SLOTS); _write_meta()
+	data = null
+	var d = _read_file(path())
+	if d != null: data = _migrate(_ints(d))
+	return data != null
+
+func delete_slot(n: int) -> void:
+	if n == slot: data = null
+	var p = slot_path(n)
+	if FileAccess.file_exists(p): DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 
 ## JSON numbers load as floats; restore whole numbers to ints so indexing & %d formatting stay exact
 func _ints(v):
@@ -99,12 +144,13 @@ func _process(delta: float) -> void:
 func write_now() -> void:
 	_dirty = false
 	if data == null: return
-	var f = FileAccess.open(PATH, FileAccess.WRITE)
+	data.saved_at = int(Time.get_unix_time_from_system())
+	var f = FileAccess.open(path(), FileAccess.WRITE)
 	if f: f.store_string(JSON.stringify(data))
+	_write_meta()
 
 func wipe() -> void:
-	data = null
-	if FileAccess.file_exists(PATH): DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
+	delete_slot(slot)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_EXIT_TREE:

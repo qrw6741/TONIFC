@@ -67,6 +67,8 @@ func claim_count() -> int:
 
 func add_xp(n: int, why := "") -> void:
 	if Save.data == null or n <= 0: return
+	if why != "Bought level": n = Sys.xp_scaled(n, "season")
+	if n <= 0: return
 	var s = st(); var before = level(); var before_total: int = int(s.xp)
 	if why != "" and why != "test": Sys.toast.emit("+%d Season XP · %s" % [n, why], "info")
 	s.xp = before_total + n

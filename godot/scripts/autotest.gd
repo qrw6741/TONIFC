@@ -11,6 +11,8 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out)
 	run()
 
+func extreme_flag(x: String) -> bool: return x == "--extreme"
+
 func shot(name: String) -> void:
 	await get_tree().create_timer(0.7).timeout
 	await RenderingServer.frame_post_draw
@@ -63,6 +65,28 @@ func run() -> void:
 				await w(0.3)
 			await w(0.5)
 			print("SKIP after 6 presses: unopened left ", Save.data.unopened.size(), " cur ", UI.cur_name)
+		if extra == "--slots":
+			print("SLOT cur ", Save.slot, " info ", Save.slot_info(Save.slot).get("club"))
+			UI.go("slots"); await w(0.6); await shot("g07_slots")
+			var had = Save.use_slot(2); print("SLOT2 has ", had); UI.reset("onboard"); await w(0.5)
+			Save.create("Second"); UI.modules[0].grant_starter(); Save.data.profile.club_name = "Slot Two FC"; Save.write_now()
+			Save.use_slot(1); print("BACK slot1 ", Save.data.profile.club_name)
+			UI.reset("slots"); await w(0.6); await shot("g07b_slots_two")
+			Save.delete_slot(2); print("SLOT2 after delete ", Save.slot_info(2))
+		if extreme_flag(extra):
+			Save.data.settings.extreme = true
+			var xp0 = Season.st().xp; Season.add_xp(450, "test"); print("EXT season xp +", Season.st().xp - xp0, " carry ", Save.data.get("xp_carry"))
+			var hi = 0; var n = 0
+			for k in 300:
+				for pl in Sys.generate_pack("rare"): n += 1; if pl.ovr >= 84 or pl.type != "base": hi += 1
+			print("EXT rare packs: ", hi, " of ", n, " cards were 84+/special")
+			print("EXT pp83x2 ", Sys.generate_pack("pp83x2").map(func(x): return x.ovr), " ai team ", Sys.squad_rating(Sys.ai_team("X", 70).players))
+			Save.data.settings.extreme = false
+			var hi2 = 0
+			for k in 300:
+				for pl in Sys.generate_pack("rare"): if pl.ovr >= 84 or pl.type != "base": hi2 += 1
+			print("NORMAL rare packs: ", hi2, " of ", n)
+			UI.go("settings"); await w(0.5); await shot("g08_settings")
 		if extra == "--consum":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var u: String = sq.slots[9]; var before = Sys.item_player(u)
