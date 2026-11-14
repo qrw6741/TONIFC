@@ -11,10 +11,19 @@ static func promo_state() -> Dictionary:
 	var d = Save.data
 	if typeof(d.get("store_lim")) != TYPE_DICTIONARY or d.store_lim.get("week", "") != Sys.week_key(): d.store_lim = {"week": Sys.week_key(), "n": {}}
 	return d.store_lim
+## ⚡ Flash packs: a small stock that refills every hour
+static func flash_state() -> Dictionary:
+	var d = Save.data; var hk = int(floor(Sys.now() / 3600.0))
+	if typeof(d.get("store_flash")) != TYPE_DICTIONARY or int(d.store_flash.get("hour", -1)) != hk: d.store_flash = {"hour": hk, "n": {}}
+	return d.store_flash
+static func flash_reset_in() -> float: return 3600.0 - fmod(Sys.now(), 3600.0)
 static func promo_left(id: String) -> int:
-	if not Data.packs[id].get("promo", false): return -1
+	var pk: Dictionary = Data.packs[id]
+	if pk.has("flash"): return int(pk.flash) - int(flash_state().n.get(id, 0))
+	if not pk.get("promo", false): return -1
 	return PROMO_LIMIT - int(promo_state().n.get(id, 0))
 static func promo_bought(id: String) -> void:
+	if Data.packs[id].has("flash"): flash_state().n[id] = int(flash_state().n.get(id, 0)) + 1; Save.dirty(); return
 	if Data.packs[id].get("promo", false): promo_state().n[id] = int(promo_state().n.get(id, 0)) + 1; Save.dirty()
 
 static func preview_window() -> int: return int(floor(Sys.now() / PREVIEW_SECS))
@@ -90,7 +99,8 @@ func _pack_row(main: VBoxContainer, cat: String) -> void:
 		var pk: Dictionary = Data.packs[id]
 		title.text = pk.name
 		var m = []
-		if pk.get("promo", false): m.append("⏱ Expires in %s" % Sys.fmt_time(Sys.secs_to_reset("weekly")))
+		if pk.has("flash"): m.append("⚡ FLASH · restocks in %s" % Sys.fmt_time(flash_reset_in()))
+		elif pk.get("promo", false): m.append("⏱ Expires in %s" % Sys.fmt_time(Sys.secs_to_reset("weekly")))
 		var left = promo_left(id)
 		m.append(("Packs Remaining: %d" % left) if left >= 0 else "Packs Remaining: ∞")
 		meta.text = "      ".join(m)
@@ -106,7 +116,7 @@ func _pack_row(main: VBoxContainer, cat: String) -> void:
 		var stats = UI.bold(_pack_stats(pk), 12); stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; stats.modulate.a = 0.0
 		var price = UI.bold(_price_text(pk), 15, UI.GOLD2); price.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var left = promo_left(id)
-		if left == 0: price.text = "Sold out this week"; price.add_theme_color_override("font_color", UI.DIM)
+		if left == 0: price.text = "Sold out · back in %s" % Sys.fmt_time(flash_reset_in()) if pk.has("flash") else "Sold out this week"; price.add_theme_color_override("font_color", UI.DIM)
 		var v = UI.vb(8, [art, stats, price]); v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		for c in v.get_children(): c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.custom_minimum_size = Vector2(200, 0); b.add_child(v); b.custom_minimum_size = Vector2(200, 300)
@@ -119,7 +129,7 @@ func _pack_row(main: VBoxContainer, cat: String) -> void:
 		b.mouse_entered.connect(func(): if UI.mouse_recent() and not b.has_focus(): b.grab_focus())
 		b.pressed.connect(func():
 			Sfx.play("select")
-			if promo_left(pid) == 0: UI.toast("You've bought the maximum of this pack this week", "bad"); return
+			if promo_left(pid) == 0: UI.toast("Sold out — this pack restocks soon" if Data.packs[pid].has("flash") else "You've bought the maximum of this pack this week", "bad"); return
 			UI.modules[1].buy_pack(pid))
 		if first: b.set_meta("autofocus", true); show.call(id); first = false
 		packs.add_child(b)
@@ -255,7 +265,8 @@ func _browse_mobile(body: VBoxContainer, cat: String) -> void:
 		var info = UI.vb(3, [UI.bold(pk.name, 16), UI.label(_pack_stats(pk), 12, UI.DIM)])
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var d = UI.label(pk.desc, 11, Color("#8a93a3")); d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; info.add_child(d)
-		if left >= 0: info.add_child(UI.bold(("%d left this week" % left) if left > 0 else "Sold out this week", 11, Color("#ff9a3c") if left > 0 else UI.DIM))
+		if pk.has("flash"): info.add_child(UI.bold(("⚡ FLASH · %d left this hour · restocks in %s" % [left, Sys.fmt_time(flash_reset_in())]) if left > 0 else "⚡ Sold out · restocks in %s" % Sys.fmt_time(flash_reset_in()), 11, Color("#ffe633") if left > 0 else UI.DIM))
+		elif left >= 0: info.add_child(UI.bold(("%d left this week" % left) if left > 0 else "Sold out this week", 11, Color("#ff9a3c") if left > 0 else UI.DIM))
 		var price = UI.vb(2)
 		if pk.coins: price.add_child(UI.bold("● " + Sys.fmt(pk.coins), 14, UI.GOLD2))
 		if pk.points: price.add_child(UI.bold("◆ " + Sys.fmt(pk.points), 13, UI.TEAL))
@@ -263,8 +274,8 @@ func _browse_mobile(body: VBoxContainer, cat: String) -> void:
 		price.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		var pid: String = id
 		body.add_child(_row_btn([art, info, price], func():
-			if promo_left(pid) == 0: UI.toast("You've bought the maximum of this pack this week", "bad"); return
-			UI.modules[1].buy_pack(pid), 116.0, Color("#ff7a1a") if pk.get("promo", false) else Color(0, 0, 0, 0)))
+			if promo_left(pid) == 0: UI.toast("Sold out — this pack restocks soon" if Data.packs[pid].has("flash") else "You've bought the maximum of this pack this week", "bad"); return
+			UI.modules[1].buy_pack(pid), 116.0, (Color("#36f0ff") if pk.get("art", "") == "blackout" else Color("#ff7a1a")) if pk.get("promo", false) else Color(0, 0, 0, 0)))
 	body.add_child(UI.btn("Pack probabilities", func(): UI.replace("store", {"tab": "odds"}), "Small"))
 
 func _preview_mobile(body: VBoxContainer, pv: Dictionary) -> void:

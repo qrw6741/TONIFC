@@ -43,8 +43,8 @@ func s_home(_p) -> Dictionary:
 	# right column
 	var right = UI.vb(14); UI.grow(right)
 	var pc = UI.hb(6)
-	for p in Fright.fright.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
-	var pt = UI.tile([UI.bold("Fright Night  ·  Halloween", 24, Color("#ff8a1f")), UI.bold("New cards & the Team of the Week 2 squad — tap to see the whole drop", 13, Color("#c99bff")), CenterContainer.new()], func(): UI.go("promo"))
+	for p in Black.cards.slice(0, 3): var c = UI.card(p, 7.6); pc.add_child(c)
+	var pt = UI.tile([UI.bold("⚡ Blackout  ·  Black Friday", 24, Color("#36f0ff")), UI.bold("Cards that upgrade when their club wins, Flash packs & Team of the Week 3 — tap to see it all", 13, Color("#ffe633")), CenterContainer.new()], func(): UI.go("promo"))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
 	var slv: int = Season.level(); var scl: int = Season.claim_count()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Season 2 · Fright Night — earn Phantom Pass cards", 13, UI.GREEN if scl else Color("#ff9a3c"))]), UI.spacer(), UI.card(Fright.phantom_finale[0], 3.6, true) if not Fright.phantom_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
@@ -58,8 +58,8 @@ func s_home(_p) -> Dictionary:
 # ------------------------------------------------------------------ OBJECTIVES
 func s_objectives(p) -> Dictionary:
 	var f = UI.hub_shell("objectives")
-	var cat: String = p.get("cat", "quick")
-	var cats = [["halloween", "Halloween"], ["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"]]
+	var cat: String = p.get("cat", "blackout")
+	var cats = [["blackout", "⚡ Blackout"], ["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"], ["halloween", "Halloween"]]
 	var labs = cats.map(func(c): return [c[0], c[1] + (" •" if Data.objectives.any(func(o): return o.cat == c[0] and Sys.obj_done(o) and not Sys.obj_claimed(o)) else "")])
 	f.body.add_child(UI.hb(10, [page_title("Objectives"), UI.spacer(), UI.seg(labs, cat, func(v): UI.replace("objectives", {"cat": v}))]))
 	var qlab = UI.bold("", 14, Color("#ffd23f"))
@@ -71,7 +71,7 @@ func s_objectives(p) -> Dictionary:
 		upd.call()
 		var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm); tm.timeout.connect(upd)
 		f.body.add_child(qlab)
-	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 2 · rewards Foundations players", "milestone": "Permanent milestones", "halloween": "Fright Night · Trick or Treat packs, a Fright Night pack and 87 Fright Night Doku"}[cat]
+	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 2 · rewards Foundations players", "milestone": "Permanent milestones", "halloween": "Fright Night · Trick or Treat packs, a Fright Night pack and 87 Fright Night Doku", "blackout": "Blackout · Power Cut packs, a Blackout pack and 88 Blackout Nico Williams"}[cat]
 	f.body.add_child(UI.label(sub, 13, UI.DIM))
 	var list = UI.vb(10)
 	for o in Data.objectives.filter(func(x): return x.cat == cat and Sys.obj_live(x)):
@@ -678,7 +678,7 @@ func buy_pack(id: String) -> void:
 	var cur = await UI.modal("Buy %s?" % pk.name, body, btns)
 	if cur == null: return
 	if not Save.data.pending.is_empty(): UI.toast("Assign your previous pack items first", "bad"); UI.go("packresult"); return
-	if UI.modules[11].promo_left(id) == 0: UI.toast("You've bought the maximum of this pack this week", "bad"); return
+	if UI.modules[11].promo_left(id) == 0: UI.toast("Sold out — this pack restocks soon" if pk.has("flash") else "You've bought the maximum of this pack this week", "bad"); return
 	if not Sys.spend(cur, pk.coins if cur == "coins" else pk.points, "Bought " + pk.name, "store"): return
 	UI.modules[11].promo_bought(id)
 	open_pack(id, true)
@@ -695,8 +695,8 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	Save.write_now()
 	var best: Dictionary = items[0]
 	# walkouts are rare: 87+ cards, or icons/heroes, or 85+ special promo cards
-	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm", "fright", "phantom"].has(best.type))
-	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising", "fright"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
+	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm", "fright", "phantom", "blackout"].has(best.type))
+	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising", "fright", "blackout"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
 	Sfx.music_off()
 	var o = preload("res://scripts/ui/pack_fx.gd").new()
 	o.setup(id, best, walkout, lvl)
@@ -899,13 +899,13 @@ func _home_mobile() -> Dictionary:
 	var mp = UI.icon("minipitch", {"formation": sq.formation, "players": info.players}, Vector2(96, 110))
 	b.add_child(m_tile(sq.name, "Rating %d  ·  Chemistry %d/33  ·  %s\nTap to manage your squad" % [info.rating, info.chem.total, sq.formation], UI.TEAL, func(): UI.go("squad"), mp, true))
 	# live event
-	if Fright.THEME:
+	if Black.THEME:
 		var fc = HBoxContainer.new(); fc.add_theme_constant_override("separation", -14)
-		for p in Fright.fright.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; fc.add_child(c)
-		b.add_child(m_tile("Fright Night", "%d new cards · tap to see them all" % Fright.fright.size(), Color("#ff7a1a"), func(): UI.go("promo"), fc, true))
+		for p in Black.cards.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; fc.add_child(c)
+		b.add_child(m_tile("⚡ Blackout", "%d new cards that upgrade · Flash packs" % Black.cards.size(), Color("#36f0ff"), func(): UI.go("promo"), fc, true))
 		var tc = HBoxContainer.new(); tc.add_theme_constant_override("separation", -14)
-		for p in Fright.totw_latest.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; tc.add_child(c)
-		b.add_child(m_tile("Team of the Week 2", "See the TOTW squad", Color("#d8dde6"), func(): UI.go("promo", {"tab": "totw"}), tc, true))
+		for p in Black.totw_latest.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; tc.add_child(c)
+		b.add_child(m_tile("Team of the Week 3", "See the TOTW squad", Color("#d8dde6"), func(): UI.go("promo", {"tab": "totw"}), tc, true))
 	# play (simulated)
 	b.add_child(UI.caps("Play · matches are simulated", 11, Color("#8a93a3")))
 	var rv = Sys.D().modes.rivals
@@ -919,7 +919,7 @@ func _home_mobile() -> Dictionary:
 	b.add_child(UI.caps("Ultimate Team", 11, Color("#8a93a3")))
 	var oc: int = Sys.obj_claimable(); var sc: int = Season.claim_count(); var un: int = Save.data.unopened.size()
 	var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 8)
-	for x in [["Objectives", "Daily, weekly & Halloween", Color("#3fe0a0"), func(): UI.reset("objectives"), str(oc) if oc else ""],
+	for x in [["Objectives", "Daily, weekly & Blackout", Color("#3fe0a0"), func(): UI.reset("objectives"), str(oc) if oc else ""],
 			["Season Pass", "Level %d / %d" % [Season.level(), Season.LEVELS], Color("#9b6bff"), func(): UI.reset("season"), str(sc) if sc else ""],
 			["Store", ("%d packs to open" % un) if un else "Packs & Player Picks", Color("#ffd86b"), func(): UI.replace("store", {"tab": "mine" if un else "browse"}), str(un) if un else ""],
 			["Transfer Market", "Buy, sell & watch", Color("#4fd1ff"), func(): UI.reset("transfers"), ""],
@@ -937,7 +937,7 @@ func s_more(_p) -> Dictionary:
 	var f = UI.hub_shell("more")
 	var b = f.body
 	b.add_child(UI.head("MORE", 30))
-	for x in [["Objectives", "Daily, weekly, season & Halloween", Color("#3fe0a0"), func(): UI.reset("objectives")],
+	for x in [["Objectives", "Daily, weekly, season & Blackout", Color("#3fe0a0"), func(): UI.reset("objectives")],
 			["Season Pass", Season.NAME, Color("#9b6bff"), func(): UI.reset("season")],
 			["Play", "Rivals, Champions, Squad Battles, Draft", Color("#6fa8ff"), func(): UI.reset("play")],
 			["Club", "Players, squads & duplicates", Color("#c8d0db"), func(): UI.reset("club")],
@@ -1029,25 +1029,28 @@ func _unassigned_menu() -> void:
 	if Save.data.pending.is_empty(): UI.reset("store", {"tab": "mine" if not Save.data.unopened.is_empty() else "browse"})
 	else: UI.replace("packresult")
 
-# ------------------------------------------------------------------ LIVE EVENT (Fright Night + TOTW 2)
-## Event hub opened from the main-menu event tiles: every new card in the drop, and the Team of the Week squad on a pitch.
+# ------------------------------------------------------------------ LIVE EVENT (Blackout + TOTW 3)
+## Event hub opened from the main-menu event tiles: every new card, the live Blackout upgrades, and the Team of the Week squad on a pitch.
+const NEON := Color("#36f0ff")
+const VOLT := Color("#ffe633")
 func s_promo(p) -> Dictionary:
 	var tab: String = p.get("tab", "new")
-	var f = UI.sub_shell("Fright Night · TOTW 2", "Live event")
+	var f = UI.sub_shell("Blackout · TOTW 3", "Live event")
 	var body: VBoxContainer = f.body
-	var orange = Color("#ff8a1f")
+	var tabs = [["new", "New cards"], ["upgrades", "⚡ Upgrades"], ["totw", "TOTW 3 squad"]]
 	if not UI.mobile:
-		body.add_child(UI.hb(10, [UI.head("FRIGHT NIGHT", 38, orange), UI.label("Halloween promo · Team of the Week 2 · Phantom Pass", 15, Color("#c99bff")), UI.spacer(),
-			UI.seg([["new", "New cards"], ["totw", "TOTW 2 squad"]], tab, func(v): UI.replace("promo", {"tab": v}))]))
+		body.add_child(UI.hb(10, [UI.head("BLACKOUT", 38, NEON), UI.label("Black Friday promo · cards upgrade when their club wins · Team of the Week 3", 15, VOLT), UI.spacer(),
+			UI.seg(tabs, tab, func(v): UI.replace("promo", {"tab": v}))]))
 	else:
-		body.add_child(UI.seg([["new", "New cards"], ["totw", "TOTW 2 squad"]], tab, func(v): UI.replace("promo", {"tab": v})))
-	var acts = UI.hb(8, [UI.btn("Fright Night Pack", func(): UI.go("store", {"tab": "browse", "cat": "promo"}), "Primary"),
-		UI.btn("Halloween objectives", func(): UI.go("objectives", {"cat": "halloween"}), "Small"),
-		UI.btn("Halloween SBCs", func(): UI.go("sbc", {"cat": "Halloween"}), "Small")])
-	body.add_child(acts)
+		body.add_child(UI.seg(tabs, tab, func(v): UI.replace("promo", {"tab": v})))
+	body.add_child(UI.hb(8, [UI.btn("Blackout & Flash packs", func(): UI.go("store", {"tab": "browse", "cat": "promo"}), "Primary"),
+		UI.btn("Blackout objectives", func(): UI.go("objectives", {"cat": "blackout"}), "Small"),
+		UI.btn("Blackout SBCs", func(): UI.go("sbc", {"cat": "Blackout"}), "Small")]))
 	var content = UI.vb(16)
-	if tab == "totw": _promo_totw(content)
-	else: _promo_new(content)
+	match tab:
+		"totw": _promo_totw(content)
+		"upgrades": _promo_upgrades(content)
+		_: _promo_new(content)
 	if UI.mobile: body.add_child(content)
 	else: var sc = UI.scroll(content); UI.grow(sc, true, true); body.add_child(sc)
 	return {"node": f.node, "bg": "hub"}
@@ -1055,7 +1058,6 @@ func s_promo(p) -> Dictionary:
 func _promo_section(into: VBoxContainer, title: String, sub: String, col: Color, cards: Array) -> void:
 	into.add_child(UI.vb(2, [UI.bold(title, 20, col), UI.label(sub, 13, UI.DIM)]))
 	var flow = HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 10); flow.add_theme_constant_override("v_separation", 10)
-	flow.set_meta("keep_flow", true)
 	var cs: float = 7.6 if UI.mobile else 9.0
 	for pl in cards:
 		if pl.is_empty(): continue
@@ -1064,26 +1066,52 @@ func _promo_section(into: VBoxContainer, title: String, sub: String, col: Color,
 	into.add_child(flow)
 
 func _promo_new(into: VBoxContainer) -> void:
-	var excl = [Data.P("fr_" + Fright.FRIGHT_OBJ[0])]
-	for x in Fright.FRIGHT_SBC: excl.append(Data.P("fr_" + x[0]))
-	var phantom = []
-	for x in Fright.PHANTOM_FREE + Fright.PHANTOM_PREM: phantom.append(Data.P("ph_" + x[0]))
-	phantom += Fright.phantom_finale
-	_promo_section(into, "Fright Night · %d cards" % Fright.fright.size(), "Boosted Halloween promo cards · tradeable · in the Fright Night Pack and Trick or Treat packs", Color("#ff8a1f"), Fright.fright)
-	_promo_section(into, "Objective & SBC exclusives", "Earn these from Halloween objectives and SBCs — they never drop in packs", Color("#ffb35c"), excl)
-	_promo_section(into, "Team of the Week 2 · %d cards" % Fright.totw_latest.size(), "In-form cards in TOTW and promo packs", Color("#e8e8e8"), Fright.totw_latest)
-	_promo_section(into, "Phantom Pass · Season Pass", "Untradeable Season 2 rewards (83–86) — level up the Season Pass to claim them", Color("#c99bff"), phantom)
+	var excl = [Data.P("bo_" + Black.BLACKOUT_OBJ[0])]
+	for x in Black.BLACKOUT_SBC: excl.append(Data.P("bo_" + x[0]))
+	_promo_section(into, "Blackout · %d cards" % Black.cards.size(), "Upgrade +1 every time their club wins (up to +%d) · tradeable · Blackout & Flash packs" % Black.MAX_UP, NEON, Black.cards)
+	_promo_section(into, "Objective & SBC exclusives", "Earn these from Blackout objectives and SBCs — they never drop in packs, and they upgrade too", VOLT, excl)
+	_promo_section(into, "Team of the Week 3 · %d cards" % Black.totw_latest.size(), "In-form cards in TOTW and promo packs", Color("#e8e8e8"), Black.totw_latest)
+
+func _club_short(code: String) -> String:
+	if not Data.clubs.has(code): return code
+	var skip = ["FC", "CF", "UD", "AC", "AS", "SS", "SSC", "RC", "CA", "RCD", "SC", "1.", "FSV", "TSG", "VfB", "VfL", "SV", "AFC", "OGC", "LOSC", "Stade", "Olympique", "Real", "Deportivo", "US", "Hellas", "de", "Borussia", "Bayer", "04", "Club"]
+	var words = str(Data.clubs[code].name).split(" ")
+	for wd in words: if not skip.has(wd) and wd.length() > 2: return wd
+	return words[words.size() - 1]
+
+## the results that drive the upgrades: each club's result in every round so far
+func _promo_upgrades(into: VBoxContainer) -> void:
+	var rn: int = Black.round_now()
+	into.add_child(UI.hb(10, [UI.bold("Round %d · next results in %s" % [rn, Sys.fmt_time(Black.secs_to_next())], 18, VOLT), UI.spacer(), UI.pill("Win = +1 OVR & stats · max +%d" % Black.MAX_UP, NEON)]))
+	if rn == 0: into.add_child(UI.label("The first results drop in %s. Every Blackout card whose club wins gets +1." % Sys.fmt_time(Black.secs_to_next()), 14, UI.DIM))
+	var list = UI.vb(8)
+	var sorted: Array = Black.all_cards.filter(func(x): return not x.is_empty())
+	sorted.sort_custom(func(a, b): return int(a.bo_up) > int(b.bo_up) or (int(a.bo_up) == int(b.bo_up) and a.ovr > b.ovr))
+	for pl in sorted:
+		var pp: Dictionary = pl
+		var res = UI.hb(6)
+		for r in range(1, rn + 1):
+			var x = Black.result(str(pp.club), r)
+			var col = UI.GREEN if x.win else (UI.DIM if x.gf == x.ga else UI.RED)
+			res.add_child(UI.pill("%s %d-%d %s" % ["W" if x.win else ("D" if x.gf == x.ga else "L"), x.gf, x.ga, _club_short(x.opp)], col))
+		if rn == 0: res.add_child(UI.label("No results yet", 12, UI.DIM))
+		var pips = ""
+		for k in Black.MAX_UP: pips += "⚡" if k < int(pp.bo_up) else "·"
+		var info = UI.vb(4, [UI.bold("%s · %s" % [pp.name, Data.clubs[pp.club].name], 15), UI.hb(8, [UI.bold("%d → %d" % [int(pp.bo_start), pp.ovr], 14, VOLT if int(pp.bo_up) > 0 else UI.TEXT), UI.bold(pips, 14, VOLT)]), res])
+		UI.grow(info, false, true)
+		var row = UI.hb(12, [UI.card(pp, 4.6, true, func(): UI.inspect(pp)), info])
+		list.add_child(UI.panel(row))
+	into.add_child(list)
 
 ## the TOTW squad laid out on a pitch: forwards on top, keeper at the bottom, the rest on the bench
 func _promo_totw(into: VBoxContainer) -> void:
 	var lines = {"ATT": [], "MID": [], "DEF": [], "GK": []}; var bench = []
 	var limit = {"ATT": 3, "MID": 3, "DEF": 4, "GK": 1}
-	var sorted: Array = Fright.totw_latest.duplicate(); sorted.sort_custom(func(a, b): return a.ovr > b.ovr)
+	var sorted: Array = Black.totw_latest.duplicate(); sorted.sort_custom(func(a, b): return a.ovr > b.ovr)
 	for pl in sorted:
 		var g: String = Data.pos_group.get(pl.pos, "MID")
 		if lines[g].size() < limit[g]: lines[g].append(pl)
 		else: bench.append(pl)
-	# fill any empty spots in the XI from the bench (nearest line first), so it's always 11
 	for g in ["ATT", "MID", "DEF"]:
 		while lines[g].size() < limit[g] and not bench.is_empty():
 			var pick = 0
@@ -1091,20 +1119,18 @@ func _promo_totw(into: VBoxContainer) -> void:
 			lines[g].append(bench[pick]); bench.remove_at(pick)
 	var tot = 0; var n = 0
 	for g in lines: for pl in lines[g]: tot += int(pl.ovr); n += 1
-	into.add_child(UI.hb(10, [UI.bold("Team of the Week 2", 20), UI.spacer(), UI.pill("XI rating %d" % (int(round(float(tot) / max(1, n)))), UI.GOLD2)]))
+	into.add_child(UI.hb(10, [UI.bold("Team of the Week 3", 20), UI.spacer(), UI.pill("XI rating %d" % (int(round(float(tot) / max(1, n)))), UI.GOLD2)]))
 	var pitch = PanelContainer.new()
 	var sb = StyleBoxFlat.new(); sb.bg_color = Color("#123a24"); sb.set_corner_radius_all(14); sb.border_color = Color(1, 1, 1, 0.18); sb.set_border_width_all(2)
-	for s in ["left", "right", "top", "bottom"]: sb.set("content_margin_" + s, 12)
+	for s2 in ["left", "right", "top", "bottom"]: sb.set("content_margin_" + s2, 12)
 	pitch.add_theme_stylebox_override("panel", sb)
 	var pv = UI.vb(14 if UI.mobile else 22)
 	var cs: float = 6.6 if UI.mobile else 9.0
 	for g in ["ATT", "MID", "DEF", "GK"]:
 		var row = HBoxContainer.new(); row.alignment = BoxContainer.ALIGNMENT_CENTER; row.add_theme_constant_override("separation", 6 if UI.mobile else 18)
-		row.set_meta("keep_row", true)
 		for pl in lines[g]:
 			var pp: Dictionary = pl
 			row.add_child(UI.card(pp, cs, false, func(): UI.inspect(pp)))
 		pv.add_child(row)
 	pitch.add_child(pv); into.add_child(pitch)
-	if not bench.is_empty():
-		_promo_section(into, "Bench", "Also in Team of the Week 2", UI.DIM, bench)
+	if not bench.is_empty(): _promo_section(into, "Bench", "Also in Team of the Week 3", UI.DIM, bench)

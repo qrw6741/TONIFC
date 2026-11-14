@@ -14,9 +14,9 @@ func s_title(_p) -> Dictionary:
 	var page = Control.new()
 	var c = CenterContainer.new(); c.set_anchors_preset(Control.PRESET_FULL_RECT); page.add_child(c)
 	var v = UI.vb(10); v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var logo = UI.hb(0, [UI.head("PRIME", 110, Color("#e9edf2")), UI.head("27", 110, Color("#ff7a1a") if Fright.THEME else UI.GOLD)]); logo.alignment = BoxContainer.ALIGNMENT_CENTER
+	var logo = UI.hb(0, [UI.head("PRIME", 110, Color("#e9edf2")), UI.head("27", 110, Color("#36f0ff") if Black.THEME else (Color("#ff7a1a") if Fright.THEME else UI.GOLD))]); logo.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_child(logo)
-	var sub = UI.label("F O O T B A L L" + ("   ·   F R I G H T   N I G H T" if Fright.THEME else ""), 18, Color("#ffb35a") if Fright.THEME else UI.GOLD2, UI.font_head); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(sub)
+	var sub = UI.label("F O O T B A L L" + ("   ·   B L A C K O U T" if Black.THEME else ("   ·   F R I G H T   N I G H T" if Fright.THEME else "")), 18, Color("#ffe633") if Black.THEME else (Color("#ffb35a") if Fright.THEME else UI.GOLD2), UI.font_head); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; v.add_child(sub)
 	v.add_child(UI.vb(0, [Control.new()])); v.get_child(-1).custom_minimum_size.y = 50
 	var b = UI.btn("Ⓐ  Press Start", func():
 		Sfx.play("boom"); Sfx.music_on()
@@ -144,8 +144,8 @@ func feature(k: String) -> Control:
 	var title = ""; var sub = ""; var label = ""; var art: Control = null
 	match k:
 		"ut":
-			title = "TEAM OF\nTHE WEEK 2"; sub = "TOTW 2 and the Fright Night promo are live — new cards in packs for a limited time!"; label = "Enter Ultimate XI"
-			var totw: Array = Fright.totw_latest.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
+			title = "BLACKOUT\n& TOTW 3"; sub = "Black Friday is here — Blackout cards upgrade every time their club wins, Flash packs restock every hour, and TOTW 3 is live!"; label = "Enter Ultimate XI"
+			var totw: Array = Black.cards.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
 			var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 16); g.add_theme_constant_override("v_separation", 16)
 			for p in totw.slice(0, 4): var c = UI.card(p, 12.5); c.focus_mode = Control.FOCUS_NONE; c.mouse_filter = Control.MOUSE_FILTER_IGNORE; g.add_child(c)
 			art = g
@@ -179,7 +179,7 @@ func feature(k: String) -> Control:
 	v.add_child(b)
 	if k == "ut":
 		var gy = (Pad.glyph("Y") + "  ") if Pad.style != "" else "[T] "; var gx = (Pad.glyph("X") + "  ") if Pad.style != "" else "[N] "
-		var e1 = UI.btn(gy + "TOTW 2 squad", func(): UI.go("promo", {"tab": "totw"}), "Small"); e1.focus_mode = Control.FOCUS_CLICK
+		var e1 = UI.btn(gy + "TOTW 3 squad", func(): UI.go("promo", {"tab": "totw"}), "Small"); e1.focus_mode = Control.FOCUS_CLICK
 		var e2 = UI.btn(gx + "New cards", func(): UI.go("promo"), "Small"); e2.focus_mode = Control.FOCUS_CLICK
 		v.add_child(UI.hb(8, [e1, e2]))
 	h.add_child(v)

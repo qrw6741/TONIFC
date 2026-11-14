@@ -221,6 +221,20 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--blackout":
+			print("BO round ", Black.round_now(), " next in ", int(Black.secs_to_next()))
+			UI.go("home"); await w(0.5); await shot("bo_home")
+			UI.go("promo"); await w(0.8); await shot("bo_new")
+			Black.debug_round = 3; Black.refresh(false)
+			print("BO after 3 rounds: ", Black.all_cards.map(func(p): return "%s %d(+%d)" % [Data.short_name(p.name), p.ovr, p.bo_up]))
+			UI.replace("promo", {"tab": "upgrades"}); await w(0.8); await shot("bo_upgrades")
+			UI.replace("promo", {"tab": "totw"}); await w(0.8); await shot("bo_totw")
+			UI.go("store", {"tab": "browse", "cat": "promo"}); await w(0.8); await shot("bo_store")
+			print("FLASH left ", UI.modules[11].promo_left("flashpack"))
+			UI.go("objectives"); await w(0.6); await shot("bo_obj")
+			UI.go("sbc"); await w(0.6); await shot("bo_sbc")
+			for i in 3: print("PACK ", Sys.generate_pack("blackoutpack").map(func(x): return "%d %s %s" % [x.ovr, x.type, x.name]))
+			UI.reset("main"); await w(1.2); await shot("bo_main")
 		if extra == "--promo":
 			UI.go("home"); await w(0.5); await shot("pr_home")
 			UI.go("promo"); await w(0.8); await shot("pr_new")

@@ -3,7 +3,7 @@ extends RefCounted
 ## ("select & submit pre-filtered players until you reach the score") and its intro.
 
 const GEM := Color("#5fe3c8")
-const CATS := ["Halloween", "Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars"]
+const CATS := ["Blackout", "Exchanges", "POTM", "Foundations", "Upgrades", "Challenges", "Players", "Rising Stars", "Halloween"]
 
 func gem_text(n: int) -> String: return "✦ " + Sys.fmt(n)
 
@@ -37,7 +37,7 @@ func _reward_name(r: Dictionary) -> String:
 
 func s_sbc(p) -> Dictionary:
 	var f = UI.hub_shell("sbc")
-	var cat: String = p.get("cat", "Halloween")
+	var cat: String = p.get("cat", "Blackout")
 	if cat == "Exchanges" and not Save.data.sbc.get("intro_seen", false):
 		Save.data.sbc.intro_seen = true; Save.dirty()
 		UI.go.call_deferred("sbcintro")

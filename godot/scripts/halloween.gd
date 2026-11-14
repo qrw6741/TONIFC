@@ -5,7 +5,7 @@ extends Node
 ## • Team of the Week 2 (12 in-forms)
 ## • Halloween objectives & SBCs, Fright Night pack, and the Halloween menu theme
 
-const THEME := true   # Halloween look for menus & backgrounds
+const THEME := false   # Halloween is over — Blackout (blackout.gd) owns the theme now
 
 ## [base id, final ovr]
 const FRIGHT := [["p233", 90], ["p467", 89], ["p270", 89], ["p1516", 89], ["p239", 89], ["p817", 89], ["p18", 88], ["p251", 88], ["p1190", 88], ["p813", 88], ["p869", 88], ["p409", 87]]

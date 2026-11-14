@@ -93,6 +93,14 @@ func _draw() -> void:
 			var gr: float = cs * (0.42 if mini else 0.5)
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
+	if p.type == "blackout":
+		# neon lightning down both edges and an electric glow under the player
+		var bolt = func(x: float, y: float, k: float, flip: float):
+			var pts = PackedVector2Array([Vector2(x, y), Vector2(x + flip * k * 0.5, y + k * 0.9), Vector2(x + flip * k * 0.1, y + k * 0.95), Vector2(x + flip * k * 0.45, y + k * 1.9), Vector2(x - flip * k * 0.15, y + k * 0.75), Vector2(x + flip * k * 0.22, y + k * 0.7)])
+			draw_colored_polygon(pts, Color(1, 0.92, 0.2, 0.8))
+		if not mini:
+			bolt.call(w * 0.05, h * 0.42, cs * 1.5, 1.0); bolt.call(w * 0.95, h * 0.36, cs * 1.3, -1.0)
+		Gfx.glow(self, Vector2(w * 0.62, h * 0.5), cs * 3.6, Color(0.21, 0.94, 1, 0.16))
 	if p.type == "fright":
 		# spider web in the corner, bats on the flanks and a pumpkin glow at the bottom
 		var wc = Vector2(w * 0.9, h * 0.08); var wr: float = cs * (2.2 if not mini else 1.6)
@@ -120,7 +128,9 @@ func _draw() -> void:
 			for sx in [w * 0.075, w * 0.925]:
 				draw_polyline(PackedVector2Array([Vector2(sx - cs * 0.45, cy + cs * 0.4), Vector2(sx, cy), Vector2(sx + cs * 0.45, cy + cs * 0.4)]), Color(1, 0.78, 0.42, a), max(1.0, cs * 0.16), true)
 	if p.type != "base" and not mini:
-		Gfx.text_c(self, font_b, w / 2, cs * 1.25, Data.card_types[p.type].name.to_upper(), int(cs * 0.6), Color(tc, 0.85))
+		var tname: String = Data.card_types[p.type].name.to_upper()
+		if p.type == "blackout" and int(p.get("bo_up", 0)) > 0: tname += "  ⚡+%d" % int(p.bo_up)
+		Gfx.text_c(self, font_b, w / 2, cs * 1.25, tname, int(cs * 0.6), Color(tc, 0.85) if not tname.contains("⚡") else Color("#ffe633"))
 	if mini:
 		Gfx.portrait(self, Rect2(Vector2(w - cs * 5.2, cs * 0.6), Vector2(cs * 4.9, cs * 5.6)), p)
 		Gfx.text(self, font_h, Vector2(cs * 0.75, cs * 2.75), str(p.ovr), int(cs * 1.95), tc)
