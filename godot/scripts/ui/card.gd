@@ -35,11 +35,13 @@ func _ready() -> void:
 	for s in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
 		add_theme_stylebox_override(s, StyleBoxEmpty.new())
 	mouse_entered.connect(func(): if UI.mouse_recent() and not has_focus(): grab_focus())
+	set_process(false)    # only animates (shine sweep) while focused
 	focus_entered.connect(func():
 		Sfx.play("move"); _t = 0.0
+		set_process(not UI.mobile)
 		create_tween().tween_property(self, "scale", Vector2(1.06, 1.06), 0.12)
 		queue_redraw())
-	focus_exited.connect(func(): create_tween().tween_property(self, "scale", Vector2.ONE, 0.12); queue_redraw())
+	focus_exited.connect(func(): set_process(false); create_tween().tween_property(self, "scale", Vector2.ONE, 0.12); queue_redraw())
 	_fit()
 
 func _process(delta: float) -> void:

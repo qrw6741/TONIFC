@@ -247,20 +247,28 @@ func mouse_recent() -> bool:
 
 ## TOUCH SCROLLING (companion): once a finger moves past a few pixels it becomes a scroll of the
 ## list under it in that direction (sideways strips or the page), and the tap is cancelled.
-var _tp = {"down": false, "drag": false, "pos": Vector2.ZERO, "last": Vector2.ZERO, "sc": null, "axis": 0, "vel": 0.0, "t": 0.0}
-const DRAG_START := 12.0
+var _tp = {"down": false, "drag": false, "pos": Vector2.ZERO, "sc": null, "axis": 1, "anchor": Vector2.ZERO, "start": 0.0, "samples": [], "vel": 0.0, "msc": null}
+const DRAG_START := 7.0
+## finger follows the content 1:1 (absolute mapping from where the drag began), then a momentum fling with friction
 func _touch_scroll(event: InputEvent) -> bool:
 	if in_match or not Cloud.companion(): return false
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			_tp.down = true; _tp.drag = false; _tp.pos = event.position; _tp.last = event.position; _tp.sc = null; _tp.vel = 0.0; _tp.t = Time.get_ticks_msec() / 1000.0
-			var old = _tp.get("fling")
-			if old is Tween and old.is_valid(): old.kill()
+			if event.position.x < -9000: return false
+			var was_flinging: bool = abs(_tp.vel) > 60.0
+			_tp.vel = 0.0; _tp.msc = null      # a touch stops any fling
+			_tp.down = true; _tp.drag = false; _tp.pos = event.position; _tp.sc = null; _tp.samples = [[_now(), event.position]]
+			if was_flinging: get_viewport().set_input_as_handled(); _tp.catch = true; return true   # catching a fling isn't a tap
+			_tp.catch = false
 			return false
-		var was: bool = _tp.drag
-		_tp.down = false; _tp.drag = false
+		var was: bool = _tp.drag or _tp.get("catch", false)
+		_tp.down = false
+		if _tp.drag:
+			_tp.drag = false
+			_tp.vel = _release_velocity()
+			if is_instance_valid(_tp.sc) and abs(_tp.vel) > 120.0: _tp.msc = _tp.sc
 		if was:
-			_fling()
+			_tp.catch = false
 			# let the release through at a far-away point so the pressed button sees "released outside"
 			var up = event.duplicate(); up.position = Vector2(-9999, -9999); up.global_position = up.position
 			get_viewport().set_input_as_handled(); Input.parse_input_event(up)
@@ -269,39 +277,58 @@ func _touch_scroll(event: InputEvent) -> bool:
 	if event is InputEventMouseMotion and _tp.down:
 		if event.position.x < -9000: return false
 		var d: Vector2 = event.position - _tp.pos
+		_tp.samples.append([_now(), event.position])
+		while _tp.samples.size() > 2 and _now() - _tp.samples[0][0] > 0.1: _tp.samples.pop_front()
 		if not _tp.drag:
 			if d.length() < DRAG_START: return false
 			_tp.drag = true
-			_tp.axis = 0 if abs(d.x) > abs(d.y) else 1
+			# thumbs move in arcs: only go sideways when the swipe is clearly horizontal
+			_tp.axis = 0 if abs(d.x) > abs(d.y) * 1.6 else 1
 			_tp.sc = _scroll_under(_tp.pos, _tp.axis)
-			if _tp.sc == null: _tp.sc = _scroll_under(_tp.pos, 1 - _tp.axis); _tp.axis = 1 - _tp.axis
+			if _tp.sc == null: _tp.axis = 1 - _tp.axis; _tp.sc = _scroll_under(_tp.pos, _tp.axis)
+			_tp.anchor = event.position
+			_tp.start = _sc_get(_tp.sc, _tp.axis)
 			# move the "mouse" off the button so it won't fire on release
 			var mv = InputEventMouseMotion.new(); mv.position = Vector2(-9999, -9999); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_LEFT
 			Input.parse_input_event(mv)
-		var step: Vector2 = event.position - _tp.last
-		_tp.last = event.position
-		var now = Time.get_ticks_msec() / 1000.0; var dt = max(0.001, now - _tp.t); _tp.t = now
 		if is_instance_valid(_tp.sc):
-			var amt: float = step.x if _tp.axis == 0 else step.y
-			_tp.vel = lerp(_tp.vel, -amt / dt, 0.35)
-			if _tp.axis == 0: _tp.sc.scroll_horizontal -= int(round(amt))
-			else: _tp.sc.scroll_vertical -= int(round(amt))
+			var off: float = (event.position - _tp.anchor).x if _tp.axis == 0 else (event.position - _tp.anchor).y
+			var want: float = _tp.start - off
+			_sc_set(_tp.sc, _tp.axis, want)
+			# hit an end: re-anchor so reversing direction responds at once
+			var got: float = _sc_get(_tp.sc, _tp.axis)
+			if abs(got - want) > 0.5: _tp.start = got; _tp.anchor = event.position
 		get_viewport().set_input_as_handled()
 		return true
 	# the engine's own touch-drag would fight ours: we scroll from the emulated mouse only
 	if event is InputEventScreenDrag:
 		get_viewport().set_input_as_handled(); return true
-	if event is InputEventScreenTouch and _tp.drag:
+	if event is InputEventScreenTouch and (_tp.drag or _tp.get("catch", false)):
 		get_viewport().set_input_as_handled(); return true
 	return false
 
-func _fling() -> void:
-	var sc = _tp.sc
-	if not is_instance_valid(sc) or abs(_tp.vel) < 250.0: return
-	var prop: String = "scroll_horizontal" if _tp.axis == 0 else "scroll_vertical"
-	var target: int = int(sc.get(prop) + clamp(_tp.vel, -4000.0, 4000.0) * 0.28)
-	var tw = sc.create_tween(); tw.tween_property(sc, prop, max(0, target), 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_tp.fling = tw
+func _now() -> float: return Time.get_ticks_usec() / 1000000.0
+func _sc_get(sc, axis: int) -> float:
+	if not is_instance_valid(sc): return 0.0
+	var bar = sc.get_h_scroll_bar() if axis == 0 else sc.get_v_scroll_bar()
+	return bar.value
+func _sc_set(sc, axis: int, v: float) -> void:
+	# set the bar's float value: sub-pixel precise (scroll_vertical only takes whole pixels)
+	var bar = sc.get_h_scroll_bar() if axis == 0 else sc.get_v_scroll_bar()
+	bar.value = clamp(v, 0.0, max(0.0, bar.max_value - bar.page))
+## pixels/second over the last ~100 ms (0 if the finger paused before lifting)
+func _release_velocity() -> float:
+	var sm: Array = _tp.samples
+	if sm.size() < 2 or _now() - sm[-1][0] > 0.08: return 0.0
+	var a = sm[0]; var b = sm[-1]; var dt: float = max(0.008, b[0] - a[0])
+	var dv: Vector2 = (b[1] - a[1]) / dt
+	return clamp(-(dv.x if _tp.axis == 0 else dv.y), -5000.0, 5000.0)
+func _fling_step(delta: float) -> void:
+	if not is_instance_valid(_tp.msc) or abs(_tp.vel) < 15.0 or _tp.down: _tp.msc = null; return
+	var before: float = _sc_get(_tp.msc, _tp.axis)
+	_sc_set(_tp.msc, _tp.axis, before + _tp.vel * delta)
+	if abs(_sc_get(_tp.msc, _tp.axis) - before) < 0.01 and abs(_tp.vel * delta) > 0.5: _tp.vel = 0.0; return   # hit the end
+	_tp.vel *= exp(-3.2 * delta)    # friction
 
 ## deepest visible ScrollContainer under the point that can scroll on that axis (0 = sideways, 1 = up/down)
 func _scroll_under(p: Vector2, axis: int) -> ScrollContainer:
@@ -336,6 +363,7 @@ func _strip_pad_nav() -> void:
 			if e is InputEventJoypadButton or e is InputEventJoypadMotion: InputMap.action_erase_event(a, e)
 
 func _process(delta: float) -> void:
+	if _tp.msc != null: _fling_step(delta)
 	if in_match:
 		_nav.dir = Vector2i.ZERO; return
 	var dir = Vector2i.ZERO; var rs = Vector2.ZERO; var lt = false; var rt = false
@@ -1046,6 +1074,8 @@ var _reflow_pending = false
 
 func _mobile_setup() -> void:
 	if not Cloud.companion(): return
+	# only draw a new frame when something changed: saves the phone's GPU/battery so it doesn't throttle mid-scroll
+	OS.low_processor_usage_mode = true
 	var win: Vector2 = Vector2(DisplayServer.window_get_size())
 	if OS.has_feature("web"):
 		# ask the browser directly: the canvas can report its size late on iPhone

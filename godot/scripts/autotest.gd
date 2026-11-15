@@ -221,6 +221,28 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--mscroll":
+			UI.go("promo"); await w(0.8)
+			var page: ScrollContainer = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(n): return n.has_meta("page_scroll"))[0]
+			var ev = func(t: String, pos: Vector2):
+				var e
+				if t == "move": e = InputEventMouseMotion.new(); e.button_mask = MOUSE_BUTTON_MASK_LEFT
+				else: e = InputEventMouseButton.new(); e.button_index = MOUSE_BUTTON_LEFT; e.pressed = t == "down"
+				e.position = pos; e.global_position = pos; Input.parse_input_event(e)
+			var y0 = page.get_v_scroll_bar().value
+			ev.call("down", Vector2(220, 600)); await get_tree().process_frame
+			for k in 20: ev.call("move", Vector2(220 + k * 0.7, 600 - k * 10)); await get_tree().process_frame
+			var y1 = page.get_v_scroll_bar().value
+			print("DRAG finger moved 190 (after 7 slop) -> page moved ", y1 - y0)
+			ev.call("up", Vector2(234, 410)); await get_tree().process_frame
+			await w(0.6); print("FLING extra ", page.get_v_scroll_bar().value - y1, " vel now ", UI._tp.vel)
+			var y2 = page.get_v_scroll_bar().value
+			ev.call("down", Vector2(220, 400)); await get_tree().process_frame
+			for k in 15: ev.call("move", Vector2(220, 400 - k * 6)); await get_tree().process_frame
+			await w(0.2)
+			ev.call("up", Vector2(220, 316)); await w(0.6)
+			print("SLOW drag then pause: fling extra ", page.get_v_scroll_bar().value - y2 - 84 + 7, " (≈0 expected)")
+			print("CUR before tap ", UI.cur_name)
 		if extra == "--blackout":
 			print("BO round ", Black.round_now(), " next in ", int(Black.secs_to_next()))
 			UI.go("home"); await w(0.5); await shot("bo_home")

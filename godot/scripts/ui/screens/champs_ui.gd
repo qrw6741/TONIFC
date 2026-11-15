@@ -82,7 +82,9 @@ class Token extends Control:
 		var sx = c.x - r + fmod(t * 0.6, 2.4) * r
 		ci.draw_arc(c, r * 0.95, -2.4, -1.6, 12, Color(1, 1, 1, 0.35), max(1.0, r * 0.05))
 	var t = 0.0
-	func _process(d: float) -> void: t += d; queue_redraw()
+	func _process(d: float) -> void:
+		if UI.mobile: return    # phones: static token (smooth scrolling)
+		t += d; queue_redraw()
 	func _draw() -> void: Token.paint(self, size / 2, min(size.x, size.y) * 0.48, t)
 	static func make(px: float) -> Token:
 		var k = Token.new(); k.custom_minimum_size = Vector2(px, px); k.mouse_filter = Control.MOUSE_FILTER_IGNORE; return k

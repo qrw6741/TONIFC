@@ -14,6 +14,9 @@ static func make(k: String, a, size: Vector2) -> Icon:
 	return i
 
 var _since = 0.0
+func _ready() -> void:
+	if UI.mobile and not has_meta("always_anim"): set_process(false)   # phones: static art, no per-frame work
+
 func _process(delta: float) -> void:
 	if not animate or (UI.mobile and not has_meta("always_anim")): return   # phones: static pack art (smooth scrolling)
 	t += delta; _since += delta

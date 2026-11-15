@@ -268,7 +268,9 @@ class CoinArt extends Control:
 class HeroArt extends Control:
 	var t = 0.0
 	func _init() -> void: clip_contents = true; mouse_filter = Control.MOUSE_FILTER_IGNORE; custom_minimum_size = Vector2(500, 380)
-	func _process(d: float) -> void: t += d; queue_redraw()
+	func _process(d: float) -> void:
+		if UI.mobile: return
+		t += d; queue_redraw()
 	func _draw() -> void:
 		var w = size.x; var h = size.y
 		var n = 18
