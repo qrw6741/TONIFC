@@ -42,6 +42,7 @@ func s_sbc(p) -> Dictionary:
 		Save.data.sbc.intro_seen = true; Save.dirty()
 		UI.go.call_deferred("sbcintro")
 	var segs = CATS.map(func(c): return [c, c + (" ✦" if c == "Exchanges" else "")])
+	if UI.mobile: _sbc_mobile(f.body, cat, segs); return {"node": f.node, "bg": "hub", "tab": "sbc", "back": func(): UI.reset("main")}
 	f.body.add_child(UI.hb(10, [UI.head("SBC", 38), UI.label("Exchange players to upgrade your squad", 15, UI.DIM), UI.spacer(), UI.btn("How it works", func(): UI.go("sbcintro"), "Small"), UI.seg(segs, cat, func(v): UI.replace("sbc", {"cat": v}))]))
 	var row = HBoxContainer.new(); row.add_theme_constant_override("separation", 14)
 	var first = true
@@ -52,6 +53,57 @@ func s_sbc(p) -> Dictionary:
 	var sc = UI.scroll(row, true); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	f.body.add_child(sc)
 	return {"node": f.node, "bg": "hub", "tab": "sbc", "back": func(): UI.reset("main")}
+
+# ------------------------------------------------------------------ phone layout (FC companion style)
+## category chips, then one full-width row per challenge: reward art · name · reward · requirement · progress · chevron
+func _sbc_mobile(body: VBoxContainer, cat: String, segs: Array) -> void:
+	body.add_child(UI.hb(8, [UI.head("SBC", 30), UI.spacer(), UI.btn("How it works", func(): UI.go("sbcintro"), "Small")]))
+	body.add_child(UI.seg(segs, cat, func(v): UI.replace("sbc", {"cat": v})))
+	var list: Array = Data.sbcs.filter(func(x): return x.cat == cat)
+	list.sort_custom(func(a, b): return int(Sys.sbc_available(a)) > int(Sys.sbc_available(b)))
+	var open_n = list.filter(func(x): return Sys.sbc_available(x)).size()
+	body.add_child(UI.label("%d challenges · %d available" % [list.size(), open_n], 12, UI.DIM))
+	if list.is_empty(): body.add_child(UI.label("No SBCs in this category right now.", 14, UI.DIM))
+	for sb in list: body.add_child(_sbc_row(sb, cat))
+
+func _sbc_row(s: Dictionary, cat: String) -> Button:
+	var n: int = Sys.sbc_count(s.id); var av: bool = Sys.sbc_available(s); var rep: int = int(s.repeat)
+	var b = Button.new(); b.focus_mode = Control.FOCUS_ALL; b.size_flags_horizontal = Control.SIZE_EXPAND_FILL; b.custom_minimum_size.y = 118
+	var sb = StyleBoxFlat.new(); sb.bg_color = Color("#141c27"); sb.set_corner_radius_all(14)
+	sb.border_width_left = 4; sb.border_color = GEM if s.get("gem", false) else (UI.GREEN if not av else UI.TEAL)
+	var hv = sb.duplicate(); hv.bg_color = Color("#1b2633")
+	for st in ["normal", "focus", "disabled"]: b.add_theme_stylebox_override(st, sb)
+	for st in ["hover", "pressed", "hover_pressed"]: b.add_theme_stylebox_override(st, hv)
+	var art_box = CenterContainer.new(); art_box.custom_minimum_size = Vector2(72, 100)
+	var r: Dictionary = s.reward
+	if r.has("player"): var c = UI.card(Data.P(r.player), 5.8); c.focus_mode = Control.FOCUS_NONE; art_box.add_child(c)
+	elif r.has("pack"): var ic = UI.icon("pack", r.pack, Vector2(62, 88)); ic.animate = false; art_box.add_child(ic)
+	else: art_box.add_child(UI.bold("●", 40, UI.GOLD2))
+	var title = UI.bold(s.name, 16); title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var reward = UI.bold(_reward_name(r), 12, UI.TEAL); reward.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var req = UI.label(GemSBC.filter_text(s) if s.get("gem", false) else s.desc, 11, Color("#8a93a3")); req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var foot = UI.hb(6)
+	if not av: foot.add_child(UI.pill("✓ Completed", UI.GREEN))
+	elif s.get("gem", false): foot.add_child(UI.pill(gem_text(int(s.target)), GEM))
+	else: foot.add_child(UI.pill(("%d requirement%s" % [s.reqs.size(), "" if s.reqs.size() == 1 else "s"]) if s.reqs.size() > 0 else "Squad of %d" % int(s.size), UI.TEXT))
+	if rep >= 2: foot.add_child(UI.pill(("↻ Repeatable · %d done" % n) if rep >= 99 else "↻ %d / %d" % [n, rep], UI.DIM))
+	var mid = UI.vb(3, [title, reward, req, foot]); mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var chev = UI.bold("›", 26, UI.DIM)
+	var row = UI.hb(10, [art_box, mid, chev]); row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 10; row.offset_right = -10; row.offset_top = 8; row.offset_bottom = -8
+	b.add_child(row)
+	for c2 in b.find_children("*", "Control", true, false): if not (c2 is BaseButton): c2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for c2 in b.find_children("*", "BaseButton", true, false): c2.mouse_filter = Control.MOUSE_FILTER_IGNORE; c2.focus_mode = Control.FOCUS_NONE
+	# rows grow with their wrapped text
+	var fit = func(): b.custom_minimum_size.y = max(118.0, row.get_combined_minimum_size().y + 16)
+	row.minimum_size_changed.connect(fit); fit.call_deferred()
+	if not av: b.modulate = Color(1, 1, 1, 0.6)
+	b.pressed.connect(func():
+		Sfx.play("select")
+		if not Sys.sbc_available(s): UI.toast("Already completed"); return
+		if s.get("gem", false): UI.go("gemsbc", {"id": s.id, "cat": cat})
+		else: UI.go("sbcbuild", {"id": s.id, "cat": cat}))
+	return b
 
 func _tile(s: Dictionary, cat: String, focus: bool) -> Control:
 	var n: int = Sys.sbc_count(s.id); var av: bool = Sys.sbc_available(s)
@@ -103,6 +155,9 @@ func s_gemsbc(p) -> Dictionary:
 	var reload = func(extra := {}):
 		var q = {"id": sbc.id, "cat": p.get("cat", "Exchanges"), "sel": sel, "sq": inc_sq, "dupes": only_dupes}
 		q.merge(extra, true); UI.replace("gemsbc", q)
+	if UI.mobile:
+		_gemsbc_mobile(f.body, sbc, sel, inc_sq, only_dupes, tot, reload, p.get("cat", "Exchanges"))
+		return {"node": f.node, "bg": "hub", "back": func(): UI.replace("sbc", {"cat": p.get("cat", "Exchanges")})}
 	# header: progress to target + reward
 	var bar = UI.bar(min(tot, target), target, "GoldBar"); bar.custom_minimum_size = Vector2(520, 12)
 	var done_col = UI.GREEN if tot >= target else GEM
@@ -150,6 +205,56 @@ func s_gemsbc(p) -> Dictionary:
 	if items.is_empty(): grid.add_child(UI.label("No eligible players in your club for this SBC.", 14, UI.DIM))
 	f.body.add_child(UI.scroll(grid))
 	return {"node": f.node, "bg": "hub", "back": func(): UI.replace("sbc", {"cat": p.get("cat", "Exchanges")})}
+
+## phone: progress card with the reward and submit, the picked items as a strip, then the eligible players as a 4-wide grid
+func _gemsbc_mobile(body: VBoxContainer, sbc: Dictionary, sel: Array, inc_sq: bool, only_dupes: bool, tot: int, reload: Callable, cat: String) -> void:
+	var target: int = int(sbc.target)
+	var done: bool = tot >= target
+	var bar = UI.bar(min(tot, target), target, "GoldBar"); bar.custom_minimum_size.y = 10; bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var art = _reward_art(sbc.reward, false)
+	var info = UI.vb(4, [UI.caps("Reward", 10), UI.bold(_reward_name(sbc.reward), 14, UI.TEAL), UI.label("Eligible: " + GemSBC.filter_text(sbc), 11, UI.DIM)])
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for l in info.get_children(): if l is Label: l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var score = UI.hb(6, [UI.head(Sys.fmt(tot), 28, UI.GREEN if done else GEM), UI.label("/ " + gem_text(target), 15, UI.DIM)])
+	var need = UI.label(("Ready to submit ✓" if done else "Need %s more" % gem_text(target - tot)) + " · %d items" % sel.size(), 12, UI.GREEN if done else UI.DIM)
+	var submit = UI.btn("Submit", func():
+		if GemSBC.submit(sbc, sel):
+			Sfx.play("bigreveal"); UI.toast("SBC complete! " + _reward_name(sbc.reward), "good")
+			UI.replace("sbc", {"cat": cat}), "Primary")
+	submit.disabled = not done; submit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tools = UI.hb(8, [UI.btn("Auto-fill", func(): reload.call({"sel": GemSBC.autofill(sbc, inc_sq)}), "Small"), UI.btn("Clear", func(): reload.call({"sel": []}), "Small"), submit])
+	body.add_child(UI.panel(UI.vb(8, [UI.hb(10, [art, info]), score, bar, need, tools])))
+	# picked items
+	if not sel.is_empty():
+		body.add_child(UI.caps("Selected · tap to remove", 11))
+		var srow = HBoxContainer.new(); srow.add_theme_constant_override("separation", 6)
+		for u0 in sel:
+			var it = Sys.item(u0); var pl = Data.P(it.pid); var u: String = u0
+			srow.add_child(UI.vb(1, [UI.card(pl, 4.8, false, func(): sel.erase(u); reload.call({"sel": sel})), _gem_lab(pl)]))
+		var ssc = UI.scroll(srow, true); ssc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; ssc.custom_minimum_size.y = 104
+		ssc.size_flags_vertical = Control.SIZE_SHRINK_BEGIN; ssc.set_meta("keep_scroll", true)
+		body.add_child(ssc)
+	# eligible players
+	var dupes = {}
+	for it in Sys.duplicates(): dupes[it.uid] = true
+	var items: Array = Save.data.club.filter(func(it): return GemSBC.eligible(sbc, it, inc_sq) and not sel.has(it.uid) and (not only_dupes or dupes.has(it.uid)))
+	items.sort_custom(func(a, b): return Gallery.gems(Data.P(a.pid)) < Gallery.gems(Data.P(b.pid)))
+	body.add_child(UI.hb(6, [UI.bold("Eligible · %d" % items.size(), 15), UI.spacer(), UI.btn("Add all", func():
+		for it in items.slice(0, 120): if not sel.has(it.uid): sel.append(it.uid)
+		reload.call({"sel": sel}), "Small")]))
+	body.add_child(UI.hb(6, [UI.btn(("✓ " if only_dupes else "") + "Duplicates only", func(): reload.call({"dupes": not only_dupes, "sel": sel}), "Small"),
+		UI.btn(("✓ " if inc_sq else "") + "Include my squad", func(): reload.call({"sq": not inc_sq, "sel": sel}), "Small")]))
+	var grid = GridContainer.new(); grid.columns = 4; grid.add_theme_constant_override("h_separation", 6); grid.add_theme_constant_override("v_separation", 8)
+	for it in items.slice(0, 120):
+		var pl = Data.P(it.pid); var u: String = it.uid
+		var c = UI.card(pl, 6.4, false, func():
+			if GemSBC.full(sel.size()): UI.toast("Max %d items" % GemSBC.MAX_ITEMS, "bad"); return
+			sel.append(u); reload.call({"sel": sel}))
+		c.untr = it.untr
+		if dupes.has(u): c.tag = "DUPLICATE"
+		grid.add_child(UI.vb(1, [c, _gem_lab(pl)]))
+	if items.is_empty(): body.add_child(UI.label("No eligible players in your club for this SBC.", 13, UI.DIM))
+	else: body.add_child(grid)
 
 func _gem_lab(pl: Dictionary) -> Label:
 	var l = UI.bold("✦ " + Sys.fmt(Gallery.gems(pl)), 12, GEM); l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; return l

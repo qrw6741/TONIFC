@@ -229,6 +229,15 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--msbc":
+			Save.data.sbc.intro_seen = true
+			for c in ["Blackout", "Exchanges", "Upgrades"]:
+				UI.reset("sbc", {"cat": c}); await w(0.8); await shot("msbc_list_" + c)
+			var gem = Data.sbcs.filter(func(x): return x.get("gem", false))[0]
+			UI.go("gemsbc", {"id": gem.id, "cat": gem.cat}); await w(0.8); await shot("msbc_gem")
+			UI.replace("gemsbc", {"id": gem.id, "cat": gem.cat, "sel": Save.data.club.slice(0, 5).map(func(it): return it.uid)}); await w(0.8); await shot("msbc_gem_sel")
+			var reg = Data.sbcs.filter(func(x): return not x.get("gem", false))[0]
+			UI.go("sbcbuild", {"id": reg.id, "cat": reg.cat}); await w(0.8); await shot("msbc_build")
 		if extra == "--mloop":
 			UI.go("promo"); await w(0.8)
 			var page: ScrollContainer = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(n): return n.has_meta("page_scroll"))[0]
