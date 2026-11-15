@@ -465,7 +465,7 @@ func s_settings(_p) -> Dictionary:
 	gp.add_child(UI.caps("Extreme mode", 12, Color("#ff5a5a")))
 	var exb = CheckBox.new(); exb.text = "EXTREME (×1000 difficulty)"; exb.button_pressed = s.get("extreme", false); exb.add_theme_color_override("font_color", Color("#ff7a7a"))
 	exb.toggled.connect(func(v):
-		if v and not await UI.modal("Turn on EXTREME?", UI.wrapl(UI.label("For this save only:\n• 84+ and special players from packs are 1,000× rarer\n• every AI opponent is maxed out (Ultimate, elite keepers & defenders, 92+ rated squads)\n\nYou can turn it off again here.", 14), 460), [["Cancel", null, ""], ["Go Extreme", true, "Danger"]]):
+		if v and not await UI.modal("Turn on EXTREME?", UI.wrapl(UI.label("For this save only:\n• 84+ and special players from packs are 1,000× rarer\n• Division Rivals opponents scale from tough (82-rated, Div 10) to brutal (92+, Div 1)\n• every other AI opponent is maxed out (Ultimate, elite keepers & defenders, 92+ rated squads)\n\nYou can turn it off again here.", 14), 460), [["Cancel", null, ""], ["Go Extreme", true, "Danger"]]):
 			exb.set_pressed_no_signal(false); return
 		s.extreme = v; Save.dirty(); UI.toast("Extreme mode " + ("ON" if v else "off"), "bad" if v else "good"))
 	gp.add_child(exb)

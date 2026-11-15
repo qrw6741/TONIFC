@@ -340,7 +340,9 @@ func kit_clash(a: String, b: String) -> bool:
 	return Vector3(x.r - y.r, x.g - y.g, x.b - y.b).length() < 0.47
 
 func run_match(cfg: Dictionary, on_done: Callable) -> void:
-	if Sys.extreme() and cfg.get("mode", "") != "test":
+	if Sys.extreme() and cfg.get("mode", "") == "rivals":
+		cfg.elite = true; cfg.extreme = true    # Rivals keep their division-scaled AI (see Sys.rivals_ai)
+	elif Sys.extreme() and cfg.get("mode", "") != "test":
 		cfg.difficulty = "ultimate"; cfg.elite = true; cfg.extreme = true; cfg.ai = 1.5
 	if kit_clash(cfg.home.kit.c1, cfg.away.kit.c1):
 		var k: Dictionary = cfg.away

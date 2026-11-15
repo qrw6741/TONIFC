@@ -285,8 +285,8 @@ func user_team() -> Dictionary:
 	var inf = squad_info(s)
 	return {"name": pr.club_name, "short": pr.club_name.substr(0, 3).to_upper(), "kit": pr.kit.home, "formation": s.formation, "players": inf.players, "subs": subs, "badge": pr.badge, "chem": inf.chem, "is_user": true}
 
-func ai_team(name: String, strength: float) -> Dictionary:
-	if extreme(): strength = max(strength, 92.0)
+func ai_team(name: String, strength: float, extreme_floor := true) -> Dictionary:
+	if extreme() and extreme_floor: strength = max(strength, 92.0)
 	var s = build_ai_squad(strength)
 	var k = {"c1": pick(["#c8102e", "#034694", "#ffffff", "#111111", "#00954c", "#6b2ea6", "#ff7f00", "#12a0d7"]), "c2": pick(["#ffffff", "#111111", "#ffd23f"])}
 	var sh = ""
@@ -855,13 +855,17 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 ## every 10 career wins adds a little, and a win streak makes the next bot tougher.
 func experience() -> float: return min(0.15, float(D().stats.wins) * 0.003)
 func rivals_streak() -> int: return int(D().modes.rivals.get("streak", 0))
+## Extreme Rivals scale with the division: 82-rated squads on high AI in Div 10, up to 92+ on max AI in Div 1
 func rivals_strength(div: int) -> float:
+	if extreme(): return min(94.0, 82.0 + (10 - div) * 1.1 + min(4, rivals_streak()) * 0.4)
 	return min(93.0, 76.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
 func rivals_ai(div: int) -> float:
+	if extreme(): return min(1.5, 0.9 + (10 - div) * 0.066 + min(5, rivals_streak()) * 0.02)
 	return min(1.3, 0.62 + (10 - div) * 0.065 + experience() + min(5, rivals_streak()) * 0.035)
 func ai_label(a: float) -> String:
 	return "Beginner" if a < 0.35 else ("Amateur" if a < 0.5 else ("Semi-Pro" if a < 0.63 else ("Professional" if a < 0.76 else ("World Class" if a < 0.88 else ("Legendary" if a < 0.98 else ("Ultimate" if a < 1.1 else "Ultimate+"))))))
 func rivals_difficulty(div: int) -> String:
+	if extreme(): return "ultimate" if div <= 4 else "legendary"
 	return ["", "legendary", "legendary", "worldclass", "worldclass", "professional", "professional", "semipro", "semipro", "amateur", "amateur"][div]
 func rivals_record(result: String) -> Dictionary: return Rivals.record(result)
 

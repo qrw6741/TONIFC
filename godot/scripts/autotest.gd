@@ -229,6 +229,10 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--exrivals":
+			Save.data.settings.extreme = true
+			for d in [10, 7, 4, 1]: print("EXRIVALS div ", d, " str ", Sys.rivals_strength(d), " ai ", Sys.rivals_ai(d), " diff ", Sys.rivals_difficulty(d), " opp ovr ", Sys.squad_rating(Sys.ai_team("X", round(Sys.rivals_strength(d)), false).players))
+			print("OTHER modes floor ", Sys.squad_rating(Sys.ai_team("Y", 80).players))
 		if extra == "--msbc":
 			Save.data.sbc.intro_seen = true
 			for c in ["Blackout", "Exchanges", "Upgrades"]:

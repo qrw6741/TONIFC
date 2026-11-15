@@ -175,7 +175,7 @@ func play_match() -> void:
 	var d = Rivals.div()
 	var ut = Sys.user_team()
 	var name: String = Sys.pick(["Ace", "Pro", "King", "Volt", "Nova", "Zed", "Kai", "Rex"]) + Sys.pick(["_FC", "Gaming", "99", "Utd", "XI", "_27"])
-	var opp = Sys.ai_team(name, round(Sys.rivals_strength(d)))
+	var opp = Sys.ai_team(name, round(Sys.rivals_strength(d)), false)   # Extreme Rivals scale by division (no flat 92+ floor)
 	Sys.league3_check(ut)
 	UI.run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": Sys.rivals_difficulty(d), "ai": Sys.rivals_ai(d), "elite": true, "half_len": int(Save.data.settings.half_len), "mode": "rivals", "title": "Division Rivals · " + Rivals.div_name(d)}, func(res):
 		var r = Sys.record_ut_match(res); var out = Rivals.record(r)
