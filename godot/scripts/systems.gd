@@ -285,6 +285,21 @@ func user_team() -> Dictionary:
 	var inf = squad_info(s)
 	return {"name": pr.club_name, "short": pr.club_name.substr(0, 3).to_upper(), "kit": pr.kit.home, "formation": s.formation, "players": inf.players, "subs": subs, "badge": pr.badge, "chem": inf.chem, "is_user": true}
 
+## lift an AI team until its squad rating reaches the target (boosted copies of its players — base cards top out around 91)
+func boost_to(team: Dictionary, target: int) -> void:
+	for pass_i in 6:
+		var cur: int = squad_rating(team.players)
+		if cur >= target: return
+		var add: int = target - cur
+		var ps = []
+		for p in team.players:
+			var q: Dictionary = p.duplicate(true)
+			q.ovr = min(99, int(q.ovr) + add)
+			var st = []
+			for v in q.stats: st.append(min(99, int(v) + add))
+			q.stats = st; ps.append(q)
+		team.players = ps
+
 func ai_team(name: String, strength: float, extreme_floor := true) -> Dictionary:
 	if extreme() and extreme_floor: strength = max(strength, 92.0)
 	var s = build_ai_squad(strength)
@@ -855,9 +870,12 @@ func sbc_submit(sbc: Dictionary, uids: Array, formation: String) -> bool:
 ## every 10 career wins adds a little, and a win streak makes the next bot tougher.
 func experience() -> float: return min(0.15, float(D().stats.wins) * 0.003)
 func rivals_streak() -> int: return int(D().modes.rivals.get("streak", 0))
-## Extreme Rivals scale with the division: 82-rated squads on high AI in Div 10, up to 92+ on max AI in Div 1
+## Extreme Rivals: opponent squad rating range per division (Div 1 = Elite)
+const EXTREME_RIVALS := {10: [82, 84], 9: [85, 87], 8: [87, 89], 7: [88, 90], 6: [89, 91], 5: [92, 95], 4: [92, 95], 3: [95, 97], 2: [95, 97], 1: [98, 99]}
 func rivals_strength(div: int) -> float:
-	if extreme(): return min(94.0, 82.0 + (10 - div) * 1.1 + min(4, rivals_streak()) * 0.4)
+	if extreme():
+		var r: Array = EXTREME_RIVALS.get(clamp(div, 1, 10), [82, 84])
+		return float(randi_range(int(r[0]), int(r[1])))
 	return min(93.0, 76.0 + (10 - div) * 1.6 + experience() * 25.0 + min(4, rivals_streak()) * 0.6)
 func rivals_ai(div: int) -> float:
 	if extreme(): return min(1.5, 0.9 + (10 - div) * 0.066 + min(5, rivals_streak()) * 0.02)

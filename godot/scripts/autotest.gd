@@ -231,7 +231,11 @@ func run() -> void:
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
 		if extra == "--exrivals":
 			Save.data.settings.extreme = true
-			for d in [10, 7, 4, 1]: print("EXRIVALS div ", d, " str ", Sys.rivals_strength(d), " ai ", Sys.rivals_ai(d), " diff ", Sys.rivals_difficulty(d), " opp ovr ", Sys.squad_rating(Sys.ai_team("X", round(Sys.rivals_strength(d)), false).players))
+			for d in [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]:
+				var rs = []
+				for k in 4:
+					var tg = int(round(Sys.rivals_strength(d))); var t = Sys.ai_team("X", tg, false); Sys.boost_to(t, tg); rs.append("%d→%d" % [tg, Sys.squad_rating(t.players)])
+				print("EXRIVALS div ", d, " ai ", Sys.rivals_ai(d), " ", rs)
 			print("OTHER modes floor ", Sys.squad_rating(Sys.ai_team("Y", 80).players))
 		if extra == "--msbc":
 			Save.data.sbc.intro_seen = true
