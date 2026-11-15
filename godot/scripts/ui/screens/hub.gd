@@ -943,7 +943,8 @@ func s_more(_p) -> Dictionary:
 			["Club", "Players, squads & duplicates", Color("#c8d0db"), func(): UI.reset("club")],
 			["Evolutions", "Upgrade players", Color("#ff6fd8"), func(): UI.reset("evolutions")],
 			["Gallery", "Sets, grades & Gallery cards", Color("#ff9be6"), func(): UI.go("gallery")],
-			["☁ Cloud Account", Cloud.status, UI.GREEN, func(): UI.go("cloud")]]:
+			["☁ Cloud Account", Cloud.status, UI.GREEN, func(): UI.go("cloud")],
+			["Double-tap to open: %s" % ("ON" if Save.data.settings.get("double_tap", true) else "OFF"), "First tap selects, second tap opens — stops accidental taps while scrolling", Color("#ffe633"), func(): Save.data.settings.double_tap = not Save.data.settings.get("double_tap", true); Save.dirty(); UI.replace("more")]]:
 		b.add_child(m_tile(x[0], x[1], x[2], x[3]))
 	return {"node": f.node, "bg": "hub", "tab": "more", "back": func(): UI.reset("home")}
 

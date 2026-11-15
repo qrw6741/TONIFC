@@ -260,6 +260,16 @@ func _touch_scroll(event: InputEvent) -> bool:
 			_tp.down = true; _tp.drag = false; _tp.pos = event.position; _tp.sc = null; _tp.samples = [[_now(), event.position]]
 			if was_flinging: get_viewport().set_input_as_handled(); _tp.catch = true; return true   # catching a fling isn't a tap
 			_tp.catch = false
+			# double-tap to open: the first tap only selects (highlights) a button, a second tap on it opens it
+			if _double_tap_on():
+				var b = _button_at(event.position)
+				if is_instance_valid(_last_ring) and (b == null or b != _armed.get("b")): _last_ring.queue_free()
+				if b != null and (b != _armed.get("b") or _now() - float(_armed.get("t", 0.0)) > 3.0):
+					_armed = {"b": b, "t": _now()}
+					if b.focus_mode != Control.FOCUS_NONE: b.grab_focus()
+					_flash_armed(b)
+					get_viewport().set_input_as_handled(); _tp.catch = true; return true
+				_armed = {}
 			return false
 		var was: bool = _tp.drag or _tp.get("catch", false)
 		_tp.down = false
@@ -308,6 +318,35 @@ func _touch_scroll(event: InputEvent) -> bool:
 	return false
 
 func _now() -> float: return Time.get_ticks_usec() / 1000000.0
+
+var _armed = {}
+func _double_tap_on() -> bool:
+	return Save.data != null and Save.data.settings.get("double_tap", true) and modals.is_empty() and is_instance_valid(cur)
+## the button a tap at p would press: topmost visible, enabled button in the current screen, not clipped by a scroll area
+func _button_at(p: Vector2) -> BaseButton:
+	var best: BaseButton = null
+	for n in cur.find_children("*", "BaseButton", true, false):
+		var b: BaseButton = n
+		if b.disabled or b.mouse_filter == Control.MOUSE_FILTER_IGNORE or not b.is_visible_in_tree() or not b.get_global_rect().has_point(p): continue
+		var clipped = false
+		var a = b.get_parent()
+		while a != null and a != cur:
+			if a is ScrollContainer and not a.get_global_rect().has_point(p): clipped = true; break
+			a = a.get_parent()
+		if not clipped: best = b    # later in the tree = drawn on top
+	return best
+## a quick pulse so it's obvious the button is selected and waiting for the second tap
+func _flash_armed(b: BaseButton) -> void:
+	Sfx.play("move")
+	var ring = Panel.new(); ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.add_theme_stylebox_override("panel", _sb(Color(0.25, 0.88, 0.77, 0.1), TEAL, 2, 10, Vector4.ZERO))
+	ring.size = b.size; ring.position = Vector2.ZERO; b.add_child(ring)
+	var tw = ring.create_tween(); tw.tween_interval(2.6); tw.tween_property(ring, "modulate:a", 0.0, 0.3); tw.tween_callback(ring.queue_free)
+	if not _hinted:
+		_hinted = true; toast("Tap again to open", "info")
+	_last_ring = ring
+var _hinted = false
+var _last_ring: Control = null
 func _sc_get(sc, axis: int) -> float:
 	if not is_instance_valid(sc): return 0.0
 	var bar = sc.get_h_scroll_bar() if axis == 0 else sc.get_v_scroll_bar()

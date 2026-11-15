@@ -243,6 +243,13 @@ func run() -> void:
 			ev.call("up", Vector2(220, 316)); await w(0.6)
 			print("SLOW drag then pause: fling extra ", page.get_v_scroll_bar().value - y2 - 84 + 7, " (≈0 expected)")
 			print("CUR before tap ", UI.cur_name)
+			UI.reset("home"); await w(0.8)
+			var tile = UI.cur.find_children("*", "BaseButton", true, false).filter(func(b): return b.is_visible_in_tree() and b.get_global_rect().size.y > 80 and b.get_global_rect().position.y > 150)[0]
+			var c = tile.get_global_rect().get_center()
+			ev.call("down", c); await get_tree().process_frame; ev.call("up", c); await w(0.4)
+			print("AFTER 1st TAP cur ", UI.cur_name); await shot("dt_armed")
+			ev.call("down", c); await get_tree().process_frame; ev.call("up", c); await w(0.8)
+			print("AFTER 2nd TAP cur ", UI.cur_name)
 		if extra == "--blackout":
 			print("BO round ", Black.round_now(), " next in ", int(Black.secs_to_next()))
 			UI.go("home"); await w(0.5); await shot("bo_home")

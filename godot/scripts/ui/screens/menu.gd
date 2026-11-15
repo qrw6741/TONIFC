@@ -459,6 +459,8 @@ func s_settings(_p) -> Dictionary:
 	rp.toggled.connect(func(v): s.replays = v; Save.dirty()); gp.add_child(rp)
 	var pm = CheckBox.new(); pm.text = "Performance mode"; pm.button_pressed = s.get("perf_mode", false)
 	pm.toggled.connect(func(v): s.perf_mode = v; Save.dirty()); gp.add_child(pm)
+	var dt = CheckBox.new(); dt.text = "Companion: double-tap to open"; dt.button_pressed = s.get("double_tap", true)
+	dt.toggled.connect(func(v): s.double_tap = v; Save.dirty()); gp.add_child(dt)
 	gp.add_child(UI.field("Match speed", UI.option([["slow", "Slow"], ["normal", "Normal"], ["fast", "Fast"]], s.get("game_speed", "normal"), func(v): s.game_speed = v; Save.dirty())))
 	gp.add_child(UI.caps("Extreme mode", 12, Color("#ff5a5a")))
 	var exb = CheckBox.new(); exb.text = "EXTREME (×1000 difficulty)"; exb.button_pressed = s.get("extreme", false); exb.add_theme_color_override("font_color", Color("#ff7a7a"))
