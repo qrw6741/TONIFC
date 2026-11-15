@@ -459,17 +459,19 @@ class SquadEditor extends RefCounted:
 			c.pressed.connect(func(): Sfx.play("select"); tap(11 + k))
 			subs.add_child(c)
 		holder.add_child(_strip(subs))
-		holder.add_child(UI.caps("Reserves", 11, Color("#8a93a3")))
+		holder.add_child(UI.caps("Reserves · %d (the rest are in your Club)" % RESERVES, 11, Color("#8a93a3")))
 		var res = UI.hb(6)
-		for u in _reserve_uids(30):
+		for u in _reserve_uids(RESERVES):
 			var c = PlayerCard.make(Sys.item_player(u), 6.0, true)
 			c.pressed.connect(func(): Sfx.play("select"); reserve_tap(u))
 			res.add_child(c)
+		var cb = UI.btn("Club ›", func(): UI.go("club"), "Small"); cb.size_flags_vertical = Control.SIZE_SHRINK_CENTER; res.add_child(cb)
 		holder.add_child(_strip(res))
 		holder.add_child(UI.hb(8, [UI.btn("Auto-build best XI", func(): Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good"); draw_mobile(), "Primary"), UI.btn("Team Management", func(): team_mgmt(), "")]))
 	func _strip(row: Control) -> Control:
 		var sc = ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 		sc.follow_focus = false; sc.custom_minimum_size.y = 6.0 * 12.0 + 8; sc.add_child(row); return sc
+	const RESERVES := 5   # only the 5 best spare players sit in reserves; everyone else stays in the Club
 	func _reserve_uids(n: int) -> Array:
 		var used = {}
 		for k in 18:
@@ -625,12 +627,14 @@ class SquadEditor extends RefCounted:
 		for it in res:
 			if seen.has(it.pid) or Data.P(it.pid).is_empty(): continue
 			seen[it.pid] = true; res_u.append(it.uid)
-			if res_u.size() >= 24: break
+			if res_u.size() >= RESERVES: break
 		for u in res_u:
 			var c = PlayerCard.make(Sys.item_player(u), 7.2, true)
 			c.pressed.connect(func(): reserve_pressed(u))
 			_hook(c, func(): return u, -1)
 			bench_row.add_child(c)
+		var cb = UI.btn("Rest in Club ›", func(): UI.go("club"), "Small"); cb.size_flags_vertical = Control.SIZE_SHRINK_CENTER; cb.focus_mode = Control.FOCUS_CLICK
+		bench_row.add_child(cb)
 		var bsc = UI.scroll(bench_row, true); bsc.custom_minimum_size.y = 7.2 * 10.4 + 18
 		var strip = PanelContainer.new()
 		strip.add_theme_stylebox_override("panel", UI._sb(Color(0.03, 0.05, 0.08, 0.75), Color(1, 1, 1, 0.07), 1, 6, Vector4(10, 6, 10, 4)))
