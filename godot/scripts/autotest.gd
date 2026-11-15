@@ -5,6 +5,14 @@ extends Node
 var out = ""
 
 func _ready() -> void:
+	# browser test hook (only with ?pftest=<screen> in the URL): make a throwaway club and open that screen
+	if OS.has_feature("web"):
+		var q = JavaScriptBridge.eval("location.hostname === 'localhost' ? location.search : ''", true)
+		if typeof(q) == TYPE_STRING and q.contains("pftest="):
+			await get_tree().create_timer(1.5).timeout
+			Save.create("Tester"); UI.modules[0].grant_starter(); Save.data.coins = 400000; UI.dbg = true
+			UI.reset(q.split("pftest=")[1].split("&")[0]); print("PFTEST READY ", UI.cur_name)
+			return
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--autotest="): out = a.substr(11)
 	if out == "": queue_free(); return

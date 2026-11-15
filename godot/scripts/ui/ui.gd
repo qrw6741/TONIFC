@@ -275,6 +275,7 @@ func _touch_scroll(event: InputEvent) -> bool:
 		if _tp.drag:
 			_tp.drag = false
 			_tp.vel = _release_velocity()
+			if dbg: print("RELEASE v=", _sc_get(_tp.sc, _tp.axis), " vel=", _tp.vel)
 			if is_instance_valid(_tp.sc) and abs(_tp.vel) > 120.0: _tp.msc = _tp.sc
 		if was:
 			_tp.catch = false
@@ -285,13 +286,24 @@ func _touch_scroll(event: InputEvent) -> bool:
 		return false
 	# real finger positions come from ScreenDrag; the browser's emulated mouse can lag or jump back to where the touch began,
 	# so while a finger is down the mouse motion is only swallowed, never used for the scroll position
-	if event is InputEventScreenTouch and event.index == 0:
-		_touching = event.pressed
-		if event.pressed: _tp.samples = [[_now(), event.position]]; _tp.pos = event.position
+	if dbg and (event is InputEventScreenTouch or event is InputEventMouseButton): print("EV ", event.get_class(), " pressed=", event.pressed, " pos=", event.position, " down=", _tp.down)
+	# iPhones number every new touch (1, 2, 3…), so follow whichever finger came down first rather than index 0
+	if event is InputEventScreenTouch and (not _touching or event.index == _touch_id):
+		_touching = event.pressed; _touch_id = event.index
+		if event.pressed:
+			_tp.samples = [[_now(), event.position]]; _tp.pos = event.position
+			if not _tp.down: _tp.down = true; _tp.drag = false; _tp.sc = null
+		elif _tp.down:
+			# no emulated mouse release came first: finish the gesture here
+			_tp.down = false
+			if _tp.drag:
+				_tp.drag = false; _tp.vel = _release_velocity()
+				if is_instance_valid(_tp.sc) and abs(_tp.vel) > 120.0: _tp.msc = _tp.sc
+				get_viewport().set_input_as_handled(); return true
 		if _tp.drag or _tp.get("catch", false): get_viewport().set_input_as_handled(); return true
 		return false
 	if event is InputEventScreenDrag:
-		if event.index == 0 and _tp.down: _drag_to(event.position)
+		if event.index == _touch_id and _tp.down: _drag_to(event.position)
 		get_viewport().set_input_as_handled(); return true
 	if event is InputEventMouseMotion and _tp.down:
 		if event.position.x < -9000: return false
@@ -304,6 +316,8 @@ func _touch_scroll(event: InputEvent) -> bool:
 	return false
 
 var _touching = false
+var _touch_id = 0
+var dbg = false
 func _drag_to(pos: Vector2) -> void:
 	# ignore teleports (a stale event far from the finger's last point)
 	if not _tp.samples.is_empty() and pos.distance_to(_tp.samples[-1][1]) > 160.0: return
@@ -319,6 +333,7 @@ func _drag_to(pos: Vector2) -> void:
 		if _tp.sc == null: _tp.axis = 1 - _tp.axis; _tp.sc = _scroll_under(_tp.pos, _tp.axis)
 		_tp.anchor = pos
 		_tp.start = _sc_get(_tp.sc, _tp.axis)
+		if dbg: print("DRAGSTART sc=", _tp.sc, " path=", _tp.sc.get_path() if _tp.sc else "", " start=", _tp.start, " pos=", pos)
 		# a drag never "arms" a button for double-tap, and the "mouse" moves off the button so it won't fire on release
 		if is_instance_valid(_last_ring): _last_ring.queue_free()
 		_armed = {}
