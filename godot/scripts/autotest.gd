@@ -221,6 +221,34 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--mloop":
+			UI.go("promo"); await w(0.8)
+			var page: ScrollContainer = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(n): return n.has_meta("page_scroll"))[0]
+			var ev = func(t: String, pos: Vector2):
+				var e
+				if t == "move": e = InputEventMouseMotion.new(); e.button_mask = MOUSE_BUTTON_MASK_LEFT
+				else: e = InputEventMouseButton.new(); e.button_index = MOUSE_BUTTON_LEFT; e.pressed = t == "down"
+				e.position = pos; e.global_position = pos; Input.parse_input_event(e)
+			for g in 4:
+				var v0 = page.get_v_scroll_bar().value
+				ev.call("down", Vector2(120, 700)); await get_tree().process_frame
+				var trace = []
+				for k in 12: ev.call("move", Vector2(120, 700 - k * 30)); await get_tree().process_frame; trace.append(int(page.get_v_scroll_bar().value))
+				await w(0.15)
+				ev.call("up", Vector2(120, 370)); await w(0.5)
+				print("GESTURE ", g, " start ", int(v0), " trace ", trace, " end ", int(page.get_v_scroll_bar().value), " max ", int(page.get_v_scroll_bar().max_value))
+			page.get_v_scroll_bar().value = 0; await w(0.3)
+			# real touch: ScreenTouch/ScreenDrag (engine emulates the mouse) + stale mouse jumps back to the start point
+			for g in 3:
+				var v0 = page.get_v_scroll_bar().value
+				var st = InputEventScreenTouch.new(); st.index = 0; st.pressed = true; st.position = Vector2(200, 650); Input.parse_input_event(st); await get_tree().process_frame
+				var trace = []
+				for k in 12:
+					var dr = InputEventScreenDrag.new(); dr.index = 0; dr.position = Vector2(200, 650 - (k + 1) * 25); dr.relative = Vector2(0, -25); Input.parse_input_event(dr)
+					if k % 3 == 2: ev.call("move", Vector2(200, 650))   # stale emulated-mouse event at the touch start
+					await get_tree().process_frame; trace.append(int(page.get_v_scroll_bar().value))
+				var en = InputEventScreenTouch.new(); en.index = 0; en.pressed = false; en.position = Vector2(200, 350); Input.parse_input_event(en); await w(0.6)
+				print("TOUCH ", g, " start ", int(v0), " trace ", trace, " end ", int(page.get_v_scroll_bar().value))
 		if extra == "--mscroll":
 			UI.go("promo"); await w(0.8)
 			var page: ScrollContainer = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(n): return n.has_meta("page_scroll"))[0]

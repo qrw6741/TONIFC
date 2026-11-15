@@ -266,7 +266,6 @@ func _touch_scroll(event: InputEvent) -> bool:
 				if is_instance_valid(_last_ring) and (b == null or b != _armed.get("b")): _last_ring.queue_free()
 				if b != null and (b != _armed.get("b") or _now() - float(_armed.get("t", 0.0)) > 3.0):
 					_armed = {"b": b, "t": _now()}
-					if b.focus_mode != Control.FOCUS_NONE: b.grab_focus()
 					_flash_armed(b)
 					get_viewport().set_input_as_handled(); _tp.catch = true; return true
 				_armed = {}
@@ -284,38 +283,54 @@ func _touch_scroll(event: InputEvent) -> bool:
 			get_viewport().set_input_as_handled(); Input.parse_input_event(up)
 			return true
 		return false
+	# real finger positions come from ScreenDrag; the browser's emulated mouse can lag or jump back to where the touch began,
+	# so while a finger is down the mouse motion is only swallowed, never used for the scroll position
+	if event is InputEventScreenTouch and event.index == 0:
+		_touching = event.pressed
+		if event.pressed: _tp.samples = [[_now(), event.position]]; _tp.pos = event.position
+		if _tp.drag or _tp.get("catch", false): get_viewport().set_input_as_handled(); return true
+		return false
+	if event is InputEventScreenDrag:
+		if event.index == 0 and _tp.down: _drag_to(event.position)
+		get_viewport().set_input_as_handled(); return true
 	if event is InputEventMouseMotion and _tp.down:
 		if event.position.x < -9000: return false
-		var d: Vector2 = event.position - _tp.pos
-		_tp.samples.append([_now(), event.position])
-		while _tp.samples.size() > 2 and _now() - _tp.samples[0][0] > 0.1: _tp.samples.pop_front()
-		if not _tp.drag:
-			if d.length() < DRAG_START: return false
-			_tp.drag = true
-			# thumbs move in arcs: only go sideways when the swipe is clearly horizontal
-			_tp.axis = 0 if abs(d.x) > abs(d.y) * 1.6 else 1
-			_tp.sc = _scroll_under(_tp.pos, _tp.axis)
-			if _tp.sc == null: _tp.axis = 1 - _tp.axis; _tp.sc = _scroll_under(_tp.pos, _tp.axis)
-			_tp.anchor = event.position
-			_tp.start = _sc_get(_tp.sc, _tp.axis)
-			# move the "mouse" off the button so it won't fire on release
-			var mv = InputEventMouseMotion.new(); mv.position = Vector2(-9999, -9999); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_LEFT
-			Input.parse_input_event(mv)
-		if is_instance_valid(_tp.sc):
-			var off: float = (event.position - _tp.anchor).x if _tp.axis == 0 else (event.position - _tp.anchor).y
-			var want: float = _tp.start - off
-			_sc_set(_tp.sc, _tp.axis, want)
-			# hit an end: re-anchor so reversing direction responds at once
-			var got: float = _sc_get(_tp.sc, _tp.axis)
-			if abs(got - want) > 0.5: _tp.start = got; _tp.anchor = event.position
-		get_viewport().set_input_as_handled()
-		return true
-	# the engine's own touch-drag would fight ours: we scroll from the emulated mouse only
-	if event is InputEventScreenDrag:
-		get_viewport().set_input_as_handled(); return true
-	if event is InputEventScreenTouch and (_tp.drag or _tp.get("catch", false)):
-		get_viewport().set_input_as_handled(); return true
+		if _touching:
+			if _tp.drag: get_viewport().set_input_as_handled(); return true
+			return false
+		_drag_to(event.position)
+		if _tp.drag: get_viewport().set_input_as_handled(); return true
+		return false
 	return false
+
+var _touching = false
+func _drag_to(pos: Vector2) -> void:
+	# ignore teleports (a stale event far from the finger's last point)
+	if not _tp.samples.is_empty() and pos.distance_to(_tp.samples[-1][1]) > 160.0: return
+	var d: Vector2 = pos - _tp.pos
+	_tp.samples.append([_now(), pos])
+	while _tp.samples.size() > 2 and _now() - _tp.samples[0][0] > 0.1: _tp.samples.pop_front()
+	if not _tp.drag:
+		if d.length() < DRAG_START: return
+		_tp.drag = true
+		# thumbs move in arcs: only go sideways when the swipe is clearly horizontal
+		_tp.axis = 0 if abs(d.x) > abs(d.y) * 1.6 else 1
+		_tp.sc = _scroll_under(_tp.pos, _tp.axis)
+		if _tp.sc == null: _tp.axis = 1 - _tp.axis; _tp.sc = _scroll_under(_tp.pos, _tp.axis)
+		_tp.anchor = pos
+		_tp.start = _sc_get(_tp.sc, _tp.axis)
+		# a drag never "arms" a button for double-tap, and the "mouse" moves off the button so it won't fire on release
+		if is_instance_valid(_last_ring): _last_ring.queue_free()
+		_armed = {}
+		var mv = InputEventMouseMotion.new(); mv.position = Vector2(-9999, -9999); mv.global_position = mv.position; mv.button_mask = MOUSE_BUTTON_MASK_LEFT
+		Input.parse_input_event(mv)
+	if is_instance_valid(_tp.sc):
+		var off: float = (pos - _tp.anchor).x if _tp.axis == 0 else (pos - _tp.anchor).y
+		var want: float = _tp.start - off
+		_sc_set(_tp.sc, _tp.axis, want)
+		# hit an end: re-anchor so reversing direction responds at once
+		var got: float = _sc_get(_tp.sc, _tp.axis)
+		if abs(got - want) > 0.5: _tp.start = got; _tp.anchor = pos
 
 func _now() -> float: return Time.get_ticks_usec() / 1000000.0
 
@@ -1189,6 +1204,7 @@ func _reflow(n: Node, avail: float) -> void:
 	if ctl is ScrollContainer:
 		# inner scrolls grow to their content; the page itself scrolls
 		if not ctl.has_meta("page_scroll") and not ctl.has_meta("keep_scroll") and ctl.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED: ctl.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		ctl.follow_focus = false   # phones: a selected item never yanks the page back
 		return
 	if _h_scroll_ancestor(ctl): return
 	# menu tiles use the full width of the phone
