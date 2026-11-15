@@ -16,6 +16,44 @@ func _ready() -> void:
 	_build_sfx()
 	crowd.stream = _wav(_crowd_loop(), true)
 	music.stream = _wav(_music_loop(), true)
+	_builtin = music.stream
+	music.finished.connect(_next_track)
+	load_custom_music()
+
+# ---------------- your own music ----------------
+## PC: drop MP3 / OGG files into the "Music" folder next to the game (it's created on first run) — they replace the menu music
+var custom = []          # [{name, stream}]
+var _track = -1
+var _builtin: AudioStream
+func music_dir() -> String:
+	return OS.get_executable_path().get_base_dir().path_join("Music") if OS.has_feature("template") else ProjectSettings.globalize_path("user://Music")
+func load_custom_music() -> void:
+	custom.clear(); _track = -1
+	if OS.has_feature("web"): return
+	var dir = music_dir()
+	if not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)
+		var f = FileAccess.open(dir.path_join("PUT YOUR SONGS HERE.txt"), FileAccess.WRITE)
+		if f: f.store_string("Drop .mp3 or .ogg files in this folder, then restart Prime Football 27 (or press 'Reload music' in Settings).\nThey play in the menus instead of the built-in music, one after another in a shuffled order.\n"); f.close()
+	var files = DirAccess.get_files_at(dir)
+	for fn in files:
+		var path = dir.path_join(fn); var ext = fn.get_extension().to_lower(); var st: AudioStream = null
+		if ext == "mp3":
+			var m = AudioStreamMP3.new(); m.data = FileAccess.get_file_as_bytes(path)
+			if m.data.size() > 0: st = m
+		elif ext == "ogg": st = AudioStreamOggVorbis.load_from_file(path)
+		if st: custom.append({"name": fn.get_basename(), "stream": st})
+	custom.shuffle()
+	if not custom.is_empty():
+		_track = 0; music.stream = custom[0].stream
+	else: music.stream = _builtin
+func now_playing() -> String: return custom[_track].name if _track >= 0 and _track < custom.size() else ""
+func _next_track() -> void:
+	if custom.is_empty(): return
+	_track = (_track + 1) % custom.size(); music.stream = custom[_track].stream; music.play()
+func next_song() -> void:
+	if custom.is_empty(): return
+	_next_track()
 
 # ---------------- synthesis helpers ----------------
 func _buf(dur: float) -> PackedFloat32Array:

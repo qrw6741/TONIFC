@@ -231,6 +231,9 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--music":
+			print("MUSIC dir ", Sfx.music_dir(), " songs ", Sfx.custom.size(), " now ", Sfx.now_playing(), " stream ", Sfx.music.stream)
+			UI.go("settings"); await w(0.8); await shot("music_settings")
 		if extra == "--exrivals":
 			Save.data.settings.extreme = true
 			for d in [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]:

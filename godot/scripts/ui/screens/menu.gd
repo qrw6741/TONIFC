@@ -433,6 +433,15 @@ func s_settings(_p) -> Dictionary:
 		var sl = HSlider.new(); sl.min_value = 0; sl.max_value = 1; sl.step = 0.05; sl.value = s[kv[0]]; sl.custom_minimum_size.x = 320; sl.focus_mode = Control.FOCUS_ALL
 		sl.value_changed.connect(func(v): s[kv[0]] = v; Sfx.apply_volumes(); Save.dirty())
 		a.add_child(UI.field(kv[1], sl))
+	if not OS.has_feature("web"):
+		var np = Sfx.now_playing()
+		var mus = UI.label(("♪ %d of your songs · now: %s" % [Sfx.custom.size(), np]) if np != "" else "Built-in music · drop MP3 / OGG files in your Music folder", 12, UI.TEAL if np != "" else UI.DIM)
+		mus.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; mus.custom_minimum_size.x = 320
+		a.add_child(UI.caps("Your music"))
+		a.add_child(mus)
+		a.add_child(UI.hb(8, [UI.btn("Open Music folder", func(): OS.shell_open(Sfx.music_dir()), "Small"),
+			UI.btn("Reload music", func(): Sfx.music_off(); Sfx.load_custom_music(); Sfx.music_on(); UI.toast("%d songs loaded" % Sfx.custom.size() if not Sfx.custom.is_empty() else "No songs found — using the built-in music", "good" if not Sfx.custom.is_empty() else "info"); UI.replace("settings"), "Small"),
+			UI.btn("Next song ▸▸", func(): Sfx.next_song(); UI.replace("settings"), "Small")]))
 	a.add_child(UI.caps("Gameplay"))
 	a.add_child(UI.field("Default difficulty", UI.option(Data.difficulty_order.map(func(k): return [k, Data.difficulties[k].name]), s.difficulty, func(v): s.difficulty = v; Save.dirty())))
 	a.add_child(UI.field("Half length", UI.option([2, 3, 4, 5, 6, 8, 10].map(func(m): return [m, "%d minutes" % m]), int(s.half_len), func(v): s.half_len = v; Save.dirty())))
