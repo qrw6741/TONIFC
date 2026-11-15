@@ -1227,7 +1227,7 @@ func _reflow(n: Node, avail: float) -> void:
 	if ctl is GridContainer:
 		while ctl.columns > 1 and ctl.get_combined_minimum_size().x > avail: ctl.columns -= 1
 		return
-	if ctl is HBoxContainer and not ctl.has_meta("flowed") and ctl.get_child_count() > 1 and ctl.get_combined_minimum_size().x > avail:
+	if ctl is HBoxContainer and not ctl.has_meta("flowed") and not ctl.has_meta("keep_row") and ctl.get_child_count() > 1 and ctl.get_combined_minimum_size().x > avail:
 		# wrap: move the row's children into a flow container that breaks onto new lines
 		var fl = HFlowContainer.new(); fl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var sep = ctl.get_theme_constant("separation")

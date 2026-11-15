@@ -146,6 +146,8 @@ func run() -> void:
 			ed.formation_sheet(); await w(0.7); await shot("ms_formation"); UI.close_top(null); await w(0.4)
 			UI.cur.get_child(0); var sc = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(x): return x.has_meta("page_scroll"))
 			if not sc.is_empty(): sc[0].scroll_vertical = 2000; await w(0.4); await shot("ms_squad_bottom")
+			ed.bench_sheet("subs"); await w(0.7); await shot("ms_subs"); UI.close_top(null); await w(0.4)
+			ed.bench_sheet("res"); await w(0.7); await shot("ms_res"); UI.close_top(null); await w(0.4)
 		if extra == "--mstore":
 			UI.reset("store", {"tab": "browse", "cat": "classic"}); await w(1.0); await shot("mst_browse")
 			var ps = UI.cur.find_children("*", "ScrollContainer", true, false).filter(func(x): return x.has_meta("page_scroll"))[0]

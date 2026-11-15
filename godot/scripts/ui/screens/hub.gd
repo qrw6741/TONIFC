@@ -418,56 +418,108 @@ class SquadEditor extends RefCounted:
 		for c in holder.get_children(): c.queue_free()
 		var info = Sys.squad_info(sq)
 		var cap_idx: int = sq.slots.find(sq.captain) if sq.captain != "" else -1
-		# header: name + stars, then Rating · Chemistry · Formation
 		var stars: float = 5.0 if info.rating >= 85 else (4.5 if info.rating >= 82 else (4.0 if info.rating >= 79 else (3.5 if info.rating >= 76 else (3.0 if info.rating >= 72 else 2.5))))
-		var stw = Stars.new(); stw.v = stars
-		holder.add_child(UI.hb(10, [UI.icon("badge", Sys.D().profile.badge, Vector2(40, 44)), UI.vb(2, [UI.bold(sq.name, 19), stw]), UI.spacer(),
-			UI.btn("⋯", func(): team_mgmt(), "Small")]))
 		var chem_col = UI.GREEN if info.chem.total >= 24 else (UI.YELLOW if info.chem.total >= 12 else UI.RED)
-		var stat = func(val: String, cap: String, col: Color, cb = null) -> Control:
-			var pn = PanelContainer.new(); pn.add_theme_stylebox_override("panel", UI._sb(Color("#141c27"), Color(1, 1, 1, 0.08), 1, 12, Vector4(10, 6, 10, 6)))
-			pn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			var vv = UI.vb(0, [UI.head(val, 22, col), UI.caps(cap, 9, Color("#8a93a3"))])
-			for c in vv.get_children(): c.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			pn.add_child(vv)
-			if cb is Callable:
-				var b = Button.new(); b.flat = true; b.set_anchors_preset(Control.PRESET_FULL_RECT); b.focus_mode = Control.FOCUS_NONE
-				for st in ["normal", "hover", "pressed"]: b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
-				b.pressed.connect(cb); pn.add_child(b)
-			return pn
-		var sr = UI.hb(8, [stat.call(str(info.rating), "Rating", UI.TEXT), stat.call("%d/33" % info.chem.total, "Chemistry", chem_col), stat.call(sq.formation, "Formation ▾", UI.TEAL, func(): formation_sheet())])
-		holder.add_child(sr)
+		# ---------- FC-companion header: Formation · Rating ★ | Total Chemistry · top chemistry sources | lab (team management)
+		var stw = Stars.new(); stw.v = stars
+		var fbtn = Button.new(); fbtn.flat = true; fbtn.focus_mode = Control.FOCUS_NONE; fbtn.text = "Formation: %s ▾" % sq.formation
+		fbtn.add_theme_font_override("font", UI.font_bold); fbtn.add_theme_font_size_override("font_size", 15); fbtn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		for st in ["normal", "hover", "pressed", "focus"]: fbtn.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		fbtn.pressed.connect(func(): formation_sheet())
+		var left = UI.vb(4, [fbtn, UI.hb(6, [UI.label("Rating", 14), stw, UI.bold(str(info.rating), 15)])])
+		var srcs = UI.hb(4)
+		for r in _chem_sources(info).slice(0, 3):
+			var ic: Control
+			if r[0] == "lg": ic = UI.icon("league", r[1], Vector2(18, 18))
+			elif r[0] == "nat": ic = UI.icon("flag", r[1], Vector2(20, 13))
+			else: ic = UI.icon("crest", r[1], Vector2(18, 18))
+			var pips = ChemPips.new(); pips.n = r[3]
+			srcs.add_child(UI.hb(1, [ic, pips]))
+		var mid = UI.vb(4, [UI.hb(4, [UI.label("Total Chemistry ", 14), UI.bold("%d/33" % info.chem.total, 15, chem_col)]), srcs])
+		var lab = Button.new(); lab.focus_mode = Control.FOCUS_NONE; lab.text = "⚗"; lab.size = Vector2(60, 58)
+		lab.add_theme_font_size_override("font_size", 26); lab.add_theme_color_override("font_color", Color("#111111")); lab.add_theme_color_override("font_pressed_color", Color("#111111")); lab.add_theme_color_override("font_hover_color", Color("#111111"))
+		var lsb = UI._sb(Color("#f2f4f7"), Color(0, 0, 0, 0), 0, 0, Vector4(6, 4, 6, 4)); lsb.skew = Vector2(0.35, 0)
+		for st in ["normal", "hover", "pressed", "focus"]: lab.add_theme_stylebox_override(st, lsb)
+		lab.pressed.connect(func(): team_mgmt())
+		var head = PanelContainer.new(); head.add_theme_stylebox_override("panel", UI._sb(Color("#1d2026"), Color(0, 0, 0, 0), 0, 0, Vector4(12, 6, 70, 6)))
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL; mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var hrow = UI.hb(6, [left, mid]); hrow.set_meta("keep_row", true)
+		head.add_child(hrow)
+		# the white lab tab sits on the right edge of the header (team management)
+		var hw = Control.new(); hw.custom_minimum_size.y = 62; hw.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.set_anchors_preset(Control.PRESET_FULL_RECT); hw.add_child(head); hw.add_child(lab)
+		hw.resized.connect(func(): lab.position = Vector2(hw.size.x - 60, 2))
+		holder.add_child(hw)
 		if moving >= 0:
 			var mu = get_u(moving); var mp: Dictionary = Sys.item_player(mu) if mu != "" else {}
 			var ban = PanelContainer.new(); ban.add_theme_stylebox_override("panel", UI._sb(Color(0.25, 0.88, 0.77, 0.15), UI.TEAL, 1, 10, Vector4(12, 8, 8, 8)))
 			ban.add_child(UI.hb(8, [UI.wrapl(UI.bold("Tap a player, sub or reserve to swap with %s" % (Data.short_name(mp.name) if not mp.is_empty() else "this slot"), 13, UI.TEAL), 300), UI.spacer(), UI.btn("Cancel", func(): moving = -1; draw_mobile(), "Small")]))
 			holder.add_child(ban)
-		# pitch
-		pitch = PitchView.new(); pitch.card_cs = 6.0
+		# ---------- the pitch fills the screen
+		var avail_h: float = max(560.0, UI.root.size.y - 300.0)
+		pitch = PitchView.new(); pitch.persp = true; pitch.card_cs = 8.4
 		pitch.setup(sq.formation, info.players, info.chem, cap_idx, moving if moving >= 0 and moving < 11 else -1)
-		pitch.custom_minimum_size = Vector2(UI.root.size.x - 24, (UI.root.size.x - 24) * 1.18)
+		pitch.custom_minimum_size = Vector2(UI.root.size.x - 24, avail_h)
 		pitch.slot_pressed.connect(func(i): tap(i))
 		pitch.slot_drop.connect(func(a, b): swap(a, b); moving = -1; draw_mobile())
-		holder.add_child(pitch)
-		# substitutes & reserves: swipe strips
-		holder.add_child(UI.caps("Substitutes", 11, Color("#8a93a3")))
-		var subs = UI.hb(6)
-		for k in 7:
-			var u: String = sq.subs[k]
-			var c = PlayerCard.make(Sys.item_player(u) if u != "" else {}, 6.0, true); c.empty_pos = "SUB"
-			if moving == 11 + k: c.modulate = Color(1.3, 1.3, 1.3)
-			c.pressed.connect(func(): Sfx.play("select"); tap(11 + k))
-			subs.add_child(c)
-		holder.add_child(_strip(subs))
-		holder.add_child(UI.caps("Reserves · %d (the rest are in your Club)" % RESERVES, 11, Color("#8a93a3")))
-		var res = UI.hb(6)
-		for u in _reserve_uids(RESERVES):
-			var c = PlayerCard.make(Sys.item_player(u), 6.0, true)
-			c.pressed.connect(func(): Sfx.play("select"); reserve_tap(u))
-			res.add_child(c)
-		var cb = UI.btn("Club ›", func(): UI.go("club"), "Small"); cb.size_flags_vertical = Control.SIZE_SHRINK_CENTER; res.add_child(cb)
-		holder.add_child(_strip(res))
-		holder.add_child(UI.hb(8, [UI.btn("Auto-build best XI", func(): Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good"); draw_mobile(), "Primary"), UI.btn("Team Management", func(): team_mgmt(), "")]))
+		var pholder = Control.new(); pholder.custom_minimum_size = pitch.custom_minimum_size
+		pholder.add_child(pitch); pitch.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# round formation button on the pitch
+		var fb = Button.new(); fb.focus_mode = Control.FOCUS_NONE; fb.text = "▦"; fb.custom_minimum_size = Vector2(48, 48)
+		fb.add_theme_font_size_override("font_size", 22); fb.add_theme_color_override("font_color", Color("#111111")); fb.add_theme_color_override("font_pressed_color", Color("#111111"))
+		var fsb = UI._sb(Color("#f2f4f7"), Color(0, 0, 0, 0), 0, 24, Vector4.ZERO)
+		for st in ["normal", "hover", "pressed", "focus"]: fb.add_theme_stylebox_override(st, fsb)
+		fb.pressed.connect(func(): formation_sheet())
+		fb.position = Vector2(pitch.custom_minimum_size.x - 58, 8); pholder.add_child(fb)
+		holder.add_child(pholder)
+		# ---------- bottom tabs: ^ Subs | Res ^
+		var tab = func(txt: String, right: bool, cb: Callable) -> Button:
+			var b = Button.new(); b.focus_mode = Control.FOCUS_NONE; b.text = txt; b.custom_minimum_size = Vector2(150, 50)
+			b.add_theme_font_override("font", UI.font_bold); b.add_theme_font_size_override("font_size", 19)
+			var tsb = UI._sb(Color("#1d2026"), Color(0, 0, 0, 0), 0, 0, Vector4(14, 6, 14, 6)); tsb.skew = Vector2(-0.3 if right else 0.3, 0)
+			for st in ["normal", "hover", "pressed", "focus"]: b.add_theme_stylebox_override(st, tsb)
+			b.pressed.connect(cb); return b
+		holder.add_child(UI.hb(8, [tab.call("︿  Subs", false, func(): bench_sheet("subs")), UI.spacer(), tab.call("Res  ︿", true, func(): bench_sheet("res"))]))
+		holder.add_child(UI.hb(8, [UI.btn("Auto-build best XI", func(): Sys.auto_build(sq); Sfx.play("reveal"); UI.toast("Best XI auto-built", "good"); draw_mobile(), "Primary"), UI.btn("Club ›", func(): UI.go("club"), "")]))
+
+	## league / nation / club counts in the XI with FC-style 0–3 pips, strongest first
+	func _chem_sources(info: Dictionary) -> Array:
+		var xi = info.players.filter(func(p): return not p.is_empty())
+		var cnt = {"lg": {}, "nat": {}, "club": {}}
+		for pl in xi:
+			if pl.type != "icon": cnt.lg[pl.lg] = cnt.lg.get(pl.lg, 0) + (2 if pl.type == "hero" else 1)
+			cnt.nat[pl.nat] = cnt.nat.get(pl.nat, 0) + (2 if pl.type == "icon" else 1)
+			if pl.club != "ICN" and pl.club != "HER" and pl.club != "GAL": cnt.club[pl.club] = cnt.club.get(pl.club, 0) + 1
+		var thr = {"lg": [3, 5, 8], "nat": [2, 5, 8], "club": [2, 5, 7]}
+		var rows = []
+		for kind in ["lg", "nat", "club"]:
+			for k in cnt[kind]:
+				var n: int = int(cnt[kind][k]); var t: Array = thr[kind]
+				rows.append([kind, k, n, (1 if n >= t[0] else 0) + (1 if n >= t[1] else 0) + (1 if n >= t[2] else 0)])
+		rows.sort_custom(func(a, b): return a[3] > b[3] or (a[3] == b[3] and a[2] > b[2]))
+		return rows
+
+	## Subs / Reserves drawer (bottom sheet), tap a card to use it
+	func bench_sheet(which: String) -> void:
+		var g = GridContainer.new(); g.columns = 4; g.add_theme_constant_override("h_separation", 8); g.add_theme_constant_override("v_separation", 10)
+		if which == "subs":
+			for k in 7:
+				var u: String = sq.subs[k]; var kk = 11 + k
+				var c = PlayerCard.make(Sys.item_player(u) if u != "" else {}, 7.4, true); c.empty_pos = "SUB"
+				if moving == kk: c.modulate = Color(1.3, 1.3, 1.3)
+				c.pressed.connect(func(): Sfx.play("select"); UI.close_top(null); tap(kk))
+				g.add_child(c)
+		else:
+			for u in _reserve_uids(RESERVES):
+				var uu: String = u
+				var c = PlayerCard.make(Sys.item_player(uu), 7.4, true)
+				c.pressed.connect(func(): Sfx.play("select"); UI.close_top(null); reserve_tap(uu))
+				g.add_child(c)
+		var title = "Substitutes" if which == "subs" else "Reserves · best %d (the rest are in your Club)" % RESERVES
+		var acts = [["Close", null, ""]]
+		if which == "res": acts.push_front(["Open Club", "club", ""])
+		var v = await UI.sheet(title, g, acts)
+		if v == "club": UI.go("club")
 	func _strip(row: Control) -> Control:
 		var sc = ScrollContainer.new(); sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 		sc.follow_focus = false; sc.custom_minimum_size.y = 6.0 * 12.0 + 8; sc.add_child(row); return sc
