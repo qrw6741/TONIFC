@@ -35,18 +35,28 @@ func _ready() -> void:
 	for s in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
 		add_theme_stylebox_override(s, StyleBoxEmpty.new())
 	mouse_entered.connect(func(): if UI.mouse_recent() and not has_focus(): grab_focus())
-	set_process(false)    # only animates (shine sweep) while focused
+	# special cards have animated backgrounds (desktop); normal cards only animate while focused
+	_animated = ANIM.has(str(p.get("type", ""))) and not UI.mobile and not (Save.data != null and Save.data.settings.get("perf_mode", false))
+	_a = float(abs(hash(str(p.get("id", "")))) % 1000) / 100.0
+	set_process(_animated)
 	focus_entered.connect(func():
 		Sfx.play("move"); _t = 0.0
-		set_process(not UI.mobile)
+		set_process(not UI.mobile or _animated)
 		create_tween().tween_property(self, "scale", Vector2(1.06, 1.06), 0.12)
 		queue_redraw())
-	focus_exited.connect(func(): set_process(false); create_tween().tween_property(self, "scale", Vector2.ONE, 0.12); queue_redraw())
+	focus_exited.connect(func(): set_process(_animated); create_tween().tween_property(self, "scale", Vector2.ONE, 0.12); queue_redraw())
 	_fit()
 
+const ANIM := ["totw", "promo", "hero", "icon", "rising", "potm", "gallery", "fright", "phantom", "blackout", "rtk", "nltotg", "pass"]
+var _animated = false
+var _a = 0.0          # animation clock for the special backgrounds
+var _since = 0.0
 func _process(delta: float) -> void:
 	if has_focus():
-		_t += delta; queue_redraw()
+		_t += delta; _a += delta; queue_redraw(); return
+	if _animated:
+		_a += delta; _since += delta
+		if _since >= 1.0 / 24.0 and is_visible_in_tree(): _since = 0.0; queue_redraw()
 
 func _draw() -> void:
 	var w = (7.4 if mini else 12.0) * cs
@@ -74,6 +84,17 @@ func _draw() -> void:
 		var sc: Color = st.get("shard_col", Color(1, 1, 1, 0.3))
 		draw_colored_polygon(PackedVector2Array([Vector2(w * 0.25, h * 0.08), Vector2(w * 0.42, h * 0.08), Vector2(w * 0.08, h * 0.62), Vector2(w * 0.0, h * 0.62)]), sc)
 		draw_colored_polygon(PackedVector2Array([Vector2(w * 0.75, h * 0.45), Vector2(w * 0.95, h * 0.3), Vector2(w * 0.95, h * 0.42), Vector2(w * 0.78, h * 0.62)]), sc)
+	# animated specials: a slow light sweep across the card every few seconds
+	if _animated and not has_focus():
+		var cyc: float = fmod(_a * 0.45, 3.0)
+		if cyc < 1.4:
+			var sx2 = cyc / 1.4 * w * 1.6 - w * 0.3
+			var sh2 = PackedVector2Array()
+			for q in [Vector2(sx2, 0), Vector2(sx2 + w * 0.16, 0), Vector2(sx2 - w * 0.2, h), Vector2(sx2 - w * 0.36, h)]: sh2.append(Vector2(clamp(q.x, 0, w), q.y))
+			for part in Geometry2D.intersect_polygons(sh2, sh):
+				if part.size() >= 3: draw_colored_polygon(part, Color(1, 1, 1, 0.16))
+	if _animated and p.type in ["icon", "hero", "potm"]:
+		Gfx.glow(self, Vector2(w * 0.6, h * 0.35), cs * 4.2, Color(st.glow, 0.10 + 0.08 * sin(_a * 2.2)))
 	# shine sweep when focused
 	if has_focus():
 		var sx = fmod(_t * 1.2, 2.0) * w * 1.5 - w * 0.3
@@ -118,13 +139,15 @@ func _draw() -> void:
 			for j in 10:
 				var aa = -PI / 2 + TAU * j / 10.0; var rad = sr if j % 2 == 0 else sr * 0.45
 				pts.append(sc2 + Vector2(cos(aa), sin(aa)) * rad)
-			draw_colored_polygon(pts, Color(0.85, 0.9, 1, 0.35))
+			draw_colored_polygon(pts, Color(0.85, 0.9, 1, (0.2 + 0.45 * (0.5 + 0.5 * sin(_a * 3.0 + k * 1.3))) if _animated else 0.35))
 		Gfx.glow(self, Vector2(w * 0.62, h * 0.45), cs * 3.8, Color(0.31, 0.53, 1, 0.18))
 	if p.type == "blackout":
 		# neon lightning down both edges and an electric glow under the player
 		var bolt = func(x: float, y: float, k: float, flip: float):
 			var pts = PackedVector2Array([Vector2(x, y), Vector2(x + flip * k * 0.5, y + k * 0.9), Vector2(x + flip * k * 0.1, y + k * 0.95), Vector2(x + flip * k * 0.45, y + k * 1.9), Vector2(x - flip * k * 0.15, y + k * 0.75), Vector2(x + flip * k * 0.22, y + k * 0.7)])
-			draw_colored_polygon(pts, Color(1, 0.92, 0.2, 0.8))
+			var fl: float = 0.8
+			if _animated: fl = (0.25 + 0.75 * abs(sin(_a * 11.0 + flip * 2.0))) * (1.0 if fmod(_a, 2.6) < 0.25 else 0.55)
+			draw_colored_polygon(pts, Color(1, 0.92, 0.2, fl))
 		if not mini:
 			bolt.call(w * 0.05, h * 0.42, cs * 1.5, 1.0); bolt.call(w * 0.95, h * 0.36, cs * 1.3, -1.0)
 		Gfx.glow(self, Vector2(w * 0.62, h * 0.5), cs * 3.6, Color(0.21, 0.94, 1, 0.16))
@@ -139,8 +162,8 @@ func _draw() -> void:
 			for k in 5: var a2 = PI * 0.5 + k * PI / 8.0; pts.append(wc + Vector2(cos(a2), sin(a2)) * wr * ring)
 			draw_polyline(pts, Color(1, 0.8, 0.6, 0.3), max(1.0, cs * 0.05))
 		if not mini:
-			Gfx.bat(self, Vector2(w * 0.09, h * 0.5), cs * 0.6, 0.5)
-			Gfx.bat(self, Vector2(w * 0.91, h * 0.56), cs * 0.5, 2.0)
+			Gfx.bat(self, Vector2(w * 0.09, h * 0.5 + sin(_a * 2.0) * cs * 0.3), cs * 0.6, 0.5 + _a * 9.0)
+			Gfx.bat(self, Vector2(w * 0.91, h * 0.56 + cos(_a * 1.7) * cs * 0.3), cs * 0.5, 2.0 + _a * 9.0)
 		Gfx.glow(self, Vector2(w * 0.5, h * 0.95), cs * 3.0, Color(1, 0.5, 0.05, 0.25))
 	if p.type == "phantom":
 		# ghostly wisps rising up the sides

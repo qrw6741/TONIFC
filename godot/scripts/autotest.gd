@@ -231,6 +231,14 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--animcards":
+			var bg = ColorRect.new(); bg.color = Color("#0b0d14"); bg.size = Vector2(1440, 900); UI.overlay.add_child(bg)
+			var row = UI.hb(14)
+			for pid in ["bo_p420", "rtk_p993", "nl_p443", "fr_p233"]:
+				var pl = Data.P(pid); if not pl.is_empty(): row.add_child(UI.card(pl, 14.0))
+			var ic = Data.players.filter(func(x): return x.type == "icon")[0]; row.add_child(UI.card(ic, 14.0))
+			row.position = Vector2(30, 40); UI.overlay.add_child(row)
+			for k in 3: await w(0.9); await shot("anim_%d" % k)
 		if extra == "--survival":
 			Sys.auto_build(Sys.active_squad())
 			UI.go("survival"); await w(0.7); await shot("sv_start")
