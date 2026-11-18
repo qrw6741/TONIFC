@@ -127,9 +127,9 @@ func s_play(_p) -> Dictionary:
 		UI.tile([UI.bold("Squad Battles", 24), UI.wrapl(UI.bold("Play AI squads. Earn points by difficulty & performance.", 13, UI.TEAL), 300), center.call([UI.head(Sys.fmt(m.sb.points), 28), UI.label("pts this week · " + sb_rank.name, 13, UI.DIM)])], func(): UI.go("squadbattles")),
 		UI.tile([UI.bold("FUT Champions", 24), UI.wrapl(UI.bold("Weekly 15-match event. Qualify with 1,000 points from Division Rivals.", 13, UI.TEAL), 300), center.call(_champs_summary())], func(): UI.go("champions")),
 		UI.tile([UI.bold("Draft", 24), UI.wrapl(UI.bold("Build a temporary squad from random choices. Win 4 straight.", 13, UI.TEAL), 300), center.call([UI.bold("In progress · %d wins" % m.draft.active.wins if m.draft.active else "● %s or ◆ %d" % [Sys.fmt(Data.draft_cost.coins), Data.draft_cost.points], 15)])], func(): UI.go("draft")),
+		UI.tile([UI.bold("Survival", 24), UI.wrapl(UI.bold("How far can your squad go? Every loss costs you a player — the further you go, the bigger the prize.", 13, Color("#ff7a5c")), 300), center.call([UI.head(("Round %d" % (int(Survival.run().wins) + 1)) if Survival.run() != null else "Best %d" % int(Survival.st().best), 26), UI.label("in progress" if Survival.run() != null else "wins", 13, UI.DIM)])], func(): UI.go("survival")),
 		UI.tile([UI.bold("Friendlies", 24), UI.wrapl(UI.bold("Casual matches with custom rules. No stakes.", 13, UI.TEAL), 300), center.call([UI.head("⚽", 40)])], func(): UI.go("friendlies"))]
 	for t in tiles: UI.grow(t); g.add_child(t)
-	g.add_child(Control.new())
 	f.body.add_child(g)
 	return _hub(f, "play")
 
@@ -420,3 +420,74 @@ func show_results(res: Dictionary, title: String, rewards: String, on_continue: 
 	Sfx.music_on()
 	await UI.get_tree().process_frame
 	UI.focus_first(f.node)
+
+
+# ------------------------------------------------------------------ SURVIVAL
+const SURV := Color("#ff7a5c")
+func s_survival(_p) -> Dictionary:
+	var f = UI.sub_shell("Survival", "Play")
+	var body: VBoxContainer = f.body
+	var r = Survival.run()
+	body.add_child(UI.vb(2, [UI.head("SURVIVAL", 34 if UI.mobile else 42, SURV), _wrap(UI.label("Win to climb the ladder — every round the opponent gets stronger and the prize gets bigger. Every loss knocks one of your XI out of the run (a youth player replaces him). %d losses and you're out: you keep half the coins and drop two steps. Cash out any time to bank your reward." % Survival.LIVES, 13, UI.DIM))]))
+	if r == null:
+		var sq = Sys.active_squad(); var inf = Sys.squad_info(sq)
+		body.add_child(UI.panel(UI.vb(8, [UI.bold("Your squad: %s · %d OVR · %d chem" % [sq.name, inf.rating, inf.chem.total], 15), UI.label("Best run: %d wins" % int(Survival.st().best), 13, UI.DIM),
+			UI.btn("Start a run", func():
+				if not Survival.start(): UI.toast("Your active squad needs 11 players", "bad"); return
+				Sfx.play("select"); UI.replace("survival"), "Primary")])))
+	else:
+		var nxt: int = int(r.wins) + 1
+		var hearts = ""
+		for k in Survival.LIVES: hearts += "♥ " if k < Survival.LIVES - int(r.losses) else "♡ "
+		var cur_rw: Dictionary = Survival.reward_for(int(r.wins)); var next_rw: Dictionary = Survival.reward_for(nxt)
+		var info = UI.vb(6, [UI.hb(10, [UI.head("ROUND %d" % nxt, 30), UI.spacer(), UI.bold(hearts, 22, SURV)]),
+			UI.label("Opponent: about %d OVR · %s AI" % [int(round(Survival.opp_strength(nxt))), Sys.ai_label(Survival.opp_ai(nxt))], 14),
+			_wrap(UI.bold(("Cash out now: " + Sys.reward_text(cur_rw)) if not cur_rw.is_empty() else "Win a round to start earning", 14, UI.GREEN if not cur_rw.is_empty() else UI.DIM)),
+			_wrap(UI.bold("Win this round: " + Sys.reward_text(next_rw), 14, Color("#ffd27a")))])
+		var play = UI.btn("Play round %d" % nxt, func(): _survival_play(), "Primary", true)
+		var cash = UI.btn("Cash out", func():
+			if await UI.modal("Cash out?", "End the run with %d wins and take: %s" % [int(r.wins), Sys.reward_text(cur_rw) if not cur_rw.is_empty() else "nothing yet"], [["Cash out", true, "Primary"], ["Keep going", null, ""]]):
+				var got = Survival.cash_out(); Sfx.play("bigreveal"); UI.toast("Survival over · " + (Sys.reward_text(got) if not got.is_empty() else "no reward"), "good"); UI.replace("survival"), "")
+		info.add_child(UI.hb(10, [play, cash]))
+		body.add_child(UI.panel(info))
+		# the run's XI: knocked-out players crossed out
+		var team = Survival.team()
+		var g = GridContainer.new(); g.columns = 6 if UI.mobile else 11; g.add_theme_constant_override("h_separation", 6); g.add_theme_constant_override("v_separation", 6)
+		for i in 11:
+			var p: Dictionary = team.players[i]
+			var c = UI.card(p, 4.6 if UI.mobile else 5.4, true)
+			if r.out.has(i): c.modulate = Color(1, 0.45, 0.45, 0.55)
+			g.add_child(UI.vb(1, [c, _center_l2(UI.bold("OUT" if r.out.has(i) else Data.formations[r.formation][i][0], 10, SURV if r.out.has(i) else UI.DIM))]))
+		body.add_child(UI.caps("Your survival XI · %d knocked out" % r.out.size(), 11))
+		body.add_child(g)
+	# the ladder
+	body.add_child(UI.caps("Reward ladder", 11))
+	var lad = GridContainer.new(); lad.columns = 2 if UI.mobile else 4; lad.add_theme_constant_override("h_separation", 8); lad.add_theme_constant_override("v_separation", 6)
+	var w: int = int(r.wins) if r != null else 0
+	for i in Survival.LADDER.size():
+		var done: bool = i < w; var nxtr: bool = i == w
+		var l = UI.label("%s%d wins · %s" % ["✓ " if done else "", i + 1, Sys.reward_text(Survival.LADDER[i])], 12, UI.GREEN if done else (Color("#ffd27a") if nxtr else UI.DIM))
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; l.custom_minimum_size.x = 180 if UI.mobile else 300
+		lad.add_child(l)
+	if UI.mobile: body.add_child(lad)
+	else: var sc = UI.scroll(lad); UI.grow(sc, true, true); body.add_child(sc)
+	return {"node": f.node, "bg": "hub"}
+
+func _wrap(l: Label) -> Label: l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; return l
+func _center_l2(l: Label) -> Label: l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; return l
+
+func _survival_play() -> void:
+	var r = Survival.run()
+	if r == null: return
+	var nxt: int = int(r.wins) + 1
+	var ut = Survival.team()
+	var nm = "%s %s" % [Sys.pick(["Iron", "Last", "Final", "Lone", "Steel", "Storm"]), Sys.pick(["Stand", "XI", "Wolves", "Guard", "United"])]
+	var opp = Sys.ai_team(nm, Survival.opp_strength(nxt), false)
+	run_match({"home": ut, "away": opp, "user_side": "home", "difficulty": "legendary" if nxt >= 8 else "worldclass", "ai": Survival.opp_ai(nxt), "elite": nxt >= 10, "half_len": int(Save.data.settings.half_len), "mode": "survival", "title": "Survival · Round %d" % nxt, "knockout": true}, func(res):
+		var rr = Sys.record_ut_match(res)
+		var won: bool = rr == "W" or (rr == "D" and res.get("winner", "") == "home")
+		var out = Survival.record("W" if won else "L")
+		Sys.log_match(res, "Survival", "W" if won else "L")
+		var msg = ("Round %d won!" % nxt) if won else ("%s is knocked out of the run" % Data.short_name(ut.players[out.knocked].name) if out.knocked >= 0 else "Lost")
+		if out.over: msg += " · Run over — " + (Sys.reward_text(out.reward) if not out.reward.is_empty() else "no reward")
+		show_results(res, "Survival", msg, func(): UI.replace("survival")))

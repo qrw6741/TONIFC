@@ -976,7 +976,8 @@ func _home_mobile() -> Dictionary:
 	var play = UI.hb(8)
 	for x in [["Rivals", "Div %d" % int(rv.div), Rivals.div_color(int(rv.div)), func(): UI.go("rivals")],
 			["Champions", ("%d pts" % int(Champs.run().pts)) if Champs.run() != null else ("Qualified" if Champs.qualified() else "%d/1k QP" % int(Champs.st().qp)), Color("#e8b631"), func(): UI.go("champions")],
-			["Battles", "Squad Battles", Color("#6fa8ff"), func(): UI.go("squadbattles")]]:
+			["Battles", "Squad Battles", Color("#6fa8ff"), func(): UI.go("squadbattles")],
+			["Survival", ("Round %d" % (int(Survival.run().wins) + 1)) if Survival.run() != null else "Best %d" % int(Survival.st().best), Color("#ff7a5c"), func(): UI.go("survival")]]:
 		var t = m_tile(x[0], x[1], x[2], x[3]); t.custom_minimum_size.y = 72; play.add_child(t)
 	b.add_child(play)
 	# everything else

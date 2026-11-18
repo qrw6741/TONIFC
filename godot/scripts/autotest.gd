@@ -231,6 +231,17 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--survival":
+			Sys.auto_build(Sys.active_squad())
+			UI.go("survival"); await w(0.7); await shot("sv_start")
+			print("SV start ", Survival.start())
+			for k in 6: print("SV rec ", Survival.record("W" if k != 2 else "L"))
+			UI.replace("survival"); await w(0.7); await shot("sv_run")
+			var res = {"home": Survival.team(), "away": Sys.ai_team("X", 80), "hg": 1, "ag": 0, "goals": [], "user_side": "home", "mode": "survival", "stats": {}, "winner": "home"}
+			print("SV team ok ", Survival.team().players.size(), " youth ", Survival.team().players.filter(func(p): return p.get("youth", false)).size())
+			var c0 = Save.data.coins; print("SV cash ", Survival.cash_out(), " coins +", Save.data.coins - c0, " unopened ", Save.data.unopened.slice(-2))
+			Survival.start(); for k in 3: Survival.record("L")
+			print("SV after 3 losses run ", Survival.run())
 		if extra == "--album":
 			print("ALBUM pages ", Album.pages.size(), " ", Album.pages.map(func(p): return p.name), " total ", Album.total(), " have ", Album.total_have())
 			var pg = Album.pages[0]
