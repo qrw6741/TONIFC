@@ -309,15 +309,22 @@ func s_champsreward(p) -> Dictionary:
 	v.add_child(UI.vspacer())
 	var row = UI.hb(70); row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var items = []
-	if rw.get("tokens", 0): items.append([Token.make(230), int(rw.tokens), "Champions\nToken"])
+	if rw.get("tokens", 0): items.append([Token.make(230 if rw.get("packs", []).size() < 2 else 140), int(rw.tokens), "Champions\nToken"])
 	if rw.get("qp", 0): var tr = Trophy.new(); tr.custom_minimum_size = Vector2(160, 160); items.append([tr, int(rw.qp), "Champions Qualification\nPoints"])
 	if rw.get("coins", 0): var cp = CoinPile.new(); cp.custom_minimum_size = Vector2(190, 160); items.append([cp, int(rw.coins), "Coins"])
+	var pk_count = {}
+	for pid in rw.get("packs", []): pk_count[pid] = int(pk_count.get(pid, 0)) + 1
+	for pid in pk_count:
+		var ic = UI.icon("pack", pid, Vector2(118, 166) if not UI.mobile else Vector2(70, 98)); ic.animate = false
+		items.append([ic, int(pk_count[pid]), Data.packs[pid].name.replace(" Player Pick", "\nPlayer Pick").replace(" Pack", "\nPack")])
 	if items.is_empty(): row.add_child(UI.label("No rank reached this time — win a match to earn rewards.", 18, UI.DIM))
+	var many: bool = items.size() > 4
+	row.add_theme_constant_override("separation", 16 if many else 70)
 	var cols = []
 	for it in items:
-		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(250, 250); hold.add_child(it[0])
-		var num = UI.head("0", 46); num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var nm = UI.label(it[2], 24); nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var hold = CenterContainer.new(); hold.custom_minimum_size = Vector2(250, 250) if items.size() <= 4 else Vector2(150, 200); hold.add_child(it[0])
+		var num = UI.head("0", 30 if many else 46); num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var nm = UI.label(it[2], 15 if many else 24); nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		var col = UI.vb(4, [hold, num, nm]); col.modulate.a = 0.0
 		row.add_child(col); cols.append([col, num, it[1], hold])
 	v.add_child(row)

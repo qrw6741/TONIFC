@@ -340,27 +340,142 @@ func start_pick(id: String) -> void:
 	Save.write_now()
 	UI.go("pick")
 
+## FC-style ITEM PICK: face-down covers. Tap a cover (or Reveal All) — it charges up and shines; the stronger the shine,
+## the better the player. Once revealed, tap a card to pick it.
 func s_pick(_p) -> Dictionary:
 	var cur = Save.data.get("pick_cur")
-	var f = UI.sub_shell(Data.packs[cur.pack].name if cur else "Player Pick", "Season Pass reward", true)
+	var f = UI.sub_shell("Item Pick", "Player Pick", true)
 	if cur == null:
 		f.body.add_child(UI.label("No player pick in progress.", 16, UI.DIM))
 		return {"node": f.node, "bg": "hub", "back": func(): UI.replace("store", {"tab": "mine"})}
-	f.body.add_child(UI.vb(4, [UI.head("CHOOSE YOUR PLAYER", 36), UI.label("Pick 1 of %d — the others are released. The player you pick is untradeable." % cur.pids.size(), 15, UI.DIM)]))
-	var row = UI.hb(46); row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var i = 0
-	for pid in cur.pids:
-		var pl: Dictionary = Data.P(pid)
-		var c = UI.card(pl, 14.0, false, func(): _choose(pl))
-		if i == 0: c.set_meta("autofocus", true)
-		var col = UI.vb(10, [c, UI.hb(4, [UI.spacer(), UI.bold(pl.name, 16), UI.spacer()]), UI.hb(4, [UI.spacer(), UI.label(Data.rarity_name(pl) + " · " + pl.pos, 13, UI.DIM), UI.spacer()])])
-		col.modulate.a = 0.0
-		var tw = col.create_tween(); tw.tween_interval(0.25 + i * 0.35); tw.tween_property(col, "modulate:a", 1.0, 0.35)
-		row.add_child(col); i += 1
-	var cc = CenterContainer.new(); UI.grow(cc); cc.add_child(row)
-	f.body.add_child(cc)
-	Sfx.play("riser")
+	if not cur.has("rev"): cur.rev = []
+	var n: int = cur.pids.size()
+	var title = UI.head("ITEM PICK", 40 if not UI.mobile else 30, Color("#3dff8a")); title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var sub = UI.label(Data.packs[cur.pack].name, 16); sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var cnt = UI.label("Pick 0/1 · tap a pack to reveal it", 13, UI.DIM); cnt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	f.body.add_child(UI.vb(4, [title, sub, cnt]))
+	var holder: Container
+	var cs: float = 6.6 if UI.mobile else 11.0
+	if UI.mobile:
+		var g = GridContainer.new(); g.columns = 3; g.add_theme_constant_override("h_separation", 10); g.add_theme_constant_override("v_separation", 14); holder = g
+	else:
+		var h = UI.hb(28); h.alignment = BoxContainer.ALIGNMENT_CENTER; holder = h
+	var covers = []
+	var update = func():
+		var left = n - cur.rev.size()
+		cnt.text = ("Pick 0/1 · tap a pack to reveal it · %d hidden" % left) if left > 0 else "Pick 0/1 · tap the player you want"
+	for k in n:
+		var pl: Dictionary = Data.P(cur.pids[k])
+		var cv = PickCover.new(); cv.pl = pl; cv.cs = cs; cv.idx = k
+		cv.revealed = cur.rev.has(k)
+		cv.on_reveal = func(): if not cur.rev.has(k): cur.rev.append(k); Save.dirty(); update.call()
+		cv.on_pick = func(): _choose(pl)
+		holder.add_child(cv); covers.append(cv)
+	var cc = CenterContainer.new(); UI.grow(cc); cc.add_child(holder); f.body.add_child(cc)
+	var reveal_all = UI.btn("Reveal All", func():
+		var d = 0.0
+		for cv in covers:
+			if not cv.revealed and not cv.busy: cv.reveal_after(d); d += 0.45, "Primary")
+	var bar = UI.hb(10, [reveal_all]); bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	f.body.add_child(bar)
+	update.call()
 	return {"node": f.node, "bg": "hub", "back": func(): UI.toast("Choose a player first — your pick is saved", "bad")}
+
+class PickCover extends Button:
+	var pl: Dictionary
+	var cs = 11.0
+	var idx = 0
+	var revealed = false
+	var busy = false
+	var charge = 0.0     # 0..1 while revealing
+	var flash = 0.0
+	var t = 0.0
+	var lvl = 0
+	var on_reveal: Callable
+	var on_pick: Callable
+	var card: Control = null
+	func _ready() -> void:
+		flat = true; focus_mode = Control.FOCUS_ALL
+		for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]: add_theme_stylebox_override(st, StyleBoxEmpty.new())
+		custom_minimum_size = Vector2(12.0 * cs, 16.8 * cs + 26)
+		lvl = _level(pl)
+		if revealed: _show_card()
+		pressed.connect(func():
+			if revealed: Sfx.play("select"); on_pick.call()
+			elif not busy: reveal_after(0.0))
+	static func _level(p: Dictionary) -> int:
+		var o: int = int(p.get("ovr", 0)); var ty: String = str(p.get("type", "base"))
+		if ty in ["icon", "hero"] or o >= 90: return 4
+		if ty != "base" or o >= 88: return 3
+		if o >= 86: return 2
+		if o >= 84: return 1
+		return 0
+	func reveal_after(delay: float) -> void:
+		busy = true
+		if delay > 0: await get_tree().create_timer(delay).timeout
+		if not is_inside_tree(): return
+		Sfx.play("riser")
+		var dur: float = 0.7 + lvl * 0.35
+		var tw = create_tween(); tw.tween_property(self, "charge", 1.0, dur).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		await tw.finished
+		flash = 1.0
+		Sfx.play("bigreveal" if lvl >= 3 else "reveal")
+		if lvl >= 3: Pad.rumble(0.3 + lvl * 0.1, 0.5, 0.35)
+		revealed = true; busy = false
+		_show_card()
+		on_reveal.call()
+	func _show_card() -> void:
+		if card: return
+		card = UI.card(pl, cs); card.focus_mode = Control.FOCUS_NONE; card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.position = Vector2(0, 0); add_child(card)
+		var nm = UI.bold(Data.short_name(pl.name), 13); nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		nm.position = Vector2(0, 16.8 * cs + 4); nm.size = Vector2(12.0 * cs, 20); add_child(nm)
+		card.pivot_offset = Vector2(6.0 * cs, 8.4 * cs); card.scale = Vector2(0.6, 0.6)
+		card.create_tween().tween_property(card, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	func _process(d: float) -> void:
+		t += d
+		if flash > 0.0: flash = max(0.0, flash - d * 1.6)
+		if busy or flash > 0.0 or (revealed and lvl >= 3) or has_focus(): queue_redraw()
+	func _draw() -> void:
+		var w = 12.0 * cs; var h = 16.8 * cs
+		var ctr = Vector2(w / 2, h * 0.48)
+		var gcol: Color = Data.rarity_style(Data.rarity_key(pl)).glow if revealed or busy else Color(1, 0.85, 0.4)
+		# the shine: rays + glow, size and brightness grow with the level while charging, then linger for the best cards
+		var power: float = charge * (0.35 + lvl * 0.2) if busy else (flash + (0.25 + 0.1 * sin(t * 3.0) if revealed and lvl >= 3 else 0.0))
+		if busy or revealed and (lvl >= 3 or flash > 0):
+			var rays = 6 + lvl * 3; var rl: float = w * (0.5 + lvl * 0.25) * clamp(power + 0.2, 0.0, 1.6)
+			for k in rays:
+				var a = t * (0.4 + lvl * 0.15) + TAU * k / rays
+				var tip = ctr + Vector2(cos(a), sin(a)) * rl
+				var side = Vector2(-sin(a), cos(a)) * w * 0.05
+				draw_colored_polygon(PackedVector2Array([ctr + side, tip, ctr - side]), Color(gcol, clamp(power, 0.0, 1.0) * 0.35))
+			Gfx.glow(self, ctr, w * (0.6 + lvl * 0.35) * (0.4 + power), Color(gcol, clamp(power, 0.0, 1.0) * 0.8))
+		if flash > 0.0: Gfx.glow(self, ctr, w * (1.0 + lvl * 0.4), Color(1, 1, 1, flash * 0.9))
+		if revealed: 
+			if has_focus(): draw_rect(Rect2(-6, -6, w + 12, h + 12), Color("#3dff8a"), false, 3.0)
+			return
+		# face-down cover: white card with a gold medallion of three silhouettes (shakes while charging)
+		var shake = Vector2(sin(t * 60.0), cos(t * 47.0)) * cs * 0.12 * charge * (1 + lvl) if busy else Vector2.ZERO
+		draw_set_transform(shake)
+		var r = Rect2(Vector2.ZERO, Vector2(w, h))
+		var sh = Gfx.shield(r)
+		draw_colored_polygon(Gfx.shield(Rect2(Vector2(0, cs * 0.5), r.size)), Color(0, 0, 0, 0.35))
+		Gfx.grad_poly(self, sh, r, Color("#ffffff"), Color("#f1efe9"), Color("#e3dfd4"))
+		var tr = sh.duplicate(); tr.append(tr[0]); draw_polyline(tr, Color("#d9b25c"), max(1.0, cs * 0.18), true)
+		var mc = Vector2(w / 2, h * 0.45); var mr: float = w * 0.28
+		draw_circle(mc, mr * 1.12, Color("#e8c46a")); draw_circle(mc, mr, Color("#f7f3ea")); draw_arc(mc, mr * 0.98, 0, TAU, 40, Color("#c99a3a"), max(1.0, cs * 0.18))
+		for k in 3:
+			var px = mc.x + (k - 1) * mr * 0.55; var py = mc.y + (0.08 if k == 1 else 0.18) * mr; var s2: float = mr * (0.42 if k == 1 else 0.34)
+			draw_circle(Vector2(px, py - s2 * 0.55), s2 * 0.42, Color("#b8892e"))
+			draw_rect(Rect2(px - s2 * 0.6, py, s2 * 1.2, s2 * 0.9), Color("#b8892e"))
+		for k in 9: draw_circle(mc + Vector2.from_angle(-PI / 2 + TAU * k / 9.0) * mr * 1.3, cs * 0.12, Color("#e8c46a"))
+		if busy:
+			var pulse = Color(gcol, 0.25 * charge * (1 + lvl * 0.4)); Gfx.glow(self, mc, mr * (1.6 + lvl * 0.6) * charge, pulse)
+		if has_focus(): 
+			var c = Color("#3dff8a"); var L = w * 0.18
+			for q in [[Vector2(-8, -8), 1, 1], [Vector2(w + 8, -8), -1, 1], [Vector2(-8, h + 8), 1, -1], [Vector2(w + 8, h + 8), -1, -1]]:
+				draw_line(q[0], q[0] + Vector2(L * q[1], 0), c, 4.0); draw_line(q[0], q[0] + Vector2(0, L * q[2]), c, 4.0)
+		draw_set_transform(Vector2.ZERO)
 
 func _choose(pl: Dictionary) -> void:
 	var v = await UI.inspect(pl, [["Choose %s" % Data.short_name(pl.name), "pick", "Primary"]])

@@ -231,6 +231,18 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--picks":
+			for rk in [4, 9, 14]: print("CHAMPS rank ", Champs.rank_name(rk), ": ", Champs.reward_text(Champs.REWARDS[rk]))
+			UI.go("champsreward", {"res": {"rank": 14, "reward": Champs.REWARDS[14]}}); await w(3.5); await shot("pk_champs_reward")
+			UI.modules[3].start_pick("champpick"); await w(0.8)
+			# make one of the five an icon so the big shine shows
+			var ic = Data.players.filter(func(x): return x.type == "icon")[0]
+			Save.data.pick_cur.pids[2] = ic.id; UI.replace("pick"); await w(0.6); await shot("pk_covers")
+			var covers = UI.cur.find_children("*", "Button", true, false).filter(func(b): return b.get("pl") != null)
+			covers[0].reveal_after(0.0); covers[2].reveal_after(0.0); await w(0.9); await shot("pk_charging")
+			await w(2.0); await shot("pk_revealed")
+			for c in covers: if not c.revealed and not c.busy: c.reveal_after(0.0)
+			await w(3.0); await shot("pk_all"); print("PICK revealed ", Save.data.pick_cur.rev)
 		if extra == "--rtk":
 			print("RTK cards ", Rtk.all_cards.map(func(p): return "%d %s %s" % [p.ovr, p.name, p.club]), " round ", Rtk.round_now())
 			UI.go("promo"); await w(0.8); await shot("rtk_tab")

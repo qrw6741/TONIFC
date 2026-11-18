@@ -18,11 +18,28 @@ const MIN_DIV := 10
 const TIERS := ["Contender", "Elite", "Champion"]
 const NUM := ["V", "IV", "III", "II", "I"]
 const RANK_PTS := [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 46, 52, 56, 60]
-## rank rewards: Champions Tokens + coins only
+## rank rewards: Champions Tokens, coins, QP — plus packs and Player Picks that get bigger the higher you finish
 const REWARDS := [
-	{"tokens": 15, "coins": 6000}, {"tokens": 25, "coins": 9000}, {"tokens": 35, "coins": 12000}, {"tokens": 45, "coins": 16000}, {"tokens": 60, "coins": 20000},
-	{"tokens": 80, "coins": 26000, "qp": 300}, {"tokens": 100, "coins": 32000, "qp": 300}, {"tokens": 120, "coins": 40000, "qp": 400}, {"tokens": 140, "coins": 48000, "qp": 500}, {"tokens": 170, "coins": 58000, "qp": 500},
-	{"tokens": 200, "coins": 70000, "qp": 1000}, {"tokens": 240, "coins": 85000, "qp": 1000}, {"tokens": 280, "coins": 100000, "qp": 1000}, {"tokens": 330, "coins": 120000, "qp": 1000}, {"tokens": 450, "coins": 250000, "qp": 1000}]
+	{"tokens": 15, "coins": 6000, "packs": ["premium"]},
+	{"tokens": 25, "coins": 9000, "packs": ["premium", "premium"]},
+	{"tokens": 35, "coins": 12000, "packs": ["rare"]},
+	{"tokens": 45, "coins": 16000, "packs": ["rare", "pp83x2"]},
+	{"tokens": 60, "coins": 20000, "packs": ["mega", "pick84"]},
+	{"tokens": 80, "coins": 26000, "qp": 300, "packs": ["mega", "pick84", "pp83x2"]},
+	{"tokens": 100, "coins": 32000, "qp": 300, "packs": ["rare", "pick84", "pp85x1"]},
+	{"tokens": 120, "coins": 40000, "qp": 400, "packs": ["pick86", "pp85x1", "mega"]},
+	{"tokens": 140, "coins": 48000, "qp": 500, "packs": ["pick86", "pp85x1", "totwpack"]},
+	{"tokens": 170, "coins": 58000, "qp": 500, "packs": ["pick86", "champpick", "totwpack"]},
+	{"tokens": 200, "coins": 70000, "qp": 1000, "packs": ["champpick", "pick86", "ultimate"]},
+	{"tokens": 240, "coins": 85000, "qp": 1000, "packs": ["champpick", "pick88", "totwpack", "ultimate"]},
+	{"tokens": 280, "coins": 100000, "qp": 1000, "packs": ["pick88", "champpick", "pickhero", "ultimate"]},
+	{"tokens": 330, "coins": 120000, "qp": 1000, "packs": ["pick88", "champpick", "pickhero", "ultimate", "totwpack"]},
+	{"tokens": 450, "coins": 250000, "qp": 1000, "packs": ["pickicon", "champpick", "pick88", "pickhero", "ultimate"]}]
+
+func _ready() -> void:
+	# Champions Player Pick: 1 of 5 players rated 86+ (Elite I and above)
+	if not Data.packs.has("champpick"):
+		Data.packs["champpick"] = {"name": "Champions 86+ Player Pick (1 of 5)", "items": 1, "coins": 0, "points": 0, "art": "pick", "guar": [["ovr86", 1]], "w": {"ovr86": 1}, "desc": "Choose 1 of 5 players rated 86 or higher.", "reward": true, "pick": {"n": 5, "tier": "ovr86"}}
 
 const STORE := [
 	{"id": "coins", "name": "5,000 Coins", "cost": 10, "limit": 0, "reward": {"coins": 5000}},
