@@ -95,6 +95,17 @@ func _draw() -> void:
 			var gr: float = cs * (0.42 if mini else 0.5)
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
+	if p.type == "nltotg":
+		# colourful geometric triangles along the edges (Nations League feel), a navy band and a gold glow
+		var cols = [Color("#e63946"), Color("#2a9d8f"), Color("#f4a261"), Color("#3a86ff"), Color("#ffbe0b"), Color("#8338ec")]
+		var tri: float = cs * (1.3 if not mini else 1.0)
+		for k in 7:
+			var y0 = h * 0.12 + k * tri * 1.05
+			if y0 + tri > h * 0.62: break
+			draw_colored_polygon(PackedVector2Array([Vector2(cs * 0.4, y0), Vector2(cs * 0.4 + tri, y0 + tri * 0.5), Vector2(cs * 0.4, y0 + tri)]), Color(cols[k % 6], 0.55))
+			draw_colored_polygon(PackedVector2Array([Vector2(w - cs * 0.4, y0 + tri * 0.4), Vector2(w - cs * 0.4 - tri, y0 + tri * 0.9), Vector2(w - cs * 0.4, y0 + tri * 1.4)]), Color(cols[(k + 3) % 6], 0.55))
+		draw_rect(Rect2(0, h * 0.6, w, cs * 0.35), Color("#1a3a8f"))
+		Gfx.glow(self, Vector2(w * 0.62, h * 0.4), cs * 3.6, Color(1, 0.82, 0.25, 0.22))
 	if p.type == "rtk":
 		# a ring of stars behind the player and a glossy starfield on the flanks
 		var cc = Vector2(w * 0.62, h * 0.3); var rr: float = cs * (3.4 if not mini else 2.4)

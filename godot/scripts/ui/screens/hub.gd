@@ -43,8 +43,8 @@ func s_home(_p) -> Dictionary:
 	# right column
 	var right = UI.vb(14); UI.grow(right)
 	var pc = UI.hb(6)
-	for p in Rtk.all_cards.slice(0, 2) + Black.cards.slice(0, 1): var c = UI.card(p, 7.6); pc.add_child(c)
-	var pt = UI.tile([UI.bold("★ UCL RTK 1  ·  ⚡ Blackout", 24, Color("#8fb4ff")), UI.bold("Road to the Knockouts cards, Blackout upgrades, Flash packs & TOTW 3 — tap to see it all", 13, Color("#ffe633")), CenterContainer.new()], func(): UI.go("promo"))
+	for p in NL.all_cards.slice(0, 2) + Rtk.all_cards.slice(0, 1): var c = UI.card(p, 7.6); pc.add_child(c)
+	var pt = UI.tile([UI.bold("Nations League TOTG  ·  UCL RTK 1  ·  Blackout", 22, Color("#ffd23f")), UI.bold("Team of the Season, Road to the Knockouts, Blackout upgrades & Flash packs — tap to see it all", 13, Color("#8fb4ff")), CenterContainer.new()], func(): UI.go("promo"))
 	pt.get_child(0).get_child(0).get_child(2).add_child(pc); UI._ignore_mouse(pt.get_child(0)); UI.grow(pt, true, true); right.add_child(pt)
 	var slv: int = Season.level(); var scl: int = Season.claim_count()
 	right.add_child(UI.tile([UI.hb(10, [UI.vb(2, [UI.bold("Season Pass · Level %d" % slv, 20, Color("#ff8a5c")), UI.bold(("%d rewards to claim" % scl) if scl else "Season 2 · Fright Night — earn Phantom Pass cards", 13, UI.GREEN if scl else Color("#ff9a3c"))]), UI.spacer(), UI.card(Fright.phantom_finale[0], 3.6, true) if not Fright.phantom_finale.is_empty() else UI.spacer()]), UI.bar(Season.level_xp(), Season.XP_PER, "GoldBar")], func(): UI.replace("season")))
@@ -58,8 +58,8 @@ func s_home(_p) -> Dictionary:
 # ------------------------------------------------------------------ OBJECTIVES
 func s_objectives(p) -> Dictionary:
 	var f = UI.hub_shell("objectives")
-	var cat: String = p.get("cat", "rtk")
-	var cats = [["rtk", "★ UCL RTK"], ["blackout", "⚡ Blackout"], ["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"], ["halloween", "Halloween"]]
+	var cat: String = p.get("cat", "nltotg")
+	var cats = [["nltotg", "Nations League"], ["rtk", "★ UCL RTK"], ["blackout", "⚡ Blackout"], ["quick", "⚡ Quick · 3 min"], ["daily", "Daily"], ["weekly", "Weekly"], ["season", "Season"], ["milestone", "Milestones"], ["halloween", "Halloween"]]
 	var labs = cats.map(func(c): return [c[0], c[1] + (" •" if Data.objectives.any(func(o): return o.cat == c[0] and Sys.obj_done(o) and not Sys.obj_claimed(o)) else "")])
 	f.body.add_child(UI.hb(10, [page_title("Objectives"), UI.spacer(), UI.seg(labs, cat, func(v): UI.replace("objectives", {"cat": v}))]))
 	var qlab = UI.bold("", 14, Color("#ffd23f"))
@@ -71,7 +71,7 @@ func s_objectives(p) -> Dictionary:
 		upd.call()
 		var tm = Timer.new(); tm.wait_time = 1.0; tm.autostart = true; f.node.add_child(tm); tm.timeout.connect(upd)
 		f.body.add_child(qlab)
-	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 2 · rewards Foundations players", "milestone": "Permanent milestones", "halloween": "Fright Night · Trick or Treat packs, a Fright Night pack and 87 Fright Night Doku", "blackout": "Blackout · Power Cut packs, a Blackout pack and 88 Blackout Nico Williams", "rtk": "UCL RTK 1 · Matchday packs, a UCL RTK pack and 87 UCL RTK Douvikas"}[cat]
+	var sub = {"quick": "4 objectives live right now — 2 quick actions and 2 match goals", "daily": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("daily")), "weekly": "Resets in " + Sys.fmt_time(Sys.secs_to_reset("weekly")), "season": "Season 2 · rewards Foundations players", "milestone": "Permanent milestones", "halloween": "Fright Night · Trick or Treat packs, a Fright Night pack and 87 Fright Night Doku", "blackout": "Blackout · Power Cut packs, a Blackout pack and 88 Blackout Nico Williams", "rtk": "UCL RTK 1 · Matchday packs, a UCL RTK pack and 87 UCL RTK Douvikas", "nltotg": "Nations League TOTG · Nations packs, a TOTG pack and 87 TOTG Lammens"}[cat]
 	f.body.add_child(UI.label(sub, 13, UI.DIM))
 	var list = UI.vb(10)
 	for o in Data.objectives.filter(func(x): return x.cat == cat and Sys.obj_live(x)):
@@ -751,8 +751,8 @@ func open_pack(id: String, tradeable: bool, preset := []) -> void:
 	Save.write_now()
 	var best: Dictionary = items[0]
 	# walkouts are rare: 87+ cards, or icons/heroes, or 85+ special promo cards
-	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm", "fright", "phantom", "blackout", "rtk"].has(best.type))
-	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising", "fright", "blackout", "rtk"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
+	var walkout: bool = best.ovr >= 87 or ["icon", "hero"].has(best.type) or (best.ovr >= 85 and ["promo", "totw", "rising", "pass", "potm", "fright", "phantom", "blackout", "rtk", "nltotg"].has(best.type))
+	var lvl = 4 if best.type == "icon" else (3 if best.type in ["hero", "promo", "rising", "fright", "blackout", "rtk", "nltotg"] else (2 if best.ovr >= 86 or best.type == "totw" else (1 if best.ovr >= 80 else 0)))
 	Sfx.music_off()
 	var o = preload("res://scripts/ui/pack_fx.gd").new()
 	o.setup(id, best, walkout, lvl)
@@ -958,6 +958,9 @@ func _home_mobile() -> Dictionary:
 	if Black.THEME:
 		var fc = HBoxContainer.new(); fc.add_theme_constant_override("separation", -14)
 		for p in Black.cards.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; fc.add_child(c)
+		var nc = HBoxContainer.new(); nc.add_theme_constant_override("separation", -14)
+		for p in NL.all_cards.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; nc.add_child(c)
+		b.add_child(m_tile("Nations League TOTG", "Team of the Season · Yamal, Kane, Olise, Wirtz…", Color("#ffd23f"), func(): UI.go("promo", {"tab": "nl"}), nc, true))
 		var rc = HBoxContainer.new(); rc.add_theme_constant_override("separation", -14)
 		for p in Rtk.all_cards.slice(0, 2): var c = UI.card(p, 4.6, true); c.focus_mode = Control.FOCUS_NONE; rc.add_child(c)
 		b.add_child(m_tile("★ UCL RTK 1", "Road to the Knockouts · %d cards that upgrade with European wins" % Rtk.all_cards.size(), Color("#4f86ff"), func(): UI.go("promo", {"tab": "ucl"}), rc, true))
@@ -1094,13 +1097,14 @@ func _unassigned_menu() -> void:
 const NEON := Color("#36f0ff")
 const VOLT := Color("#ffe633")
 func s_promo(p) -> Dictionary:
-	var tab: String = p.get("tab", "ucl")
-	var f = UI.sub_shell("UCL RTK 1 · Blackout · TOTW 3", "Live events")
+	var tab: String = p.get("tab", "nl")
+	var f = UI.sub_shell("Nations League TOTG · UCL RTK 1 · Blackout", "Live events")
 	var body: VBoxContainer = f.body
-	var tabs = [["ucl", "★ UCL RTK 1"], ["new", "Blackout cards"], ["upgrades", "⚡ Upgrades"], ["totw", "TOTW 3 squad"]]
-	var ucl: bool = tab == "ucl"
+	var tabs = [["nl", "Nations League TOTG"], ["ucl", "★ UCL RTK 1"], ["new", "Blackout cards"], ["upgrades", "⚡ Upgrades"], ["totw", "TOTW 3 squad"]]
+	var ucl: bool = tab == "ucl" or tab == "nl"
+	var head_t = {"nl": "NATIONS LEAGUE", "ucl": "UCL RTK 1"}.get(tab, "BLACKOUT"); var head_s = {"nl": "Team of the Season · League A", "ucl": "Road to the Knockouts · upgrades with European wins"}.get(tab, "Black Friday promo · cards upgrade when their club wins · Team of the Week 3")
 	if not UI.mobile:
-		body.add_child(UI.hb(10, [UI.head("UCL RTK 1" if ucl else "BLACKOUT", 38, Color("#8fb4ff") if ucl else NEON), UI.label("Road to the Knockouts · upgrades with European wins" if ucl else "Black Friday promo · cards upgrade when their club wins · Team of the Week 3", 15, VOLT), UI.spacer(),
+		body.add_child(UI.hb(10, [UI.head(head_t, 38, Color("#ffd23f") if tab == "nl" else (Color("#8fb4ff") if ucl else NEON)), UI.label(head_s, 15, VOLT), UI.spacer(),
 			UI.seg(tabs, tab, func(v): UI.replace("promo", {"tab": v}))]))
 	else:
 		body.add_child(UI.seg(tabs, tab, func(v): UI.replace("promo", {"tab": v})))
@@ -1109,6 +1113,7 @@ func s_promo(p) -> Dictionary:
 		UI.btn("Blackout SBCs", func(): UI.go("sbc", {"cat": "Blackout"}), "Small")]))
 	var content = UI.vb(16)
 	match tab:
+		"nl": _promo_nl(content)
 		"ucl": _promo_ucl(content)
 		"totw": _promo_totw(content)
 		"upgrades": _promo_upgrades(content)
@@ -1183,11 +1188,20 @@ func _promo_upgrades(into: VBoxContainer, mod = null) -> void:
 		list.add_child(UI.panel(row))
 	into.add_child(list)
 
+## Nations League TOTG: the 11 on a pitch and how to get each one
+func _promo_nl(into: VBoxContainer) -> void:
+	var gold = Color("#ffd23f")
+	into.add_child(UI.hb(8, [UI.btn("Nations League TOTG Pack", func(): UI.go("store", {"tab": "browse", "cat": "promo"}), "Primary"), UI.btn("TOTG objectives", func(): UI.go("objectives", {"cat": "nltotg"}), "Small"), UI.btn("TOTG SBCs", func(): UI.go("sbc", {"cat": "Nations League"}), "Small")]))
+	var l = UI.label("Lamine Yamal is Player of the Season (8.3). Lammens comes from objectives, De Bruyne from a gem SBC — the other nine are in Nations League TOTG packs.", 13, UI.DIM)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; into.add_child(l)
+	_promo_totw(into, NL.all_cards, "Nations League A · Team of the Season", gold)
+
 ## the TOTW squad laid out on a pitch: forwards on top, keeper at the bottom, the rest on the bench
-func _promo_totw(into: VBoxContainer) -> void:
+func _promo_totw(into: VBoxContainer, src: Array = [], title := "Team of the Week 3", tcol := Color(1, 1, 1)) -> void:
+	if src.is_empty(): src = Black.totw_latest
 	var lines = {"ATT": [], "MID": [], "DEF": [], "GK": []}; var bench = []
 	var limit = {"ATT": 3, "MID": 3, "DEF": 4, "GK": 1}
-	var sorted: Array = Black.totw_latest.duplicate(); sorted.sort_custom(func(a, b): return a.ovr > b.ovr)
+	var sorted: Array = src.duplicate(); sorted.sort_custom(func(a, b): return a.ovr > b.ovr)
 	for pl in sorted:
 		var g: String = Data.pos_group.get(pl.pos, "MID")
 		if lines[g].size() < limit[g]: lines[g].append(pl)
@@ -1199,7 +1213,7 @@ func _promo_totw(into: VBoxContainer) -> void:
 			lines[g].append(bench[pick]); bench.remove_at(pick)
 	var tot = 0; var n = 0
 	for g in lines: for pl in lines[g]: tot += int(pl.ovr); n += 1
-	into.add_child(UI.hb(10, [UI.bold("Team of the Week 3", 20), UI.spacer(), UI.pill("XI rating %d" % (int(round(float(tot) / max(1, n)))), UI.GOLD2)]))
+	into.add_child(UI.hb(10, [UI.bold(title, 20, tcol), UI.spacer(), UI.pill("XI rating %d" % (int(round(float(tot) / max(1, n)))), UI.GOLD2)]))
 	var pitch = PanelContainer.new()
 	var sb = StyleBoxFlat.new(); sb.bg_color = Color("#123a24"); sb.set_corner_radius_all(14); sb.border_color = Color(1, 1, 1, 0.18); sb.set_border_width_all(2)
 	for s2 in ["left", "right", "top", "bottom"]: sb.set("content_margin_" + s2, 12)
@@ -1213,4 +1227,4 @@ func _promo_totw(into: VBoxContainer) -> void:
 			row.add_child(UI.card(pp, cs, false, func(): UI.inspect(pp)))
 		pv.add_child(row)
 	pitch.add_child(pv); into.add_child(pitch)
-	if not bench.is_empty(): _promo_section(into, "Bench", "Also in Team of the Week 3", UI.DIM, bench)
+	if not bench.is_empty(): _promo_section(into, "Bench", "Also in " + title, UI.DIM, bench)

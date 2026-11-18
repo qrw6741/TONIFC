@@ -275,7 +275,7 @@ func _browse_mobile(body: VBoxContainer, cat: String) -> void:
 		var pid: String = id
 		body.add_child(_row_btn([art, info, price], func():
 			if promo_left(pid) == 0: UI.toast("Sold out — this pack restocks soon" if Data.packs[pid].has("flash") else "You've bought the maximum of this pack this week", "bad"); return
-			UI.modules[1].buy_pack(pid), 116.0, ({"blackout": Color("#36f0ff"), "rtk": Color("#4f86ff")}.get(pk.get("art", ""), Color("#ff7a1a"))) if pk.get("promo", false) else Color(0, 0, 0, 0)))
+			UI.modules[1].buy_pack(pid), 116.0, ({"blackout": Color("#36f0ff"), "rtk": Color("#4f86ff"), "nltotg": Color("#ffd23f")}.get(pk.get("art", ""), Color("#ff7a1a"))) if pk.get("promo", false) else Color(0, 0, 0, 0)))
 	body.add_child(UI.btn("Pack probabilities", func(): UI.replace("store", {"tab": "odds"}), "Small"))
 
 func _preview_mobile(body: VBoxContainer, pv: Dictionary) -> void:

@@ -231,6 +231,12 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--nl":
+			print("NL ", NL.all_cards.map(func(p): return "%d %s %s" % [p.ovr, p.pos, p.name]))
+			for i in 3: print("NLPACK ", Sys.generate_pack("nlpack").map(func(x): return "%d %s %s" % [x.ovr, x.type, x.name]))
+			print("NL price Yamal ", Sys.fmt(Data.base_value(NL.all_cards[0])))
+			UI.go("promo"); await w(0.9); await shot("nl_tab")
+			UI.reset("main"); await w(1.2); await shot("nl_main")
 		if extra == "--picks":
 			for rk in [4, 9, 14]: print("CHAMPS rank ", Champs.rank_name(rk), ": ", Champs.reward_text(Champs.REWARDS[rk]))
 			Champs.c_add_tokens(2000); UI.go("champsstore"); await w(1.0); await shot("pk_champs_store")

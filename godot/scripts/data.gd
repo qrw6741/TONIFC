@@ -139,9 +139,9 @@ func short_name(n: String) -> String:
 ## FC 27-style market prices: cheap up to ~83, then steep — a 91 rare gold striker (Mbappé) is ~3M, icons are multi-million
 const GOLD_CURVE := {76: 700, 77: 900, 78: 1200, 79: 1600, 80: 2200, 81: 3200, 82: 5000, 83: 8000, 84: 13000, 85: 21000, 86: 36000, 87: 65000, 88: 140000, 89: 330000, 90: 900000, 91: 2500000, 92: 3800000, 93: 5200000, 94: 6800000, 95: 8500000, 96: 10000000, 97: 11500000, 98: 13000000, 99: 14500000}
 const MAX_PRICE := 15000000
-const TYPE_MULT := {"base": 1.0, "totw": 2.5, "found": 1.8, "promo": 4.0, "hero": 6.0, "icon": 8.0, "pass": 4.0, "rising": 3.5, "potm": 4.0, "gallery": 4.0, "fright": 4.0, "phantom": 4.0, "blackout": 4.5, "rtk": 4.5}
+const TYPE_MULT := {"base": 1.0, "totw": 2.5, "found": 1.8, "promo": 4.0, "hero": 6.0, "icon": 8.0, "pass": 4.0, "rising": 3.5, "potm": 4.0, "gallery": 4.0, "fright": 4.0, "phantom": 4.0, "blackout": 4.5, "rtk": 4.5, "nltotg": 5.0}
 ## minimum price for the big special rarities, whatever their rating
-const TYPE_FLOOR := {"icon": 2000000, "hero": 600000, "blackout": 150000, "rtk": 150000, "fright": 120000, "promo": 100000, "potm": 150000, "totw": 20000}
+const TYPE_FLOOR := {"icon": 2000000, "hero": 600000, "blackout": 150000, "rtk": 150000, "nltotg": 250000, "fright": 120000, "promo": 100000, "potm": 150000, "totw": 20000}
 func base_value(p: Dictionary) -> int:
 	var o: int = int(p.ovr); var v = 0.0
 	if o < 71: v = 150 + (o - 58) * 15
@@ -183,6 +183,7 @@ func rarity_style(key: String) -> Dictionary:
 		"rising": return {"top": Color("#8af4ff"), "mid": Color("#2140c9"), "bot": Color("#0a0d3a"), "text": Color("#f2fbff"), "trim": Color("#a8f7ff"), "glow": Color("#4fd1ff"), "shards": true, "shard_col": Color(0.66, 0.97, 1, 0.22)}
 		"pass": return {"top": Color("#ff6a3d"), "mid": Color("#8c0f24"), "bot": Color("#1c0410"), "text": Color("#fff1e0"), "trim": Color("#ffc76b"), "glow": Color("#ff5a36"), "shards": true, "shard_col": Color(1, 0.78, 0.42, 0.25)}
 		"fright": return {"top": Color("#ff7a1a"), "mid": Color("#3a0f4a"), "bot": Color("#0b0410"), "text": Color("#ffe9c7"), "trim": Color("#ff8a1f"), "glow": Color("#ff7a1a"), "shards": true, "shard_col": Color(1, 0.55, 0.1, 0.22)}
+		"nltotg": return {"top": Color("#ffffff"), "mid": Color("#e9edf5"), "bot": Color("#c9d3e6"), "text": Color("#10204a"), "trim": Color("#1a3a8f"), "glow": Color("#ffd23f"), "shards": false}
 		"rtk": return {"top": Color("#1d3a8a"), "mid": Color("#071436"), "bot": Color("#020818"), "text": Color("#f2f6ff"), "trim": Color("#b9d2ff"), "glow": Color("#4f86ff"), "shards": true, "shard_col": Color(0.72, 0.82, 1, 0.16)}
 		"blackout": return {"top": Color("#1c2638"), "mid": Color("#05070c"), "bot": Color("#0b1626"), "text": Color("#eaffff"), "trim": Color("#36f0ff"), "glow": Color("#36f0ff"), "shards": true, "shard_col": Color(1, 0.92, 0.2, 0.18)}
 		"phantom": return {"top": Color("#c8f7ff"), "mid": Color("#3b4a7a"), "bot": Color("#0d1022"), "text": Color("#f0fbff"), "trim": Color("#9ff1ff"), "glow": Color("#7fe8ff"), "shards": true, "shard_col": Color(0.75, 0.97, 1, 0.2)}
@@ -198,6 +199,7 @@ func ovr_color(p: Dictionary) -> Color:
 	if p.type == "fright": return Color("#ff7a1a")
 	if p.type == "blackout": return Color("#36f0ff")
 	if p.type == "rtk": return Color("#4f86ff")
+	if p.type == "nltotg": return Color("#1a3a8f")
 	if p.type == "phantom": return Color("#7fe8ff")
 	if p.type != "base": return Color("#b04fd6")
 	match tier_of(p.ovr):

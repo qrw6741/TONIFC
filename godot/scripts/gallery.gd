@@ -78,7 +78,7 @@ func _club_strength(c: String) -> float:
 ## TOTW / Hero / Season Pass +25%, promos +30%, Gallery +40%, Icons +50%. First Owner never changes a card's gems.
 const ITEM_SCORE := {99: 100000, 98: 90000, 97: 85000, 96: 55000, 95: 40000, 94: 30000, 93: 25000, 92: 20000, 91: 19000, 90: 14000,
 	89: 11000, 88: 8300, 87: 5500, 86: 4100, 85: 2100, 84: 830, 83: 410, 82: 340, 81: 280, 80: 180, 79: 160, 78: 140, 77: 120, 76: 100, 75: 90}
-const SPECIAL_BONUS := {"base": 1.0, "found": 1.2, "totw": 1.25, "hero": 1.25, "pass": 1.25, "promo": 1.3, "rising": 1.3, "potm": 1.3, "gallery": 1.4, "fright": 1.3, "blackout": 1.3, "rtk": 1.3, "phantom": 1.25, "icon": 1.5}
+const SPECIAL_BONUS := {"base": 1.0, "found": 1.2, "totw": 1.25, "hero": 1.25, "pass": 1.25, "promo": 1.3, "rising": 1.3, "potm": 1.3, "gallery": 1.4, "fright": 1.3, "blackout": 1.3, "rtk": 1.3, "nltotg": 1.35, "phantom": 1.25, "icon": 1.5}
 
 func gems(p: Dictionary) -> int:
 	if p.is_empty(): return 0

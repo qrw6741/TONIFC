@@ -128,7 +128,7 @@ func s_main(_p) -> Dictionary:
 	row.add_child(list); row.add_child(feat)
 	f.body.add_child(row)
 	feat.add_child(feature("ut"))
-	UI.keyhook(f.node, {"j3": func(): UI.go("promo", {"tab": "totw"}), "k%d" % KEY_T: func(): UI.go("promo", {"tab": "totw"}), "j2": func(): UI.go("promo"), "k%d" % KEY_N: func(): UI.go("promo")})
+	UI.keyhook(f.node, {"j3": func(): UI.go("promo", {"tab": "nl"}), "k%d" % KEY_T: func(): UI.go("promo", {"tab": "nl"}), "j2": func(): UI.go("promo"), "k%d" % KEY_N: func(): UI.go("promo")})
 	return _ret(f.node, func():
 		var v = await UI.modal("Quit?", "Your progress is saved automatically.", [["Stay", null, ""], ["Title screen", "title", ""], ["Quit game", "quit", "Danger"]])
 		if v == "title": UI.reset("title")
@@ -144,8 +144,8 @@ func feature(k: String) -> Control:
 	var title = ""; var sub = ""; var label = ""; var art: Control = null
 	match k:
 		"ut":
-			title = "UCL RTK 1"; sub = "Road to the Knockouts is live — Douvikas, Nico Paz, Fabián Ruiz, Jacobo Ramón and Sommer upgrade every time their club wins in Europe. Blackout and TOTW 3 are still live!"; label = "Enter Ultimate XI"
-			var totw: Array = Rtk.all_cards.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
+			title = "NATIONS LEAGUE\nTOTG"; sub = "The Nations League A Team of the Season is here — Yamal, Kane, Olise, Wirtz and more. UCL RTK 1 and Blackout are still live!"; label = "Enter Ultimate XI"
+			var totw: Array = NL.all_cards.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
 			var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 16); g.add_theme_constant_override("v_separation", 16)
 			for p in totw.slice(0, 4): var c = UI.card(p, 12.5); c.focus_mode = Control.FOCUS_NONE; c.mouse_filter = Control.MOUSE_FILTER_IGNORE; g.add_child(c)
 			art = g
@@ -179,7 +179,7 @@ func feature(k: String) -> Control:
 	v.add_child(b)
 	if k == "ut":
 		var gy = (Pad.glyph("Y") + "  ") if Pad.style != "" else "[T] "; var gx = (Pad.glyph("X") + "  ") if Pad.style != "" else "[N] "
-		var e1 = UI.btn(gy + "TOTW 3 squad", func(): UI.go("promo", {"tab": "totw"}), "Small"); e1.focus_mode = Control.FOCUS_CLICK
+		var e1 = UI.btn(gy + "TOTG squad", func(): UI.go("promo", {"tab": "nl"}), "Small"); e1.focus_mode = Control.FOCUS_CLICK
 		var e2 = UI.btn(gx + "New cards", func(): UI.go("promo"), "Small"); e2.focus_mode = Control.FOCUS_CLICK
 		v.add_child(UI.hb(8, [e1, e2]))
 	h.add_child(v)
