@@ -231,6 +231,18 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--prices":
+			for id in ["p420", "p256", "p443", "p14", "p9", "p2", "p11", "p233"]:
+				var pl = Data.P(id); print("PRICE ", pl.ovr, " ", pl.pos, " ", pl.name, " ", Sys.fmt(Data.base_value(pl)), " qs ", Data.quick_sell_value(pl))
+			for t in ["icon", "hero", "blackout", "totw", "fright"]:
+				var c = Data.players.filter(func(x): return x.type == t)
+				c.sort_custom(func(a, b): return a.ovr > b.ovr)
+				if not c.is_empty(): print("PRICE ", t, " best ", c[0].ovr, " ", c[0].name, " ", Sys.fmt(Data.base_value(c[0])), " · lowest ", c[-1].ovr, " ", Sys.fmt(Data.base_value(c[-1])))
+			for o in [70, 75, 78, 80, 82, 84, 86, 88, 90]:
+				var c2 = Data.players.filter(func(x): return x.type == "base" and x.ovr == o and x.pos == "CM")
+				if not c2.is_empty(): print("PRICE gold CM ", o, " ", Sys.fmt(Data.base_value(c2[0])))
+			print("SEASON levels ", Season.LEVELS, " free ", Season.FREE.size(), " prem ", Season.PREM.size(), " L60 ", Season.PREM[60], " L100 ", Season.FREE[100], Season.PREM[100])
+			UI.go("season"); await w(0.8); await shot("season100")
 		if extra == "--music":
 			print("MUSIC dir ", Sfx.music_dir(), " songs ", Sfx.custom.size(), " now ", Sfx.now_playing(), " stream ", Sfx.music.stream)
 			UI.go("settings"); await w(0.8); await shot("music_settings")

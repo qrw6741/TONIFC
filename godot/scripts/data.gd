@@ -136,17 +136,31 @@ func short_name(n: String) -> String:
 		return " ".join(parts)
 	return n
 
+## FC 27-style market prices: cheap up to ~83, then steep — a 91 rare gold striker (Mbappé) is ~3M, icons are multi-million
+const GOLD_CURVE := {76: 700, 77: 900, 78: 1200, 79: 1600, 80: 2200, 81: 3200, 82: 5000, 83: 8000, 84: 13000, 85: 21000, 86: 36000, 87: 65000, 88: 140000, 89: 330000, 90: 900000, 91: 2500000, 92: 3800000, 93: 5200000, 94: 6800000, 95: 8500000, 96: 10000000, 97: 11500000, 98: 13000000, 99: 14500000}
+const MAX_PRICE := 15000000
+const TYPE_MULT := {"base": 1.0, "totw": 2.5, "found": 1.8, "promo": 4.0, "hero": 6.0, "icon": 8.0, "pass": 4.0, "rising": 3.5, "potm": 4.0, "gallery": 4.0, "fright": 4.0, "phantom": 4.0, "blackout": 4.5}
+## minimum price for the big special rarities, whatever their rating
+const TYPE_FLOOR := {"icon": 2000000, "hero": 600000, "blackout": 150000, "fright": 120000, "promo": 100000, "potm": 150000, "totw": 20000}
 func base_value(p: Dictionary) -> int:
-	var v = 0.0
-	if p.ovr < 71: v = 150 + (p.ovr - 58) * 15
-	elif p.ovr < 76: v = 350 + (p.ovr - 71) * 60 + (150 if p.rare else 0)
-	else: v = round(750 * pow(1.38, p.ovr - 76)) + (400 if p.rare else 0)
-	var mult: float = {"base": 1.0, "totw": 2.2, "found": 1.6, "promo": 3.0, "hero": 3.5, "icon": 4.5, "pass": 4.0, "rising": 2.8, "potm": 3.2, "gallery": 4.0, "fright": 3.0, "phantom": 4.0, "blackout": 3.2}.get(p.type, 1.0)
+	var o: int = int(p.ovr); var v = 0.0
+	if o < 71: v = 150 + (o - 58) * 15
+	elif o < 76: v = 350 + (o - 71) * 60 + (150 if p.rare else 0)
+	else: v = float(GOLD_CURVE.get(clamp(o, 76, 99), 700)) * (1.0 if p.rare or o >= 84 else 0.6)
 	var pos_m: float = {"ST": 1.2, "LW": 1.15, "RW": 1.15, "CAM": 1.1, "CB": 1.05, "GK": 0.8, "CF": 1.1}.get(p.pos, 1.0)
-	return max(150, int(round(v * mult * pos_m / 50.0)) * 50)
+	v = max(v * float(TYPE_MULT.get(p.type, 1.0)) * pos_m, float(TYPE_FLOOR.get(p.type, 0)))
+	return clamp(_round_price(v), 150, MAX_PRICE)
+func _round_price(v: float) -> int:
+	var step = 50 if v < 10000 else (250 if v < 100000 else (1000 if v < 1000000 else 10000))
+	return int(round(v / step)) * step
 
+## quick sell stays modest (it's not a market price): roughly the old curve
 func quick_sell_value(p: Dictionary) -> int:
-	return max(50, int(round(base_value(p) * 0.08 / 10.0)) * 10)
+	var o: int = int(p.ovr); var v = 0.0
+	if o < 71: v = 150 + (o - 58) * 15
+	elif o < 76: v = 350 + (o - 71) * 60
+	else: v = 750 * pow(1.38, min(o, 92) - 76)
+	return clamp(int(round(v * 0.08 / 10.0)) * 10, 50, 25000)
 
 func card_value_score(p: Dictionary) -> float:
 	return p.ovr + card_types[p.type].order * 4 + (1 if p.rare else 0)

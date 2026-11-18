@@ -433,7 +433,7 @@ func cycle_at(t: float, pid: String) -> float:
 	return 1.0 + 0.06 * sin(h * 0.26 + ph) + 0.03 * sin(h * 0.71 + ph * 2.0) + 0.008 * sin(h * 2.3 + ph * 3.0)
 func value(p: Dictionary) -> int: return value_at(p, now())
 func value_at(p: Dictionary, t: float) -> int:
-	return max(150, int(round(Data.base_value(p) * demand(p.id) * cycle_at(t, p.id) / 50.0)) * 50)
+	return clamp(Data._round_price(Data.base_value(p) * demand(p.id) * cycle_at(t, p.id)), 150, Data.MAX_PRICE)
 ## 24-hour price trend (25 points, oldest first)
 func trend(p: Dictionary, hours := 24, pts := 25) -> Array:
 	var out = []
@@ -523,11 +523,11 @@ func apply_one(i: int, dest: String) -> bool:
 	return true
 func price_range(p: Dictionary) -> Dictionary:
 	var v = value(p)
-	return {"min": max(150, int(round(v * 0.45 / 50.0)) * 50), "max": int(round(v * 3 / 50.0)) * 50}
+	return {"min": max(150, Data._round_price(v * 0.45)), "max": min(Data.MAX_PRICE, Data._round_price(v * 3))}
 func make_listing(p: Dictionary) -> Dictionary:
 	var v = value(p)
-	var bin: int = max(200, int(round(v * randf_range(0.92, 1.35) / 50.0)) * 50)
-	var start: int = max(150, int(round(bin * randf_range(0.45, 0.8) / 50.0)) * 50)
+	var bin: int = clamp(Data._round_price(v * randf_range(0.92, 1.35)), 200, Data.MAX_PRICE)
+	var start: int = max(150, Data._round_price(bin * randf_range(0.45, 0.8)))
 	var dur: float = pick([1, 2, 3, 5, 8, 15, 30, 60]) * 60.0
 	var has_bid = chance(0.25)
 	return {"id": uid(), "pid": p.id, "start": start, "bin": bin, "bid": start if has_bid else 0, "bidder": "ai" if has_bid else "", "ends": now() + dur * randf_range(0.2, 1.0), "listed": now()}

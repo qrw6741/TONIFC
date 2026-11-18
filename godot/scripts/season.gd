@@ -1,5 +1,5 @@
 extends Node
-## Season Pass — 50 levels with a Free and a Premium track. Earn Season XP from
+## Season Pass — 100 levels with a Free and a Premium track. Earn Season XP from
 ## matches, objectives and SBCs. Season 2 "Fright Night": exclusive Phantom Pass cards only come from here.
 ## Premium is unlocked with Prime Points (free in-game credits, no real money).
 
@@ -7,9 +7,9 @@ signal changed
 
 const NAME := "Season 2 · Fright Night"
 const TITLE := "SEASON 2: FRIGHT NIGHT"
-const TAGLINE := "Halloween is here — climb 50 levels of Phantom Pass rewards"
+const TAGLINE := "Season 2 — climb 100 levels of Phantom Pass rewards"
 const ID := "s2"
-const LEVELS := 50
+const LEVELS := 100
 const XP_PER := 1000    # FC 27: every level costs 1,000 Season Points (SP)
 const MATCH_CAP := 3000  # match play earns at most 3,000 XP a day (objectives & SBCs are uncapped)
 const PREMIUM_COST := 1000
@@ -38,6 +38,17 @@ func _ready() -> void:
 		21: pk("pp82x5"), 22: pk("rare"), 23: pk("pp83x2"), 24: co(20000), 25: pk("frightpack"), 26: pk("pp82x5"), 27: pk("pp85x1"), 28: pt(500), 29: pk("pp83x2"), 30: ph("p234"),
 		31: pk("pp82x5"), 32: pk("totwpack"), 33: pk("pp83x2"), 34: co(25000), 35: pk("pick86"), 36: pk("pp82x5"), 37: pk("pp83x2"), 38: pk("pp83x2"), 39: pt(750), 40: ph("p19"),
 		41: pk("pp82x5"), 42: pk("pp83x2"), 43: pk("rare"), 44: pk("pp82x5"), 45: pk("pick86"), 46: pk("pp82x5"), 47: pk("pp83x2"), 48: pk("frightpack"), 49: pk("pp85x1"), 50: pk("pickph")}
+	# levels 51–100: more Phantom Pass cards (modest 84–86) every 10 levels, packs and coins in between
+	for f in [["p226", 84], ["p797", 85], ["p485", 85], ["p1189", 86], ["p807", 85]]: Fright._make(f[0], f[1], "phantom", "ph_")
+	var fc = [func(l): return co(5000 + l * 250), func(l): return pk("pp82x5"), func(l): return pt(100 + l * 3), func(l): return pk("pp83x2"), func(l): return pk("jumbo"),
+		func(l): return co(8000 + l * 300), func(l): return pk("rare"), func(l): return pk("pp83x2"), func(l): return pk("mega")]
+	var pc = [func(l): return pk("pp83x2"), func(l): return pk("pp82x5"), func(l): return co(15000 + l * 400), func(l): return pk("pp85x1"), func(l): return pk("mega"),
+		func(l): return pt(250 + l * 5), func(l): return pk("pick84"), func(l): return pk("totwpack"), func(l): return pk("pp83x2")]
+	for lv in range(51, 101):
+		FREE[lv] = fc[(lv - 51) % fc.size()].call(lv)
+		PREM[lv] = pc[(lv - 51) % pc.size()].call(lv)
+	FREE[75] = pk("pick86"); FREE[100] = ph("p807")
+	PREM[60] = ph("p226"); PREM[70] = ph("p797"); PREM[80] = ph("p485"); PREM[90] = ph("p1189"); PREM[95] = pk("pick86"); PREM[100] = pk("pickph")
 	# drop any reward that references content missing from this build
 	for tr in [FREE, PREM]:
 		for lv in tr.keys():
