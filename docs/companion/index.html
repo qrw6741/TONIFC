@@ -2,13 +2,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="PF27 Companion"><meta name="theme-color" content="#120a1c">
-<link rel="apple-touch-icon" href="b1795011313/index.apple-touch-icon.png">
+<link rel="apple-touch-icon" href="b1795011605/index.apple-touch-icon.png">
 <title>Prime Football 27 Companion</title>
 <style>body{margin:0;background:#120a1c;color:#eef2f6;font-family:-apple-system,Segoe UI,Arial,sans-serif;display:flex;height:100vh;align-items:center;justify-content:center}</style>
 </head><body><div>Loading Prime Football 27…</div>
 <script>
 // always open the newest build (version.txt is never cached), falling back to the one this page knows
-var fallback = "b1795011313";
+var fallback = "b1795011605";
 fetch("version.txt?" + Date.now(), {cache: "no-store"}).then(function (r) { return r.text(); })
   .then(function (v) { location.replace((v.trim() || fallback) + "/index.html"); })
   .catch(function () { location.replace(fallback + "/index.html"); });

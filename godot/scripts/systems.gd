@@ -395,8 +395,9 @@ func _roll_tier(tier: String) -> Dictionary:
 	for p in pool: mn = min(mn, p.ovr)
 	if tier == "asc_finale" or tier == "ph_finale": return pick(pool)
 	# steep curve: low ratings are common, top-rated players are genuinely rare
-	var k = 1.5 if tier.begins_with("gold") else (1.4 if tier.begins_with("ovr") else 6.0)
-	return weighted(pool.map(func(p): return [exp(-(p.ovr - mn) / k), p]))
+	var k = 1.5 if tier.begins_with("gold") else (1.4 if tier.begins_with("ovr") else 2.2)
+	# high-rated players are very hard to get: every point above 86 cuts the chance again (×0.35 per point)
+	return weighted(pool.map(func(p): return [exp(-(p.ovr - mn) / k) * pow(0.35, max(0, int(p.ovr) - 86)), p]))
 func pack_odds(id: String) -> Array:
 	var pk: Dictionary = Data.packs[id]
 	var tot = 0.0
@@ -417,7 +418,9 @@ func generate_pack(id: String) -> Array:
 	for g in pk.guar:
 		for i in int(g[1]): out.append(roll_tier(g[0]))
 	var ws = []
-	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising", "fright", "blackout", "rtk", "nltotg"].has(t) else 1.0), t])
+	var spec_t = ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising", "fright", "blackout", "rtk", "nltotg"]
+	# special cards in the random slots are 5× rarer than before (Extreme: 1000× rarer)
+	for t in pk.w: ws.append([pk.w[t] * ((0.001 if extreme() else 0.2) if spec_t.has(t) else 1.0), t])
 	while out.size() < int(pk.items): out.append(roll_tier(weighted(ws)))
 	out.sort_custom(func(a, b): return Data.card_value_score(a) > Data.card_value_score(b))
 	return out

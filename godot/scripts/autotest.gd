@@ -231,6 +231,22 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--odds":
+			for pk in ["premium", "rare", "ultimate", "blackoutpack", "nlpack"]:
+				var n = 1500 if pk in ["premium", "rare", "ultimate"] else 400
+				var c = {"85": 0, "88": 0, "90": 0, "spec": 0, "items": 0}
+				for i in n:
+					for x in Sys.generate_pack(pk):
+						c.items += 1
+						if x.type == "base":
+							if x.ovr >= 85: c["85"] += 1
+							if x.ovr >= 88: c["88"] += 1
+							if x.ovr >= 90: c["90"] += 1
+						else: c.spec += 1
+				print("ODDS ", pk, " packs ", n, " items ", c.items, " gold85+ ", c["85"], " gold88+ ", c["88"], " gold90+ ", c["90"], " specials ", c.spec)
+			var bo = {}
+			for i in 600: var x = Sys.roll_tier("blackout"); bo[x.ovr] = int(bo.get(x.ovr, 0)) + 1
+			print("ODDS blackout tier by ovr ", bo)
 		if extra == "--nldesigns":
 			var bg = ColorRect.new(); bg.color = Color("#0b0d14"); bg.size = Vector2(1440, 900); UI.overlay.add_child(bg)
 			var row = UI.hb(30); var names = ["Current", "1 · Mosaic", "2 · Prism", "3 · Fiesta"]
