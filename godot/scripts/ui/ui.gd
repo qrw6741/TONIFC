@@ -1158,7 +1158,7 @@ func _mobile_setup() -> void:
 		r.content_scale_size = Vector2i(MOBILE_W, 780)
 		r.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	else:
-		r.content_scale_size = Vector2i(1440, 860)
+		r.content_scale_size = Vector2i(1600, 900)
 	if want != mobile:
 		mobile = want
 		if cur_name != "": rerender.call_deferred()

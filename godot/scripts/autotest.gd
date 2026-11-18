@@ -27,6 +27,13 @@ func _sim_check() -> int:
 	Sys.record_ut_match(res)
 	return int(Season.st().xp) - x0
 
+func _in_hscroll(c: Node) -> bool:
+	var a = c.get_parent()
+	while a != null:
+		if a is ScrollContainer and a.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED: return true
+		a = a.get_parent()
+	return false
+
 func shot(name: String) -> void:
 	await get_tree().create_timer(0.7).timeout
 	await RenderingServer.frame_post_draw
@@ -231,6 +238,16 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--fit":
+			print("FIT root ", UI.root.size, " window ", DisplayServer.window_get_size())
+			for t in ["home", "objectives", "season", "store", "transfers", "sbc", "play", "club", "squad", "promo", "champions", "rivals", "survival", "album", "settings"]:
+				UI.reset(t); await w(0.7)
+				# anything drawn past the right/bottom edge?
+				var over = 0.0
+				for c in UI.cur.find_children("*", "Control", true, false):
+					if c.is_visible_in_tree() and not (c is ScrollContainer) and c.get_global_rect().end.x > UI.root.size.x + 2 and not _in_hscroll(c): over = max(over, c.get_global_rect().end.x - UI.root.size.x)
+				print("FIT ", t, " overflow ", int(over))
+				await shot("fit_" + t)
 		if extra == "--animcards":
 			var bg = ColorRect.new(); bg.color = Color("#0b0d14"); bg.size = Vector2(1440, 900); UI.overlay.add_child(bg)
 			var row = UI.hb(14)
