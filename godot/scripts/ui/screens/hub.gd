@@ -32,6 +32,8 @@ func s_home(_p) -> Dictionary:
 		g.add_child(UI.label(kv[0], 13, UI.DIM)); g.add_child(UI.label(kv[1], 13))
 	left.add_child(UI.tile([UI.caps("Competitions"), g], func(): UI.replace("play"), Vector2(0, 120)))
 	var gcl = Gallery.set_ids().filter(func(id): return Gallery.claimable(id) or Gallery.upgrade_gain(id) > 0).size()
+	var acl: int = Album.claimable_count()
+	left.add_child(UI.tile([UI.hb(8, [UI.bold("Album", 18, Color("#ffd27a")), UI.spacer(), UI.bold("%d / %d stickers" % [Album.total_have(), Album.total()], 13, Color("#ffd27a"))]), UI.label(("%d rewards ready" % acl) if acl else "Collect every nation's stars and the Icons", 12, UI.GREEN if acl else UI.DIM)], func(): UI.go("album")))
 	left.add_child(UI.tile([UI.hb(8, [UI.bold("Gallery ✦", 18, Color("#ff6fd8")), UI.spacer(), UI.bold("Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], 13, Color("#9fe8ff"))]), UI.label(("%d sets to upgrade or grade" % gcl) if gcl else "Collect players from the top 6 clubs of each league", 12, UI.GREEN if gcl else UI.DIM)], func(): UI.go("gallery")))
 	row.add_child(left)
 	# squad tile
@@ -988,7 +990,8 @@ func _home_mobile() -> Dictionary:
 			["SBC", "Gem exchanges & players", Color("#5fe3c8"), func(): UI.reset("sbc"), ""],
 			["Club", "%d players" % Save.data.club.size(), Color("#c8d0db"), func(): UI.reset("club"), ""],
 			["Evolutions", "Upgrade your players", Color("#ff6fd8"), func(): UI.reset("evolutions"), ""],
-			["Gallery", "Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], Color("#ff9be6"), func(): UI.go("gallery"), ""]]:
+			["Gallery", "Lv %d · ◈ %s" % [Gallery.level(), Sys.fmt(Gallery.tokens())], Color("#ff9be6"), func(): UI.go("gallery"), ""],
+			["Album", "%d / %d stickers" % [Album.total_have(), Album.total()], Color("#ffd27a"), func(): UI.go("album"), str(Album.claimable_count()) if Album.claimable_count() else ""]]:
 		g.add_child(m_tile(x[0], x[1], x[2], x[3], null, false, x[4]))
 	b.add_child(g)
 	b.add_child(m_tile("☁ " + (Cloud.username() if Cloud.signed_in() else "Cloud Account"), Cloud.status, UI.GREEN if Cloud.signed_in() else Color("#8a93a3"), func(): UI.go("cloud")))
@@ -1005,6 +1008,7 @@ func s_more(_p) -> Dictionary:
 			["Club", "Players, squads & duplicates", Color("#c8d0db"), func(): UI.reset("club")],
 			["Evolutions", "Upgrade players", Color("#ff6fd8"), func(): UI.reset("evolutions")],
 			["Gallery", "Sets, grades & Gallery cards", Color("#ff9be6"), func(): UI.go("gallery")],
+			["Album", "Sticker book · nations & icons", Color("#ffd27a"), func(): UI.go("album")],
 			["☁ Cloud Account", Cloud.status, UI.GREEN, func(): UI.go("cloud")],
 			["Double-tap to open: %s" % ("ON" if Save.data.settings.get("double_tap", true) else "OFF"), "First tap selects, second tap opens — stops accidental taps while scrolling", Color("#ffe633"), func(): Save.data.settings.double_tap = not Save.data.settings.get("double_tap", true); Save.dirty(); UI.replace("more")]]:
 		b.add_child(m_tile(x[0], x[1], x[2], x[3]))
@@ -1228,3 +1232,91 @@ func _promo_totw(into: VBoxContainer, src: Array = [], title := "Team of the Wee
 		pv.add_child(row)
 	pitch.add_child(pv); into.add_child(pitch)
 	if not bench.is_empty(): _promo_section(into, "Bench", "Also in " + title, UI.DIM, bench)
+
+
+# ------------------------------------------------------------------ ALBUM (sticker book)
+const ALBUM_GOLD := Color("#ffd27a")
+func s_album(_p) -> Dictionary:
+	var f = UI.sub_shell("Album", "Ultimate XI")
+	var body: VBoxContainer = f.body
+	var have: int = Album.total_have(); var tot: int = Album.total()
+	var bar = UI.bar(have, tot, "GoldBar"); bar.custom_minimum_size.y = 10; bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(UI.vb(4, [UI.hb(10, [UI.head("ALBUM", 34 if UI.mobile else 40, ALBUM_GOLD), UI.spacer(), UI.bold("%d / %d stickers" % [have, tot], 16)]),
+		UI.label("Every player who joins your club fills his sticker (any version counts). Half a page and a full page pay rewards.", 13, UI.DIM), bar]))
+	for c in body.get_child(body.get_child_count() - 1).get_children(): if c is Label: c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# milestones
+	var ms = UI.hb(8)
+	for i in Album.MILESTONES.size():
+		var tg: int = Album.ms_target(i); var done: bool = i < int(Album.st().ms)
+		var txt = "%s%d · %s" % ["✓ " if done else "", tg, Sys.reward_text(Album.MILESTONES[i][1])]
+		ms.add_child(UI.pill(txt, UI.GREEN if done else (ALBUM_GOLD if have >= tg else UI.DIM)))
+	var msc = UI.scroll(ms, true); msc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; msc.custom_minimum_size.y = 34
+	var mrow = UI.hb(8, [UI.caps("Milestones", 11), msc]); msc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Album.ms_claimable() > 0: mrow.add_child(UI.btn("Claim %d" % Album.ms_claimable(), func(): Album.claim_milestones(); Sfx.play("reveal"); UI.replace("album"), "Primary"))
+	body.add_child(mrow)
+	# pages
+	var g = GridContainer.new(); g.columns = 2 if UI.mobile else 4; g.add_theme_constant_override("h_separation", 12); g.add_theme_constant_override("v_separation", 12)
+	for pg in Album.pages:
+		var pp: Dictionary = pg
+		var n: int = Album.page_count(pp); var full: bool = n >= pp.pids.size()
+		var ic: Control = UI.icon("flag", pp.code, Vector2(42, 28)) if pp.kind == "nat" else UI.icon("badge", {"shape": "crest", "c1": "#e8d6a0", "c2": "#2b2416", "icon": "crown"}, Vector2(34, 38))
+		var pb = UI.bar(n, pp.pids.size(), "GoldBar"); pb.custom_minimum_size.y = 6
+		var tag = ""
+		if Album.can_claim(pp, false) or Album.can_claim(pp, true): tag = "  •  reward ready"
+		var t = UI.tile([UI.hb(8, [ic, UI.bold(pp.name, 15)]), UI.label("%d / %d%s" % [n, pp.pids.size(), tag], 12, UI.GREEN if tag != "" else (ALBUM_GOLD if full else UI.DIM)), pb],
+			func(): UI.go("albumpage", {"id": pp.id}), Vector2(0, 92))
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		g.add_child(t)
+	if UI.mobile: body.add_child(g)
+	else: var sc = UI.scroll(g); UI.grow(sc, true, true); body.add_child(sc)
+	return {"node": f.node, "bg": "hub"}
+
+func s_albumpage(p) -> Dictionary:
+	var pg: Dictionary = {}
+	for x in Album.pages: if x.id == p.get("id", ""): pg = x
+	var f = UI.sub_shell(pg.get("name", "Album"), "Album page")
+	if pg.is_empty(): return {"node": f.node, "bg": "hub"}
+	var body: VBoxContainer = f.body
+	var n: int = Album.page_count(pg)
+	var rw = func(full: bool) -> Control:
+		var need: int = pg.pids.size() if full else Album.HALF
+		var lab = "%s (%d/%d) · %s" % ["Full page" if full else "Half page", min(n, need), need, Sys.reward_text(Album.page_reward(pg, full))]
+		if Album.claimed(pg, full): return UI.pill("✓ " + lab, UI.GREEN)
+		if Album.can_claim(pg, full): return UI.btn("Claim · " + lab, func(): if Album.claim(pg, full): Sfx.play("reveal"); UI.replace("albumpage", {"id": pg.id}), "Primary")
+		return UI.pill(lab, UI.DIM)
+	var head_ic: Control = UI.icon("flag", pg.code, Vector2(60, 40)) if pg.kind == "nat" else UI.icon("badge", {"shape": "crest", "c1": "#e8d6a0", "c2": "#2b2416", "icon": "crown"}, Vector2(46, 52))
+	body.add_child(UI.hb(12, [head_ic, UI.vb(2, [UI.head(pg.name.to_upper(), 30, ALBUM_GOLD), UI.label("%d / %d stickers" % [n, pg.pids.size()], 14, UI.DIM)])]))
+	var rr = HFlowContainer.new(); rr.add_theme_constant_override("h_separation", 8); rr.add_theme_constant_override("v_separation", 8)
+	rr.add_child(rw.call(false)); rr.add_child(rw.call(true)); body.add_child(rr)
+	# the stickers
+	var g = GridContainer.new(); g.columns = 4 if UI.mobile else 6; g.add_theme_constant_override("h_separation", 10); g.add_theme_constant_override("v_separation", 12)
+	var cs: float = 6.2 if UI.mobile else 9.0
+	for pid in pg.pids:
+		var pl: Dictionary = Data.P(pid)
+		var got: bool = Album.have(pid)
+		var c: Control
+		if got: c = UI.card(pl, cs, false, func(): UI.inspect(pl))
+		else:
+			c = StickerSlot.new(); c.cs = cs; c.label = Data.short_name(pl.name); c.ovr = int(pl.ovr); c.pos = str(pl.pos)
+		g.add_child(c)
+	var cc = CenterContainer.new(); cc.add_child(g)
+	if UI.mobile: body.add_child(cc)
+	else: var sc = UI.scroll(cc); UI.grow(sc, true, true); body.add_child(sc)
+	return {"node": f.node, "bg": "hub"}
+
+## an empty sticker spot: dashed outline with the player's name, rating and position
+class StickerSlot extends Control:
+	var cs = 9.0; var label = ""; var ovr = 0; var pos = ""
+	func _ready() -> void: custom_minimum_size = Vector2(12.0 * cs, 16.8 * cs)
+	func _draw() -> void:
+		var r = Rect2(Vector2.ZERO, custom_minimum_size)
+		var sh = Gfx.shield(r)
+		draw_colored_polygon(sh, Color(1, 1, 1, 0.05))
+		var o = sh.duplicate(); o.append(sh[0])
+		for k in range(0, o.size() - 1):
+			var a: Vector2 = o[k]; var b: Vector2 = o[k + 1]; var L = a.distance_to(b); var steps = int(L / (cs * 0.9))
+			for j in steps:
+				if j % 2 == 0: draw_line(a.lerp(b, float(j) / steps), a.lerp(b, float(j + 1) / steps), Color(1, 0.82, 0.48, 0.55), max(1.0, cs * 0.14))
+		Gfx.text_c(self, UI.font_head, r.size.x / 2, r.size.y * 0.42, "?", int(cs * 3.2), Color(1, 1, 1, 0.25))
+		Gfx.text_c(self, UI.font_bold, r.size.x / 2, r.size.y * 0.66, "%d %s" % [ovr, pos], int(cs * 1.1), Color(1, 1, 1, 0.55))
+		Gfx.text_c(self, UI.font_bold, r.size.x / 2, r.size.y * 0.78, label, int(cs * 1.0), Color(1, 1, 1, 0.75))

@@ -231,6 +231,14 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--album":
+			print("ALBUM pages ", Album.pages.size(), " ", Album.pages.map(func(p): return p.name), " total ", Album.total(), " have ", Album.total_have())
+			var pg = Album.pages[0]
+			for pid in pg.pids.slice(0, 7): Sys.club_add(pid, false, "pack")
+			Sys.club_add("nl_" + "p443", false, "pack")
+			print("ALBUM page ", pg.name, " ", Album.page_count(pg), " half claim ", Album.claim(pg, false), " coins ", Save.data.coins)
+			UI.go("album"); await w(0.8); await shot("album")
+			UI.go("albumpage", {"id": pg.id}); await w(0.8); await shot("album_page")
 		if extra == "--worldwide":
 			var sq = Sys.active_squad(); Sys.auto_build(sq)
 			var before = Sys.squad_info(sq)
