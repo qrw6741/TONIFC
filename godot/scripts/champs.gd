@@ -18,28 +18,16 @@ const MIN_DIV := 10
 const TIERS := ["Contender", "Elite", "Champion"]
 const NUM := ["V", "IV", "III", "II", "I"]
 const RANK_PTS := [1, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 46, 52, 56, 60]
-## rank rewards: Champions Tokens, coins, QP — plus packs and Player Picks that get bigger the higher you finish
+## rank rewards: Champions Tokens + coins (+ QP) — spend the tokens in the Champions Token Store
 const REWARDS := [
-	{"tokens": 15, "coins": 6000, "packs": ["premium"]},
-	{"tokens": 25, "coins": 9000, "packs": ["premium", "premium"]},
-	{"tokens": 35, "coins": 12000, "packs": ["rare"]},
-	{"tokens": 45, "coins": 16000, "packs": ["rare", "pp83x2"]},
-	{"tokens": 60, "coins": 20000, "packs": ["mega", "pick84"]},
-	{"tokens": 80, "coins": 26000, "qp": 300, "packs": ["mega", "pick84", "pp83x2"]},
-	{"tokens": 100, "coins": 32000, "qp": 300, "packs": ["rare", "pick84", "pp85x1"]},
-	{"tokens": 120, "coins": 40000, "qp": 400, "packs": ["pick86", "pp85x1", "mega"]},
-	{"tokens": 140, "coins": 48000, "qp": 500, "packs": ["pick86", "pp85x1", "totwpack"]},
-	{"tokens": 170, "coins": 58000, "qp": 500, "packs": ["pick86", "champpick", "totwpack"]},
-	{"tokens": 200, "coins": 70000, "qp": 1000, "packs": ["champpick", "pick86", "ultimate"]},
-	{"tokens": 240, "coins": 85000, "qp": 1000, "packs": ["champpick", "pick88", "totwpack", "ultimate"]},
-	{"tokens": 280, "coins": 100000, "qp": 1000, "packs": ["pick88", "champpick", "pickhero", "ultimate"]},
-	{"tokens": 330, "coins": 120000, "qp": 1000, "packs": ["pick88", "champpick", "pickhero", "ultimate", "totwpack"]},
-	{"tokens": 450, "coins": 250000, "qp": 1000, "packs": ["pickicon", "champpick", "pick88", "pickhero", "ultimate"]}]
+	{"tokens": 15, "coins": 6000}, {"tokens": 25, "coins": 9000}, {"tokens": 35, "coins": 12000}, {"tokens": 45, "coins": 16000}, {"tokens": 60, "coins": 20000},
+	{"tokens": 80, "coins": 26000, "qp": 300}, {"tokens": 100, "coins": 32000, "qp": 300}, {"tokens": 120, "coins": 40000, "qp": 400}, {"tokens": 140, "coins": 48000, "qp": 500}, {"tokens": 170, "coins": 58000, "qp": 500},
+	{"tokens": 200, "coins": 70000, "qp": 1000}, {"tokens": 240, "coins": 85000, "qp": 1000}, {"tokens": 280, "coins": 100000, "qp": 1000}, {"tokens": 330, "coins": 120000, "qp": 1000}, {"tokens": 450, "coins": 250000, "qp": 1000}]
 
 func _ready() -> void:
 	# Champions Player Pick: 1 of 5 players rated 86+ (Elite I and above)
 	if not Data.packs.has("champpick"):
-		Data.packs["champpick"] = {"name": "Champions 86+ Player Pick (1 of 5)", "items": 1, "coins": 0, "points": 0, "art": "pick", "guar": [["ovr86", 1]], "w": {"ovr86": 1}, "desc": "Choose 1 of 5 players rated 86 or higher.", "reward": true, "pick": {"n": 5, "tier": "ovr86"}}
+		Data.packs["champpick"] = {"name": "Champions 86+ Pick", "items": 1, "coins": 0, "points": 0, "art": "pick", "guar": [["ovr86", 1]], "w": {"ovr86": 1}, "desc": "Choose 1 of 5 players rated 86 or higher.", "reward": true, "pick": {"n": 5, "tier": "ovr86"}}
 
 const STORE := [
 	{"id": "coins", "name": "5,000 Coins", "cost": 10, "limit": 0, "reward": {"coins": 5000}},
@@ -48,9 +36,16 @@ const STORE := [
 	{"id": "pp83", "name": "83+ x2 Players Pack", "cost": 90, "limit": 5, "reward": {"pack": "pp83x2"}},
 	{"id": "mega", "name": "Mega Pack", "cost": 120, "limit": 0, "reward": {"pack": "mega"}},
 	{"id": "pick84", "name": "84+ Player Pick", "cost": 150, "limit": 3, "reward": {"pack": "pick84"}},
+	{"id": "pp85", "name": "85+ Player Pack", "cost": 180, "limit": 3, "reward": {"pack": "pp85x1"}},
 	{"id": "totw", "name": "Team of the Week Pack", "cost": 200, "limit": 2, "reward": {"pack": "totwpack"}},
 	{"id": "pick86", "name": "86+ Player Pick", "cost": 300, "limit": 2, "reward": {"pack": "pick86"}},
-	{"id": "hero", "name": "Hero Player Pick", "cost": 600, "limit": 1, "reward": {"pack": "pickhero"}}]
+	{"id": "ultimate", "name": "Ultimate Pack", "cost": 350, "limit": 2, "reward": {"pack": "ultimate"}},
+	{"id": "champpick", "name": "Champions 86+ Pick (1 of 5)", "cost": 400, "limit": 2, "reward": {"pack": "champpick"}},
+	{"id": "rtk", "name": "UCL RTK Pack", "cost": 450, "limit": 1, "reward": {"pack": "rtkpack"}},
+	{"id": "blackout", "name": "Blackout Pack", "cost": 450, "limit": 1, "reward": {"pack": "blackoutpack"}},
+	{"id": "pick88", "name": "88+ Player Pick", "cost": 550, "limit": 1, "reward": {"pack": "pick88"}},
+	{"id": "hero", "name": "Hero Player Pick", "cost": 600, "limit": 1, "reward": {"pack": "pickhero"}},
+	{"id": "icon", "name": "Icon Player Pick", "cost": 1200, "limit": 1, "reward": {"pack": "pickicon"}}]
 
 func st() -> Dictionary:
 	var d = Save.data

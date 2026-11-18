@@ -233,7 +233,8 @@ func run() -> void:
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
 		if extra == "--picks":
 			for rk in [4, 9, 14]: print("CHAMPS rank ", Champs.rank_name(rk), ": ", Champs.reward_text(Champs.REWARDS[rk]))
-			UI.go("champsreward", {"res": {"rank": 14, "reward": Champs.REWARDS[14]}}); await w(3.5); await shot("pk_champs_reward")
+			Champs.c_add_tokens(2000); UI.go("champsstore"); await w(1.0); await shot("pk_champs_store")
+			print("STORE items ", Champs.STORE.size(), " missing packs ", Champs.STORE.filter(func(x): return x.reward.has("pack") and not Data.packs.has(x.reward.pack)).map(func(x): return x.id))
 			UI.modules[3].start_pick("champpick"); await w(0.8)
 			# make one of the five an icon so the big shine shows
 			var ic = Data.players.filter(func(x): return x.type == "icon")[0]
