@@ -95,6 +95,17 @@ func _draw() -> void:
 			var gr: float = cs * (0.42 if mini else 0.5)
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
+	if p.type == "rtk":
+		# a ring of stars behind the player and a glossy starfield on the flanks
+		var cc = Vector2(w * 0.62, h * 0.3); var rr: float = cs * (3.4 if not mini else 2.4)
+		for k in 8:
+			var a = -PI / 2 + TAU * k / 8.0; var sc2 = cc + Vector2(cos(a), sin(a)) * rr; var sr: float = cs * (0.42 if not mini else 0.3)
+			var pts = PackedVector2Array()
+			for j in 10:
+				var aa = -PI / 2 + TAU * j / 10.0; var rad = sr if j % 2 == 0 else sr * 0.45
+				pts.append(sc2 + Vector2(cos(aa), sin(aa)) * rad)
+			draw_colored_polygon(pts, Color(0.85, 0.9, 1, 0.35))
+		Gfx.glow(self, Vector2(w * 0.62, h * 0.45), cs * 3.8, Color(0.31, 0.53, 1, 0.18))
 	if p.type == "blackout":
 		# neon lightning down both edges and an electric glow under the player
 		var bolt = func(x: float, y: float, k: float, flip: float):
@@ -132,7 +143,8 @@ func _draw() -> void:
 	if p.type != "base" and not mini:
 		var tname: String = Data.card_types[p.type].name.to_upper()
 		if p.type == "blackout" and int(p.get("bo_up", 0)) > 0: tname += "  ⚡+%d" % int(p.bo_up)
-		Gfx.text_c(self, font_b, w / 2, cs * 1.25, tname, int(cs * 0.6), Color(tc, 0.85) if not tname.contains("⚡") else Color("#ffe633"))
+		if p.type == "rtk" and int(p.get("bo_up", 0)) > 0: tname += "  ★+%d" % int(p.bo_up)
+		Gfx.text_c(self, font_b, w / 2, cs * 1.25, tname, int(cs * 0.6), Color(tc, 0.85) if not (tname.contains("⚡") or tname.contains("★")) else Color("#ffe633"))
 	if mini:
 		Gfx.portrait(self, Rect2(Vector2(w - cs * 5.2, cs * 0.6), Vector2(cs * 4.9, cs * 5.6)), p)
 		Gfx.text(self, font_h, Vector2(cs * 0.75, cs * 2.75), str(p.ovr), int(cs * 1.95), tc)

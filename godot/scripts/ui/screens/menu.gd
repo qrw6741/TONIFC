@@ -144,8 +144,8 @@ func feature(k: String) -> Control:
 	var title = ""; var sub = ""; var label = ""; var art: Control = null
 	match k:
 		"ut":
-			title = "BLACKOUT\n& TOTW 3"; sub = "Black Friday is here — Blackout cards upgrade every time their club wins, Flash packs restock every hour, and TOTW 3 is live!"; label = "Enter Ultimate XI"
-			var totw: Array = Black.cards.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
+			title = "UCL RTK 1"; sub = "Road to the Knockouts is live — Douvikas, Nico Paz, Fabián Ruiz, Jacobo Ramón and Sommer upgrade every time their club wins in Europe. Blackout and TOTW 3 are still live!"; label = "Enter Ultimate XI"
+			var totw: Array = Rtk.all_cards.duplicate(); totw.sort_custom(func(a, b): return a.ovr > b.ovr)
 			var g = GridContainer.new(); g.columns = 2; g.add_theme_constant_override("h_separation", 16); g.add_theme_constant_override("v_separation", 16)
 			for p in totw.slice(0, 4): var c = UI.card(p, 12.5); c.focus_mode = Control.FOCUS_NONE; c.mouse_filter = Control.MOUSE_FILTER_IGNORE; g.add_child(c)
 			art = g

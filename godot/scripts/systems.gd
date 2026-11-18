@@ -358,7 +358,7 @@ func tier_pool(tier: String) -> Array:
 	match tier:
 		"special": pool = Data.players.filter(func(p): return ["totw", "promo", "hero", "icon", "rising"].has(p.type))
 		"legend": pool = Data.players.filter(func(p): return p.type == "hero" or p.type == "icon")
-		"totw", "promo", "hero", "icon", "found", "rising", "fright", "blackout": pool = Data.players.filter(func(p): return p.type == tier and not (tier == "fright" and Fright.exclusive_fright(p.id)) and not (tier == "blackout" and Black.exclusive_card(p.id)))
+		"totw", "promo", "hero", "icon", "found", "rising", "fright", "blackout", "rtk": pool = Data.players.filter(func(p): return p.type == tier and not (tier == "fright" and Fright.exclusive_fright(p.id)) and not (tier == "blackout" and Black.exclusive_card(p.id)) and not (tier == "rtk" and Rtk.exclusive_card(p.id)))
 		"ph_finale": pool = Fright.phantom_finale
 		"gold": pool = Data.players.filter(func(p): return p.type == "base" and Data.tier_of(p.ovr) == "gold")
 		"asc_finale": pool = Data.ascension_finale.duplicate()
@@ -378,7 +378,7 @@ func xp_scaled_preview(n: int) -> int: return n
 func roll_tier(tier: String) -> Dictionary:
 	var r = _roll_tier(tier)
 	# Extreme: an 84+ or special pull only survives 1 time in 1000 (guaranteed-tier pools are left alone)
-	if extreme() and not ["legend", "asc_finale", "ph_finale", "special", "totw", "promo", "hero", "icon", "found", "rising", "fright", "blackout"].has(tier):
+	if extreme() and not ["legend", "asc_finale", "ph_finale", "special", "totw", "promo", "hero", "icon", "found", "rising", "fright", "blackout", "rtk"].has(tier):
 		var pool = tier_pool(tier)
 		var low = pool.filter(func(p): return p.type == "base" and p.ovr < 84)
 		var tries = 0
@@ -417,7 +417,7 @@ func generate_pack(id: String) -> Array:
 	for g in pk.guar:
 		for i in int(g[1]): out.append(roll_tier(g[0]))
 	var ws = []
-	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising", "fright", "blackout"].has(t) else 1.0), t])
+	for t in pk.w: ws.append([pk.w[t] * (0.001 if extreme() and ["special", "totw", "promo", "hero", "icon", "legend", "found", "rising", "fright", "blackout", "rtk"].has(t) else 1.0), t])
 	while out.size() < int(pk.items): out.append(roll_tier(weighted(ws)))
 	out.sort_custom(func(a, b): return Data.card_value_score(a) > Data.card_value_score(b))
 	return out
@@ -747,6 +747,7 @@ func obj_period(o: Dictionary) -> String:
 		"season": return Season.ID.to_upper()
 		"halloween": return "HW26"
 		"blackout": return "BO26"
+		"rtk": return "RTK1"
 		"event": return Event.ID
 	return "M"
 func obj_key(o: Dictionary) -> String: return o.id + "@" + obj_period(o)
@@ -783,10 +784,10 @@ func obj_claim(o: Dictionary) -> bool:
 const OBJ_XP := {"easy": 100, "medium": 250, "hard": 600}
 func obj_tier(o: Dictionary) -> String:
 	if o.has("tier"): return str(o.tier)
-	if str(o.get("id", "")) in ["hw_doku", "bo_nico"]: return "hard"
+	if str(o.get("id", "")) in ["hw_doku", "bo_nico", "rtk_douvikas"]: return "hard"
 	match str(o.cat):
 		"daily": return "easy"
-		"weekly", "halloween", "blackout": return "medium"
+		"weekly", "halloween", "blackout", "rtk": return "medium"
 		"season", "milestone": return "hard"
 	return "easy"
 func obj_xp(o: Dictionary) -> int: return 0 if o.cat == "quick" else int(OBJ_XP[obj_tier(o)])

@@ -231,6 +231,16 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--rtk":
+			print("RTK cards ", Rtk.all_cards.map(func(p): return "%d %s %s" % [p.ovr, p.name, p.club]), " round ", Rtk.round_now())
+			UI.go("promo"); await w(0.8); await shot("rtk_tab")
+			Rtk.debug_round = 3; Rtk.refresh(false)
+			print("RTK after 3 MDs ", Rtk.all_cards.map(func(p): return "%s %d(+%d)" % [Data.short_name(p.name), p.ovr, p.bo_up]))
+			UI.replace("promo", {"tab": "ucl"}); await w(0.8); await shot("rtk_tab3")
+			for i in 3: print("RTKPACK ", Sys.generate_pack("rtkpack").map(func(x): return "%d %s %s" % [x.ovr, x.type, x.name]))
+			print("RTK price ", Sys.fmt(Data.base_value(Rtk.all_cards[0])))
+			UI.go("sbc"); await w(0.7); await shot("rtk_sbc")
+			UI.reset("main"); await w(1.2); await shot("rtk_main")
 		if extra == "--objrew":
 			for o in Data.objectives.slice(0, 40): print("OBJ ", o.cat, " ", o.title, " ", Sys.reward_text(o.reward), " +", Sys.obj_xp(o), " XP")
 			UI.go("objectives", {"cat": "weekly"}); await w(0.7); await shot("obj_weekly")
