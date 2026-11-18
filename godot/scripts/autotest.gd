@@ -231,6 +231,9 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--objrew":
+			for o in Data.objectives.slice(0, 40): print("OBJ ", o.cat, " ", o.title, " ", Sys.reward_text(o.reward), " +", Sys.obj_xp(o), " XP")
+			UI.go("objectives", {"cat": "weekly"}); await w(0.7); await shot("obj_weekly")
 		if extra == "--prices":
 			for id in ["p420", "p256", "p443", "p14", "p9", "p2", "p11", "p233"]:
 				var pl = Data.P(id); print("PRICE ", pl.ovr, " ", pl.pos, " ", pl.name, " ", Sys.fmt(Data.base_value(pl)), " qs ", Data.quick_sell_value(pl))

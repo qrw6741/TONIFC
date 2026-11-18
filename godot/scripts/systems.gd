@@ -713,7 +713,17 @@ const QUICK_MATCH := [["q_goal", "On Target", "Score a goal in an Ultimate XI ma
 	["q_evo", "Evolve", "Level up an Evolution", "evo_lvl", 1, {"coins": 800}]]
 func _ready() -> void:
 	for q in QUICK_ACTION + QUICK_MATCH:
-		Data.objectives.append({"id": q[0], "cat": "quick", "title": q[1], "desc": q[2], "ev": q[3], "target": q[4], "reward": q[5]})
+		Data.objectives.append({"id": q[0], "cat": "quick", "title": q[1], "desc": q[2], "ev": q[3], "target": q[4], "reward": q[5].duplicate()})
+	_tone_down_objectives.call_deferred()
+
+## objectives are a small bonus, not a coin/XP farm: coins cut to 40%, and the only XP is the tier XP (OBJ_XP) — no extra "xp" in rewards
+const OBJ_COIN_MULT := 0.4
+func _tone_down_objectives() -> void:
+	for o in Data.objectives:
+		var r: Dictionary = o.reward
+		if r.has("xp"): r.erase("xp")
+		if r.get("coins", 0) and not r.get("_toned", false):
+			r.coins = max(100, int(round(int(r.coins) * OBJ_COIN_MULT / 50.0)) * 50); r._toned = true
 func quick_period() -> int: return int(floor(now() / QUICK_SECS))
 func quick_left() -> float: return (quick_period() + 1) * QUICK_SECS - now()
 var _qcache = {"p": -1, "ids": []}
@@ -769,8 +779,8 @@ func obj_claim(o: Dictionary) -> bool:
 	Season.add_xp(obj_xp(o), "%s objective" % obj_tier(o).capitalize())
 	return true
 
-## objective difficulty → XP: easy 250 · medium 550 · hard 1,500 (quick 3-minute objectives keep their small bonus XP)
-const OBJ_XP := {"easy": 250, "medium": 550, "hard": 1500}
+## objective difficulty → XP: easy 100 · medium 250 · hard 600 (quick 3-minute objectives keep their small bonus XP)
+const OBJ_XP := {"easy": 100, "medium": 250, "hard": 600}
 func obj_tier(o: Dictionary) -> String:
 	if o.has("tier"): return str(o.tier)
 	if str(o.get("id", "")) in ["hw_doku", "bo_nico"]: return "hard"
