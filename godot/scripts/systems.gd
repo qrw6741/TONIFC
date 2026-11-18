@@ -88,11 +88,12 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 	var club = {}; var nat = {}; var lg = {}; var icons = 0
 	for p in players:
 		if p.is_empty(): continue
+		var ww: bool = Cons.is_ww(p)   # World Wide style: counts like an Icon
 		if p.club != "ICN" and p.club != "HER" and p.club != "GAL": club[p.club] = club.get(p.club, 0) + 1
-		nat[p.nat] = nat.get(p.nat, 0) + (2 if p.type == "icon" else 1)
+		nat[p.nat] = nat.get(p.nat, 0) + (2 if p.type == "icon" or ww else 1)
 		if p.type == "hero": lg[p.lg] = lg.get(p.lg, 0) + 2
-		elif p.type != "icon": lg[p.lg] = lg.get(p.lg, 0) + 1
-		if p.type == "icon": icons += 1
+		elif p.type != "icon" and not ww: lg[p.lg] = lg.get(p.lg, 0) + 1
+		if p.type == "icon" or ww: icons += 1
 	var per = []
 	var total = 0
 	for i in players.size():
@@ -101,7 +102,7 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 		if not p.is_empty():
 			var slot_pos: String = Data.formations[formation][i][0]
 			if not Data.fits_pos(p, slot_pos): c = 0
-			elif p.type == "icon" or p.type == "hero" or p.type == "gallery": c = 3
+			elif p.type == "icon" or p.type == "hero" or p.type == "gallery" or Cons.is_ww(p): c = 3
 			else:
 				c = _thr(club.get(p.club, 0), [2, 5, 7]) + _thr(nat.get(p.nat, 0), [2, 5, 8]) + _thr(lg.get(p.lg, 0) + icons, [3, 5, 8])
 				c = min(3, c)
@@ -115,7 +116,7 @@ func chemistry(formation: String, players: Array) -> Dictionary:
 			if A.club == B.club and A.club != "ICN" and A.club != "HER" and A.club != "GAL": s += 2
 			if A.nat == B.nat: s += 1
 			if A.lg == B.lg or A.type == "icon" or B.type == "icon": s += 1
-			q = "green" if s >= 2 else ("yellow" if s == 1 else "red")
+			q = "green" if s >= 2 or Cons.is_ww(A) or Cons.is_ww(B) else ("yellow" if s == 1 else "red")
 		links.append({"a": l[0], "b": l[1], "q": q})
 	return {"per": per, "total": total, "links": links}
 
@@ -805,6 +806,7 @@ func reward_text(r: Dictionary) -> String:
 	if r.get("xp", 0): parts.append("%s XP" % fmt(r.xp))
 	if r.get("tokens", 0): parts.append("%d Star Tokens" % int(r.tokens))
 	if r.get("sxp", 0): parts.append("%d XP" % int(r.sxp))
+	if r.has("style"): parts.append("%s Chemistry Style" % r.style)
 	return " + ".join(parts)
 func grant(r: Dictionary, src: String) -> void:
 	if r.get("coins", 0): add("coins", int(r.coins), src)
@@ -817,6 +819,9 @@ func grant(r: Dictionary, src: String) -> void:
 	if r.get("xp", 0): add_xp(int(r.xp))
 	if r.get("tokens", 0): Event.add_tokens(int(r.tokens))
 	if r.get("sxp", 0): Season.add_xp(int(r.sxp), "Objective")
+	if r.has("style"):
+		Cons.st().styles[r.style] = Cons.owned(r.style) + 1
+		toast.emit("%s Chemistry Style added — apply it from a player's actions" % r.style, "good")
 	Save.dirty()
 
 # ------------------------------------------------------------------ SBC

@@ -500,6 +500,18 @@ static func bat(ci: CanvasItem, p: Vector2, s: float, ph: float) -> void:
 	ci.draw_circle(p, s * 0.25, col)
 	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 0.2, -s * 0.15), p + Vector2(-s * 0.12, -s * 0.42), p + Vector2(-s * 0.02, -s * 0.18)]), col)
 	ci.draw_colored_polygon(PackedVector2Array([p + Vector2(s * 0.02, -s * 0.18), p + Vector2(s * 0.12, -s * 0.42), p + Vector2(s * 0.2, -s * 0.15)]), col)
+## World Wide chemistry style emblem: a blue globe inside a rainbow ring
+static func globe(ci: CanvasItem, c: Vector2, r: float, t := 0.0) -> void:
+	var cols = [Color("#e63946"), Color("#ff8c1a"), Color("#ffd23f"), Color("#2ec4b6"), Color("#3a86ff"), Color("#8338ec")]
+	for k in 6: ci.draw_arc(c, r * 1.12, t + TAU * k / 6.0, t + TAU * (k + 1) / 6.0, 10, cols[k], max(1.5, r * 0.18))
+	ci.draw_circle(c, r, Color("#1f6fd6"))
+	# continents
+	for blob in [[-0.35, -0.25, 0.35], [0.3, -0.3, 0.25], [0.15, 0.3, 0.32], [-0.4, 0.35, 0.2]]:
+		ci.draw_circle(c + Vector2(blob[0], blob[1]) * r, r * blob[2], Color("#3ddc84"))
+	ci.draw_arc(c, r * 0.98, 0, TAU, 24, Color(1, 1, 1, 0.5), max(1.0, r * 0.06))
+	ci.draw_line(c - Vector2(r, 0), c + Vector2(r, 0), Color(1, 1, 1, 0.35), max(1.0, r * 0.05))
+	ci.draw_arc(c, r * 0.98, PI * 1.15, PI * 1.45, 6, Color(1, 1, 1, 0.8), max(1.0, r * 0.1))
+
 static func pumpkin(ci: CanvasItem, p: Vector2, r: float, t: float) -> void:
 	for k in [-0.55, 0.55, 0.0]: ci.draw_circle(p + Vector2(r * k, 0), r * (0.62 if k != 0.0 else 0.7), Color("#e8730e") if k == 0.0 else Color("#c95e0a"))
 	ci.draw_rect(Rect2(p + Vector2(-r * 0.1, -r * 0.95), Vector2(r * 0.2, r * 0.3)), Color("#3d6b1f"))

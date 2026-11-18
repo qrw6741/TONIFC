@@ -48,7 +48,9 @@ func _ready() -> void:
 		FREE[lv] = fc[(lv - 51) % fc.size()].call(lv)
 		PREM[lv] = pc[(lv - 51) % pc.size()].call(lv)
 	FREE[75] = pk("pick86"); FREE[100] = ph("p807")
-	PREM[60] = ph("p226"); PREM[70] = ph("p797"); PREM[80] = ph("p485"); PREM[90] = ph("p1189"); PREM[95] = pk("pick86"); PREM[100] = pk("pickph")
+	PREM[60] = ph("p226"); PREM[70] = ph("p797"); PREM[80] = ph("p485"); PREM[90] = ph("p1189"); PREM[95] = pk("pick86"); PREM[99] = pk("pickph")
+	# the ultra-rare World Wide chemistry style — only here
+	PREM[100] = {"style": "World Wide"}
 	# drop any reward that references content missing from this build
 	for tr in [FREE, PREM]:
 		for lv in tr.keys():
@@ -172,4 +174,5 @@ func reward_label(r: Dictionary) -> String:
 	if r.has("pack"): return Data.packs[r.pack].name
 	if r.get("coins", 0): return Sys.fmt(r.coins) + " Coins"
 	if r.get("points", 0): return Sys.fmt(r.points) + " Prime Points"
+	if r.has("style"): return "%s Chemistry Style" % r.style
 	return ""

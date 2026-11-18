@@ -231,6 +231,20 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--worldwide":
+			var sq = Sys.active_squad(); Sys.auto_build(sq)
+			var before = Sys.squad_info(sq)
+			print("WW before total ", before.chem.total, " per ", before.chem.per)
+			Sys.grant({"style": "World Wide"}, "test"); print("WW owned ", Cons.owned("World Wide"))
+			var u: String = sq.slots[9]
+			print("WW apply ", Cons.apply_style(u, "World Wide"))
+			var after = Sys.squad_info(sq)
+			var lk = after.chem.links.filter(func(l): return l.a == 9 or l.b == 9).map(func(l): return l.q)
+			print("WW after total ", after.chem.total, " per ", after.chem.per, " links of slot9 ", lk)
+			print("WW buy without owning ", Cons.apply_style(sq.slots[3], "World Wide"))
+			print("SP L100 prem ", Season.PREM[100], " label ", Season.reward_label(Season.PREM[100]))
+			UI.go("squad"); await w(0.8); await shot("ww_squad")
+			UI.replace("season", {"focus": 100, "track": "prem"}); await w(0.8); await shot("ww_season")
 		if extra == "--odds":
 			for pk in ["premium", "rare", "ultimate", "blackoutpack", "nlpack"]:
 				var n = 1500 if pk in ["premium", "rare", "ultimate"] else 400

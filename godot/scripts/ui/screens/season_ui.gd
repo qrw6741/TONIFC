@@ -111,6 +111,7 @@ func _big_visual(r: Dictionary) -> Control:
 		return c
 	if r.has("pack"):
 		var ic = UI.icon("pack", r.pack, Vector2(150, 210) if UI.mobile else Vector2(230, 320)); return ic
+	if r.has("style"): var sa = StyleArt.new(); sa.custom_minimum_size = Vector2(260, 260); return sa
 	var co = CoinArt.new(); co.gem = not r.get("coins", 0); co.custom_minimum_size = Vector2(260, 260)
 	return co
 
@@ -130,6 +131,7 @@ func _feature(feat: Dictionary, l: int, track: String) -> void:
 		var pl = Data.P(r.player)
 		desc = "%s · %s — Season Pass exclusive. +1 skill move." % [pl.pos, Data.rarity_name(pl)]
 	elif r.has("pack"): desc = Data.packs[r.pack].desc
+	elif r.has("style"): desc = "ULTRA RARE · the only way to get it. The player links full green with everyone, always has full chemistry in position, and counts like an Icon for his teammates. +2 to every stat."
 	elif r.get("coins", 0): desc = "Coins credited instantly to your club."
 	else: desc = "Prime Points — free in-game credits for packs and the Season Pass."
 	txt.add_child(UI.wrapl(UI.label(desc, 14, Color(1, 1, 1, 0.82)), 360))
@@ -156,6 +158,8 @@ func _pass_tile(l: int, track: String, on_focus: Callable) -> Button:
 		vis = UI.card(Data.P(r.player), 7.6); vis.mouse_filter = Control.MOUSE_FILTER_IGNORE; vis.focus_mode = Control.FOCUS_NONE
 	elif r.has("pack"):
 		vis = UI.icon("pack", r.pack, Vector2(84, 118)); vis.animate = false
+	elif r.has("style"):
+		vis = StyleArt.new(); vis.custom_minimum_size = Vector2(110, 110)
 	else:
 		vis = CoinArt.new(); vis.gem = not r.get("coins", 0); vis.custom_minimum_size = Vector2(80, 80); vis.still = true
 	vis.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -251,6 +255,17 @@ class SpBadge extends Control:
 		draw_string(fnt, c + Vector2(-tw / 2, 11), "XP", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color.WHITE)
 		var t2 = UI.font_bold.get_string_size("SEASON END", HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
 		draw_string(UI.font_bold, Vector2(size.x / 2 - t2 / 2, c.y + 58), "SEASON END", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UI.DIM)
+
+class StyleArt extends Control:
+	var t = 0.0
+	func _process(d: float) -> void:
+		if UI.mobile: return
+		t += d; queue_redraw()
+	func _draw() -> void:
+		var c = size / 2; var r: float = min(size.x, size.y) * 0.34
+		Gfx.glow(self, c, r * 2.2, Color(1, 0.85, 0.3, 0.35))
+		Gfx.globe(self, c, r, t * 0.6)
+		Gfx.text_c(self, UI.font_head, c.x, c.y + r * 1.62, "WORLD WIDE", int(r * 0.42), Color.WHITE)
 
 class CoinArt extends Control:
 	var gem = false

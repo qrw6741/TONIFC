@@ -11,6 +11,11 @@ const STYLES := {
 	"Powerhouse": [0, 0, 3, 0, 3, 0], "Maestro": [0, 3, 3, 2, 0, 0], "Sentinel": [0, 0, 0, 0, 4, 4], "Guardian": [0, 0, 0, 3, 4, 0],
 	"Gladiator": [0, 3, 0, 0, 4, 0], "Backbone": [0, 0, 2, 0, 3, 3]}
 const GK_STYLES := {"Wall": [3, 3, 3, 0, 0, 0], "Shield": [0, 0, 3, 3, 3, 0], "Cat": [0, 0, 0, 3, 3, 3], "Glove": [3, 3, 0, 0, 0, 3]}
+## WORLD WIDE — ultra-rare style (Season Pass Level 100 only, can't be bought): the player links GREEN with everyone,
+## always has full chemistry when in position, and counts like an Icon for his teammates (+1 to every league, nation x2). +2 to every stat.
+const WORLD_WIDE := "World Wide"
+const SPECIAL := {"World Wide": [2, 2, 2, 2, 2, 2]}
+static func is_ww(p: Dictionary) -> bool: return str(p.get("style", "")) == WORLD_WIDE
 const PRICE := {"Shadow": 3000, "Hunter": 3000, "Anchor": 2000, "Catalyst": 1500, "Engine": 1500, "Wall": 1500, "Cat": 1500}
 const STYLE_PRICE := 1000
 const POS_PRICE := 1500
@@ -22,13 +27,19 @@ func st() -> Dictionary:
 		d.consum = {"styles": {"Shadow": 1, "Hunter": 1, "Anchor": 1, "Wall": 1}, "pos": 3}   # starter cards
 	return d.consum
 
-func styles_for(p: Dictionary) -> Dictionary: return GK_STYLES if p.get("pos", "") == "GK" else STYLES
+func styles_for(p: Dictionary) -> Dictionary:
+	var base: Dictionary = GK_STYLES if p.get("pos", "") == "GK" else STYLES
+	# World Wide only shows up once you own one (or the player already has it)
+	if owned(WORLD_WIDE) > 0 or is_ww(p):
+		var d = base.duplicate(); d[WORLD_WIDE] = SPECIAL[WORLD_WIDE]; return d
+	return base
 func price(style: String) -> int: return int(PRICE.get(style, STYLE_PRICE))
 func owned(style: String) -> int: return int(st().styles.get(style, 0))
 func pos_owned() -> int: return int(st().pos)
 
 func boost_text(style: String, gk := false) -> String:
-	var b: Array = (GK_STYLES if gk else STYLES).get(style, [])
+	var b: Array = SPECIAL[style] if SPECIAL.has(style) else (GK_STYLES if gk else STYLES).get(style, [])
+	if style == WORLD_WIDE: return "Full green links with everyone · counts as an Icon · +2 all stats"
 	var lab: Array = Data.GK_LABELS if gk else Data.STAT_LABELS
 	var out = []
 	for i in b.size(): if int(b[i]) > 0: out.append("+%d %s" % [b[i], lab[i]])
@@ -64,6 +75,7 @@ func _pay(kind: String, style := "") -> bool:
 		if pos_owned() > 0: st().pos = pos_owned() - 1; return true
 		return Sys.spend("coins", POS_PRICE, "Position Change card", "store")
 	if owned(style) > 0: st().styles[style] = owned(style) - 1; return true
+	if SPECIAL.has(style): Sys.toast.emit("World Wide can't be bought — earn it at Season Pass Level 100", "bad"); return false
 	return Sys.spend("coins", price(style), "%s Chemistry Style" % style, "store")
 
 func apply_style(u: String, style: String) -> bool:

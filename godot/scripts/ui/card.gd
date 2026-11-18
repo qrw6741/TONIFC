@@ -154,6 +154,8 @@ func _draw() -> void:
 			var cy = h * (0.6 - k * 0.04); var a = 0.65 - k * 0.18
 			for sx in [w * 0.075, w * 0.925]:
 				draw_polyline(PackedVector2Array([Vector2(sx - cs * 0.45, cy + cs * 0.4), Vector2(sx, cy), Vector2(sx + cs * 0.45, cy + cs * 0.4)]), Color(1, 0.78, 0.42, a), max(1.0, cs * 0.16), true)
+	if str(p.get("style", "")) == "World Wide":
+		Gfx.globe(self, Vector2(w - cs * (1.3 if not mini else 1.0), cs * (1.6 if not mini else 1.2)), cs * (0.75 if not mini else 0.55))
 	if p.type != "base" and not mini:
 		var tname: String = Data.card_types[p.type].name.to_upper()
 		if p.type == "blackout" and int(p.get("bo_up", 0)) > 0: tname += "  ⚡+%d" % int(p.bo_up)
