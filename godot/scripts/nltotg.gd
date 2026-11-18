@@ -10,6 +10,7 @@ const TEAM := [["p443", 95, 8.3], ["p1194", 94, 8.1], ["p1189", 93, 8.2], ["p229
 const OBJ := "p259"                 # Lammens — objectives
 const SBC := ["p871", 800000]       # De Bruyne — gem SBC
 
+var design = 1       # card look: 0 = original, 1 = Mosaic (chosen), 2 = Prism, 3 = Fiesta
 var cards = []        # pack-able
 var all_cards = []
 

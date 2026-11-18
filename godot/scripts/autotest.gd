@@ -231,6 +231,17 @@ func run() -> void:
 					var q: Dictionary = pool[i % pool.size()].duplicate(); q.pose = Gfx.POSES[i]
 					var c = UI.card(q, 13.5); g.add_child(UI.vb(2, [c, UI.label(Gfx.POSES[i], 12, UI.DIM)]))
 				g.position = Vector2(14, 10); UI.overlay.add_child(g); await shot("poses%d" % page); g.queue_free(); bg.queue_free()
+		if extra == "--nldesigns":
+			var bg = ColorRect.new(); bg.color = Color("#0b0d14"); bg.size = Vector2(1440, 900); UI.overlay.add_child(bg)
+			var row = UI.hb(30); var names = ["Current", "1 · Mosaic", "2 · Prism", "3 · Fiesta"]
+			for d in 4:
+				var col = UI.vb(8)
+				for pid in ["nl_p443", "nl_p229"]:
+					var q: Dictionary = Data.P(pid).duplicate(); q.design = d
+					col.add_child(UI.card(q, 14.0))
+				var l = UI.bold(names[d], 22); l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; col.add_child(l)
+				row.add_child(col)
+			row.position = Vector2(60, 20); UI.overlay.add_child(row); await shot("nl_designs")
 		if extra == "--nl":
 			print("NL ", NL.all_cards.map(func(p): return "%d %s %s" % [p.ovr, p.pos, p.name]))
 			for i in 3: print("NLPACK ", Sys.generate_pack("nlpack").map(func(x): return "%d %s %s" % [x.ovr, x.type, x.name]))

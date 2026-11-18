@@ -68,6 +68,8 @@ func _draw() -> void:
 		var g: Color = st.glow; g.a = 0.45 + 0.2 * sin(_t * 5.0)
 		var gl = Gfx.shield(r.grow(cs * 0.45)); draw_colored_polygon(gl, g)
 	Gfx.grad_poly(self, sh, r, st.top, st.mid, st.bot)
+	var nl_design: int = int(p.get("design", NL.design)) if p.type == "nltotg" else 0
+	if nl_design > 0: _nl_background(nl_design, sh, w, h)
 	if st.get("shards", false):
 		var sc: Color = st.get("shard_col", Color(1, 1, 1, 0.3))
 		draw_colored_polygon(PackedVector2Array([Vector2(w * 0.25, h * 0.08), Vector2(w * 0.42, h * 0.08), Vector2(w * 0.08, h * 0.62), Vector2(w * 0.0, h * 0.62)]), sc)
@@ -81,6 +83,7 @@ func _draw() -> void:
 	var trim = Gfx.shield(r, cs * 0.35); trim.append(trim[0])
 	draw_polyline(trim, st.trim, max(1.0, cs * 0.14), true)
 	var tc: Color = st.text
+	if nl_design in [2, 3]: tc = Color("#ffffff")
 	if p.type == "rising" and not mini:
 		# star sparkles
 		for sp in [[0.1, 0.56, 0.5], [0.9, 0.5, 0.42], [0.86, 0.62, 0.3], [0.14, 0.66, 0.32]]:
@@ -95,7 +98,7 @@ func _draw() -> void:
 			var gr: float = cs * (0.42 if mini else 0.5)
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr), gp + Vector2(gr * 0.8, 0), gp + Vector2(0, gr), gp + Vector2(-gr * 0.8, 0)]), Color("#ff9be6"))
 			draw_colored_polygon(PackedVector2Array([gp + Vector2(0, -gr * 0.5), gp + Vector2(gr * 0.35, 0), gp + Vector2(0, gr * 0.15), gp + Vector2(-gr * 0.35, 0)]), Color(1, 1, 1, 0.8))
-	if p.type == "nltotg":
+	if p.type == "nltotg" and nl_design == 0:
 		# colourful geometric triangles along the edges (Nations League feel), a navy band and a gold glow
 		var cols = [Color("#e63946"), Color("#2a9d8f"), Color("#f4a261"), Color("#3a86ff"), Color("#ffbe0b"), Color("#8338ec")]
 		var tri: float = cs * (1.3 if not mini else 1.0)
@@ -195,6 +198,47 @@ func _draw() -> void:
 			var on = i < chem
 			var col = UI.TEAL if on else (Color(1, 0.3, 0.37, 0.5) if chem == 0 else Color(1, 1, 1, 0.18))
 			draw_colored_polygon(PackedVector2Array([c + Vector2(0, -cs * 0.45), c + Vector2(cs * 0.45, 0), c + Vector2(0, cs * 0.45), c + Vector2(-cs * 0.45, 0)]), col)
+
+## Nations League TOTG alternative designs (all clipped to the card shape)
+const NL_COLS := [Color("#e63946"), Color("#ff8c1a"), Color("#ffd23f"), Color("#2ec4b6"), Color("#3a86ff"), Color("#8338ec"), Color("#ff4fa3")]
+func _clip_fill(poly: PackedVector2Array, sh: PackedVector2Array, col: Color) -> void:
+	for part in Geometry2D.intersect_polygons(poly, sh):
+		if part.size() >= 3: draw_colored_polygon(part, col)
+func _nl_background(d: int, sh: PackedVector2Array, w: float, h: float) -> void:
+	match d:
+		1:
+			# MOSAIC: a full rainbow triangle mosaic, white panel for the name and stats
+			var n = 6; var tw = w / n * 1.0; var th = tw * 0.9
+			var rows = int(ceil(h / th)) + 1
+			for ry in rows:
+				for cx in range(-1, n + 1):
+					var x0 = cx * tw + (tw * 0.5 if ry % 2 else 0.0); var y0 = ry * th
+					var k = (cx * 3 + ry * 5) % NL_COLS.size()
+					_clip_fill(PackedVector2Array([Vector2(x0, y0), Vector2(x0 + tw, y0), Vector2(x0 + tw * 0.5, y0 + th)]), sh, NL_COLS[abs(k)])
+					_clip_fill(PackedVector2Array([Vector2(x0 + tw * 0.5, y0 + th), Vector2(x0 + tw, y0), Vector2(x0 + tw * 1.5, y0 + th)]), sh, NL_COLS[abs(k + 2) % NL_COLS.size()].lightened(0.15))
+			_clip_fill(PackedVector2Array([Vector2(0, h * 0.585), Vector2(w, h * 0.585), Vector2(w, h), Vector2(0, h)]), sh, Color(1, 1, 1, 0.93))
+			_clip_fill(PackedVector2Array([Vector2(0, 0), Vector2(w * 0.42, 0), Vector2(w * 0.42, h * 0.42), Vector2(0, h * 0.42)]), sh, Color(1, 1, 1, 0.55))
+		2:
+			# PRISM: bold diagonal rainbow stripes over a deep navy base
+			_clip_fill(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]), sh, Color("#0b1640"))
+			var sw = w * 0.16
+			for k in NL_COLS.size():
+				var x = -w * 0.3 + k * sw
+				_clip_fill(PackedVector2Array([Vector2(x + w * 0.55, 0), Vector2(x + w * 0.55 + sw, 0), Vector2(x + sw, h * 0.62), Vector2(x, h * 0.62)]), sh, Color(NL_COLS[k], 0.85))
+			_clip_fill(PackedVector2Array([Vector2(0, h * 0.6), Vector2(w, h * 0.6), Vector2(w, h), Vector2(0, h)]), sh, Color("#0b1640"))
+			draw_line(Vector2(cs * 0.6, h * 0.6), Vector2(w - cs * 0.6, h * 0.6), Color("#ffd23f"), max(1.0, cs * 0.18))
+		3:
+			# FIESTA: purple-to-magenta base, a colourful sunburst behind the player and confetti
+			_clip_fill(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]), sh, Color("#3a0ca3"))
+			_clip_fill(PackedVector2Array([Vector2(0, h * 0.55), Vector2(w, h * 0.45), Vector2(w, h), Vector2(0, h)]), sh, Color("#7209b7"))
+			var c = Vector2(w * 0.62, h * 0.32)
+			for k in 14:
+				var a0 = TAU * k / 14.0; var a1 = a0 + TAU / 28.0
+				_clip_fill(PackedVector2Array([c, c + Vector2.from_angle(a0) * w * 1.2, c + Vector2.from_angle(a1) * w * 1.2]), sh, Color(NL_COLS[k % NL_COLS.size()], 0.55))
+			for k in 26:
+				var px = fmod(float(k) * 37.3, w); var py = fmod(float(k) * 53.7, h * 0.95)
+				var col = NL_COLS[k % NL_COLS.size()]; var sz = cs * (0.18 + 0.12 * (k % 3))
+				_clip_fill(PackedVector2Array([Vector2(px, py), Vector2(px + sz * 2, py + sz * 0.6), Vector2(px + sz * 1.4, py + sz * 1.8), Vector2(px - sz * 0.4, py + sz * 1.2)]), sh, col)
 
 func _fit_name(s: String, font: Font, size: int, maxw: float) -> String:
 	var t = s
